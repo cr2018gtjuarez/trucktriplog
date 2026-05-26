@@ -432,6 +432,9 @@
         <button onclick="toggleLang()" style="flex:1;padding:10px;border-radius:10px;border:1px solid var(--border2);background:var(--bg3);font-size:13px;font-weight:600;cursor:pointer;color:var(--text2);font-family:inherit;" id="lang-toggle">ES</button>
         <button onclick="toggleDark()" style="flex:1;padding:10px;border-radius:10px;border:1px solid var(--border2);background:var(--bg3);font-size:16px;cursor:pointer;" id="dark-toggle">🌙</button>
       </div>
+      <button id="btn-company-settings" onclick="openCompanyModal();closeSidebar();" style="width:100%;padding:11px;border-radius:12px;border:1.5px solid var(--border2);background:var(--bg3);font-size:13px;font-weight:700;cursor:pointer;color:var(--text2);font-family:inherit;margin-bottom:8px;display:flex;align-items:center;justify-content:center;gap:8px;">
+        <span>🏢</span> <span>Configurar empresa</span>
+      </button>
       <button onclick="startTutorial();closeSidebar();" style="width:100%;padding:11px;border-radius:12px;border:1.5px solid #BFDBFE;background:#EFF6FF;font-size:13px;font-weight:700;cursor:pointer;color:#2563EB;font-family:inherit;margin-bottom:8px;display:flex;align-items:center;justify-content:center;gap:8px;">
         <span>🎓</span> <span>Ver tutorial</span>
       </button>
@@ -534,13 +537,13 @@
         </div>
         <div style="background:#fff;border:1px solid #E2E6F0;border-radius:14px;padding:14px;box-shadow:0 1px 4px rgba(17,24,39,.05);">
           <div style="font-size:20px;margin-bottom:6px;">🏢</div>
-          <div style="font-size:11px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.3px;margin-bottom:6px;">Fee 15%</div>
+          <div style="font-size:11px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.3px;margin-bottom:6px;">Fee</div>
           <div style="font-size:20px;font-weight:800;color:#DC2626;" id="kpi-fee">$0</div>
           <div style="font-size:10px;color:#9CA3AF;margin-top:3px;">comisión</div>
         </div>
         <div style="background:#fff;border:1px solid #E2E6F0;border-radius:14px;padding:14px;box-shadow:0 1px 4px rgba(17,24,39,.05);">
           <div style="font-size:20px;margin-bottom:6px;">👤</div>
-          <div style="font-size:11px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.3px;margin-bottom:6px;">Driver 25%</div>
+          <div style="font-size:11px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.3px;margin-bottom:6px;">Driver Pay</div>
           <div style="font-size:20px;font-weight:800;color:#DC2626;" id="kpi-driver-pay">$0</div>
           <div style="font-size:10px;color:#9CA3AF;margin-top:3px;">pago drivers</div>
         </div>
@@ -812,8 +815,8 @@
         </div>
         <div class="profit-breakdown">
           <div class="pb-row"><span class="pb-label">Load Value</span><span class="pb-val" id="pb-load">$—</span></div>
-          <div class="pb-row"><span class="pb-label sub">Fee 15%</span><span class="pb-val red" id="pb-fee">- $—</span></div>
-          <div class="pb-row"><span class="pb-label sub">Driver 25%</span><span class="pb-val red" id="pb-driver">- $—</span></div>
+          <div class="pb-row"><span class="pb-label sub">Fee</span><span class="pb-val red" id="pb-fee">- $—</span></div>
+          <div class="pb-row"><span class="pb-label sub">Driver Pay</span><span class="pb-val red" id="pb-driver">- $—</span></div>
           <div class="pb-row"><span class="pb-label sub">Costo diesel</span><span class="pb-val red" id="pb-diesel">- $—</span></div>
           <div class="pb-row"><span class="pb-label" style="font-weight:700;color:#1a1a1a;">Ganancia neta</span><span class="pb-val big green" id="pb-net">$—</span></div>
         </div>
@@ -861,8 +864,8 @@
       <!-- TOTALS BAR -->
       <div id="totals-bar" style="display:none;background:#1a1a1a;border-radius:12px;padding:14px 16px;margin-bottom:12px;grid-template-columns:repeat(4,1fr);gap:10px;text-align:center;">
         <div><div style="font-size:10px;color:#888;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px;">Diesel</div><div style="font-size:17px;font-weight:700;color:#ff8080;" id="tb-diesel">$0</div></div>
-        <div><div style="font-size:10px;color:#888;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px;">Fee 15%</div><div style="font-size:17px;font-weight:700;color:#ff8080;" id="tb-fee">$0</div></div>
-        <div><div style="font-size:10px;color:#888;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px;">Driver 25%</div><div style="font-size:17px;font-weight:700;color:#fbbf24;" id="tb-driver">$0</div></div>
+        <div><div style="font-size:10px;color:#888;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px;">Fee</div><div style="font-size:17px;font-weight:700;color:#ff8080;" id="tb-fee">$0</div></div>
+        <div><div style="font-size:10px;color:#888;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px;">Driver Pay</div><div style="font-size:17px;font-weight:700;color:#fbbf24;" id="tb-driver">$0</div></div>
         <div><div style="font-size:10px;color:#888;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px;">Total gastos</div><div style="font-size:17px;font-weight:700;color:#ff8080;" id="tb-total">$0</div></div>
       </div>
       <div id="trip-list"><div class="empty">No hay viajes registrados aún.</div></div>
@@ -1004,8 +1007,8 @@
       </div>
       <div class="tiles">
         <div class="tile"><div class="tile-lbl">Diesel</div><div class="tile-val" id="biz-diesel">$0</div><div class="tile-unit">combustible</div></div>
-        <div class="tile"><div class="tile-lbl">Fees (15%)</div><div class="tile-val" id="biz-fees">$0</div><div class="tile-unit">comisión</div></div>
-        <div class="tile"><div class="tile-lbl">Driver (25%)</div><div class="tile-val" id="biz-driver">$0</div><div class="tile-unit">pago driver</div></div>
+        <div class="tile"><div class="tile-lbl">Fees</div><div class="tile-val" id="biz-fees">$0</div><div class="tile-unit">comisión</div></div>
+        <div class="tile"><div class="tile-lbl">Driver Pay</div><div class="tile-val" id="biz-driver">$0</div><div class="tile-unit">pago driver</div></div>
       </div>
       <div class="tiles">
         <div class="tile orange"><div class="tile-lbl">Gastos extras</div><div class="tile-val" id="biz-extra">$0</div><div class="tile-unit">adicionales</div></div>
@@ -1143,9 +1146,9 @@
     <!-- TRIP LOCATION HISTORY -->
     <div class="card">
       <div class="card-title">&#x1F4CB; Ubicaciones registradas por viaje</div>
-      <div id="ubi-history"><div class="empty">No hay ubicaciones registradas.</div></div>
+      <div id="ubi-history-driver"><div class="empty">No hay ubicaciones registradas.</div></div>
       <!-- HISTORY MAP -->
-      <div id="ubi-hist-map" style="height:300px;border-radius:12px;overflow:hidden;margin-top:1rem;border:1px solid #e5e5e5;display:none;"></div>
+      <div id="ubi-hist-map-driver" style="height:300px;border-radius:12px;overflow:hidden;margin-top:1rem;border:1px solid #e5e5e5;display:none;"></div>
     </div>
   </div>
 
@@ -1523,12 +1526,19 @@
     <div class="card"><div class="card-title">Usuarios registrados</div><div id="user-list"></div></div>
     <div class="card">
       <div class="card-title">Agregar nuevo usuario</div>
-      <div class="g3">
-        <div class="field"><label>Nombre</label><input type="text" id="nu-name" placeholder="Ej. Juan"/></div>
-        <div class="field"><label>Usuario</label><input type="text" id="nu-user" placeholder="Ej. juan01"/></div>
-        <div class="field"><label>Contraseña</label><input type="password" id="nu-pass" placeholder="••••••"/></div>
+      <div class="g2" style="margin-bottom:10px;">
+        <div class="field"><label>Nombre</label><input type="text" id="nu-firstname" placeholder="Ej. Juan"/></div>
+        <div class="field"><label>Apellido</label><input type="text" id="nu-lastname" placeholder="Ej. García"/></div>
       </div>
-      <div class="field" style="margin-top:10px;"><label>Rol</label><select id="nu-role"><option value="driver">Driver</option><option value="admin">Admin</option></select></div>
+      <div class="g2" style="margin-bottom:10px;">
+        <div class="field"><label>Teléfono</label><input type="text" id="nu-phone" placeholder="(000)000-0000" maxlength="13" oninput="fmtPhone(this)"/></div>
+        <div class="field"><label>Rol</label><select id="nu-role"><option value="driver">Driver</option><option value="admin">Admin</option></select></div>
+      </div>
+      <div class="g3">
+        <div class="field"><label>Usuario (login)</label><input type="text" id="nu-user" placeholder="Ej. juan01"/></div>
+        <div class="field"><label>Contraseña</label><input type="password" id="nu-pass" placeholder="••••••"/></div>
+        <div class="field"><label>Nombre mostrado</label><input type="text" id="nu-name" placeholder="Ej. Juan García"/></div>
+      </div>
 
       <!-- Configuración del camión -->
       <div style="margin-top:14px;padding:14px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);">
@@ -1558,7 +1568,14 @@
       <div class="modal-title">✏️ Editar usuario</div>
       <div class="modal-sub" id="eu-sub">—</div>
       <input type="hidden" id="eu-id"/>
-      <div class="field" style="margin-bottom:12px;"><label>Nombre</label><input type="text" id="eu-name"/></div>
+      <div class="g2" style="margin-bottom:12px;">
+        <div class="field"><label>Nombre</label><input type="text" id="eu-firstname" placeholder="Ej. Juan"/></div>
+        <div class="field"><label>Apellido</label><input type="text" id="eu-lastname" placeholder="Ej. García"/></div>
+      </div>
+      <div class="g2" style="margin-bottom:12px;">
+        <div class="field"><label>Teléfono</label><input type="text" id="eu-phone" placeholder="(000)000-0000" maxlength="13" oninput="fmtPhone(this)"/></div>
+        <div class="field"><label>Nombre mostrado</label><input type="text" id="eu-name"/></div>
+      </div>
       <div class="field" style="margin-bottom:12px;"><label>Nueva contraseña (dejar vacío para no cambiar)</label><input type="password" id="eu-pass" placeholder="••••••"/></div>
       <div style="padding:14px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:12px;">
         <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;">⚙️ Configuración del camión</div>
@@ -1861,6 +1878,79 @@
   </div>
 
 </div><!-- end app-screen -->
+
+<!-- COMPANY SETTINGS MODAL -->
+<div class="modal-overlay" id="company-modal">
+  <div class="modal-box" style="max-width:500px;max-height:90vh;overflow-y:auto;">
+    <div class="modal-title">🏢 Datos de la Empresa</div>
+
+    <!-- Vista previa actual -->
+    <div id="co-preview-bar" style="display:none;background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:18px;">
+      <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Datos actuales</div>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div id="co-preview-logo" style="width:44px;height:44px;border-radius:8px;background:var(--bg2);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:20px;overflow:hidden;flex-shrink:0;"></div>
+        <div>
+          <div id="co-preview-name" style="font-size:14px;font-weight:800;color:var(--text);"></div>
+          <div id="co-preview-details" style="font-size:11px;color:var(--text3);margin-top:2px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--border);">✏️ Editar información</div>
+
+    <!-- Logo -->
+    <div style="margin-bottom:16px;">
+      <label style="display:block;font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px;">Logotipo</label>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div id="co-logo-preview" style="width:72px;height:72px;border-radius:10px;border:2px dashed var(--border2);background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:28px;overflow:hidden;flex-shrink:0;">🏢</div>
+        <div>
+          <label for="co-logo-input" style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border:1.5px dashed var(--border3);border-radius:9px;cursor:pointer;font-size:13px;font-weight:600;color:var(--text2);">📁 Subir logo</label>
+          <input type="file" id="co-logo-input" accept="image/*" onchange="previewCompanyLogo(this)" style="display:none;"/>
+          <div style="font-size:11px;color:var(--text3);margin-top:4px;">PNG, JPG — recomendado 200×200px</div>
+          <button onclick="clearCompanyLogo()" style="margin-top:4px;padding:4px 10px;border-radius:6px;border:1px solid var(--border2);background:transparent;font-size:11px;color:var(--red);cursor:pointer;font-family:inherit;">✕ Quitar logo</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Nombre -->
+    <div class="field" style="margin-bottom:12px;">
+      <label>Nombre de la empresa</label>
+      <input type="text" id="co-name" placeholder="Ej. García Trucking LLC"/>
+    </div>
+
+    <!-- Dirección -->
+    <div class="field" style="margin-bottom:12px;">
+      <label>Dirección</label>
+      <input type="text" id="co-address" placeholder="Ej. 1234 Main St, Houston, TX 77001"/>
+    </div>
+
+    <!-- Teléfono -->
+    <div class="field" style="margin-bottom:12px;">
+      <label>Teléfono</label>
+      <input type="text" id="co-phone" placeholder="(000)000-0000" maxlength="13" oninput="fmtPhone(this)"/>
+    </div>
+
+    <!-- MC y DOT -->
+    <div style="padding:14px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:16px;">
+      <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;">🚛 Números de autorización</div>
+      <div class="g2">
+        <div class="field">
+          <label>MC Number</label>
+          <input type="text" id="co-mc" placeholder="Ej. MC-123456"/>
+        </div>
+        <div class="field">
+          <label>DOT Number</label>
+          <input type="text" id="co-dot" placeholder="Ej. 1234567"/>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-modal-cancel" onclick="closeCompanyModal()">Cancelar</button>
+      <button class="btn-modal-save" onclick="saveCompanySettings()">💾 Guardar cambios</button>
+    </div>
+  </div>
+</div>
 <!-- EDIT TRIP MODAL (admin) -->
 <div class="modal-overlay" id="edit-modal">
   <div class="modal-box" style="max-width:520px;max-height:90vh;overflow-y:auto;">
@@ -1943,8 +2033,8 @@
     <!-- Breakdown -->
     <div class="profit-breakdown" id="edit-preview" style="display:none;">
       <div class="pb-row"><span class="pb-label">Load Value</span><span class="pb-val" id="ep-load">$—</span></div>
-      <div class="pb-row"><span class="pb-label sub">Fee 15%</span><span class="pb-val red" id="ep-fee">- $—</span></div>
-      <div class="pb-row"><span class="pb-label sub">Driver 25%</span><span class="pb-val red" id="ep-driver">- $—</span></div>
+      <div class="pb-row"><span class="pb-label sub">Fee</span><span class="pb-val red" id="ep-fee">- $—</span></div>
+      <div class="pb-row"><span class="pb-label sub">Driver Pay</span><span class="pb-val red" id="ep-driver">- $—</span></div>
       <div class="pb-row"><span class="pb-label sub">Costo diesel</span><span class="pb-val red" id="ep-diesel">- $—</span></div>
       <div class="pb-row" id="ep-extras-row" style="display:none;"><span class="pb-label sub">Gastos extras</span><span class="pb-val red" id="ep-extras">- $—</span></div>
       <div class="pb-row"><span class="pb-label" style="font-weight:700;color:var(--text);">Ganancia neta</span><span class="pb-val big green" id="ep-net">$—</span></div>
@@ -2019,6 +2109,11 @@
 
     <!-- CAMPOS DIESEL / DEF -->
     <div id="gasto-fields-galones">
+      <!-- Nombre gasolinera (solo visible en diesel/def) -->
+      <div class="field" style="margin-bottom:12px;" id="gasto-station-field">
+        <label>⛽ Nombre de la gasolinera</label>
+        <input type="text" id="gasto-station" placeholder="Ej. Shell, Loves, Pilot, TA..."/>
+      </div>
       <div class="g2" style="margin-bottom:12px;">
         <div class="field"><label id="gasto-gal-label">Galones</label><input type="number" id="gasto-gal" placeholder="0.0" min="0" step="0.1" oninput="calcGastoSubtotal()"/></div>
         <div class="field"><label id="gasto-price-label">Precio/galón ($)</label><input type="number" id="gasto-price" placeholder="3.80" value="3.80" min="0" step="0.01" oninput="calcGastoSubtotal()"/></div>
@@ -2045,12 +2140,17 @@
 
     <!-- FOTO RECIBO -->
     <div style="margin-bottom:12px;">
-      <div style="font-size:11px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Foto del recibo (opcional)</div>
-      <label class="invoice-upload-btn" for="gasto-img" id="gasto-img-btn">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-        Tomar foto del recibo
-      </label>
-      <input type="file" id="gasto-img" accept="image/*" capture="environment" onchange="handleGastoImg(this)"/>
+      <div style="font-size:11px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">📷 Foto del recibo (opcional)</div>
+      <div id="gasto-img-btns" style="display:flex;gap:8px;flex-wrap:wrap;">
+        <label for="gasto-img-cam" style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border:1.5px dashed var(--border3);border-radius:9px;cursor:pointer;font-size:13px;font-weight:600;color:var(--text2);background:var(--bg3);">
+          📷 Cámara
+        </label>
+        <input type="file" id="gasto-img-cam" accept="image/*" capture="environment" onchange="handleGastoImg(this)" style="display:none;"/>
+        <label for="gasto-img-gal" style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border:1.5px dashed var(--border3);border-radius:9px;cursor:pointer;font-size:13px;font-weight:600;color:var(--text2);background:var(--bg3);">
+          🖼️ Galería
+        </label>
+        <input type="file" id="gasto-img-gal" accept="image/*" onchange="handleGastoImg(this)" style="display:none;"/>
+      </div>
       <div id="gasto-img-preview" style="display:none;margin-top:8px;">
         <img id="gasto-img-thumb" style="max-width:100%;max-height:140px;border-radius:8px;border:1px solid var(--border2);display:block;"/>
         <button class="btn-sm btn-red-sm" onclick="removeGastoImg()" style="margin-top:4px;font-size:11px;">Quitar foto</button>
@@ -2286,7 +2386,104 @@ async function doLogin(){
   startRealtimeSync();
 }
 
+// ===== COMPANY SETTINGS =====
+const COMPANY_KEY = 'trucklog_company';
+
+function loadCompany(){
+  try{ return JSON.parse(localStorage.getItem(COMPANY_KEY))||{}; }catch(e){ return {}; }
+}
+function saveCompanyData(data){
+  localStorage.setItem(COMPANY_KEY, JSON.stringify(data));
+  if(fbReady && db) db.collection('data').doc('company').set(data).catch(()=>{});
+}
+
+function fmtPhone(input){
+  let v = input.value.replace(/\D/g,'').slice(0,10);
+  if(v.length===0){ input.value=''; return; }
+  if(v.length<=3)      input.value='('+v;
+  else if(v.length<=6) input.value='('+v.slice(0,3)+')'+v.slice(3);
+  else                 input.value='('+v.slice(0,3)+')'+v.slice(3,6)+'-'+v.slice(6);
+}
+function fmtCompanyPhone(input){ fmtPhone(input); }
+function applyPhoneFmt(raw){
+  if(!raw) return '';
+  let v = raw.replace(/\D/g,'').slice(0,10);
+  if(v.length===0) return raw;
+  if(v.length<=3)      return '('+v;
+  else if(v.length<=6) return '('+v.slice(0,3)+')'+v.slice(3);
+  else                 return '('+v.slice(0,3)+')'+v.slice(3,6)+'-'+v.slice(6);
+}
+
+function previewCompanyLogo(input){
+  const file = input.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const prev = document.getElementById('co-logo-preview');
+    prev.innerHTML = `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:contain;border-radius:8px;"/>`;
+    prev.dataset.logo = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearCompanyLogo(){
+  const prev = document.getElementById('co-logo-preview');
+  prev.innerHTML = '🏢';
+  prev.dataset.logo = '';
+  document.getElementById('co-logo-input').value='';
+}
+
+function openCompanyModal(){
+  const co = loadCompany();
+  document.getElementById('co-name').value    = co.name||'';
+  document.getElementById('co-address').value = co.address||'';
+  document.getElementById('co-phone').value   = co.phone||'';
+  document.getElementById('co-mc').value      = co.mc||'';
+  document.getElementById('co-dot').value     = co.dot||'';
+
+  // Logo en formulario
+  const prev = document.getElementById('co-logo-preview');
+  if(co.logo){ prev.innerHTML=`<img src="${co.logo}" style="width:100%;height:100%;object-fit:contain;border-radius:8px;"/>`; prev.dataset.logo=co.logo; }
+  else{ prev.innerHTML='🏢'; prev.dataset.logo=''; }
+
+  // Vista previa de datos actuales
+  const bar = document.getElementById('co-preview-bar');
+  if(co.name){
+    bar.style.display='block';
+    const logoEl = document.getElementById('co-preview-logo');
+    logoEl.innerHTML = co.logo ? `<img src="${co.logo}" style="width:100%;height:100%;object-fit:contain;border-radius:6px;"/>` : '🏢';
+    document.getElementById('co-preview-name').textContent = co.name;
+    const details = [co.address, co.phone ? applyPhoneFmt(co.phone) : '', co.mc ? 'MC: '+co.mc : '', co.dot ? 'DOT: '+co.dot : ''].filter(Boolean).join(' · ');
+    document.getElementById('co-preview-details').textContent = details;
+  } else {
+    bar.style.display='none';
+  }
+
+  document.getElementById('company-modal').classList.add('open');
+}
+
+function closeCompanyModal(){ document.getElementById('company-modal').classList.remove('open'); }
+
+function saveCompanySettings(){
+  const prev = document.getElementById('co-logo-preview');
+  const data = {
+    name:    document.getElementById('co-name').value.trim(),
+    address: document.getElementById('co-address').value.trim(),
+    phone:   document.getElementById('co-phone').value.trim(),
+    mc:      document.getElementById('co-mc').value.trim(),
+    dot:     document.getElementById('co-dot').value.trim(),
+    logo:    prev.dataset.logo||''
+  };
+  saveCompanyData(data);
+  closeCompanyModal();
+  const toast=document.createElement('div');
+  toast.style.cssText='position:fixed;bottom:24px;right:16px;z-index:9999;background:#16A34A;color:#fff;padding:12px 20px;border-radius:12px;font-size:13px;font-weight:700;box-shadow:0 4px 16px rgba(0,0,0,.15);';
+  toast.textContent='✓ Empresa guardada';
+  document.body.appendChild(toast); setTimeout(()=>toast.remove(),2500);
+}
+
 function doLogout(){
+  stopDriverTracking();
+  if(_locationsListener){_locationsListener();_locationsListener=null;}
   clearSession();currentUser=null;
   document.getElementById('app-screen').style.display='none';
   document.getElementById('login-screen').style.display='flex';
@@ -2313,6 +2510,8 @@ function startApp(user){
   buildSidebar(user.role);
 
   document.getElementById('profit-card').style.display=user.role==='admin'?'block':'none';
+  const coBtn=document.getElementById('btn-company-settings');
+  if(coBtn) coBtn.style.display=user.role==='admin'?'flex':'none';
   // Show correct new-trip view
   const driverView=document.getElementById('driver-new-view');
   const adminView=document.getElementById('admin-new-view');
@@ -2326,6 +2525,11 @@ function startApp(user){
   
   renderHome();
   checkGPSStatus();
+
+  // Si es driver, iniciar tracking GPS en tiempo real
+  if(user.role === 'driver'){
+    setTimeout(startDriverTracking, 1500);
+  }
 
   // Show tutorial for drivers on first login
   if(user.role === 'driver' && !localStorage.getItem(TUTORIAL_KEY)){
@@ -2362,7 +2566,8 @@ function renderUsers(){
     <div class="user-list-item">
       <div style="flex:1;min-width:0;">
         <div class="user-list-name">${u.name||'Sin nombre'} &nbsp;<span class="role-badge ${u.role||'driver'}">${u.role==='admin'?'Admin':'Driver'}</span></div>
-        <div class="user-list-role">@${u.username||'—'}</div>
+        <div class="user-list-role">@${u.username||'—'}${u.phone?' &nbsp;·&nbsp; 📞 '+u.phone:''}</div>
+        ${u.firstName||u.lastName?`<div style="font-size:11px;color:var(--text2);margin-top:2px;">👤 ${[u.firstName,u.lastName].filter(Boolean).join(' ')}</div>`:''}
         ${u.mpg||u.dieselPrice?`<div style="display:flex;gap:8px;margin-top:5px;flex-wrap:wrap;">
           ${u.mpg?`<span style="background:#EFF6FF;color:#2563EB;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;border:1px solid #BFDBFE;">🛣️ ${u.mpg} MPG</span>`:''}
           ${u.dieselPrice?`<span style="background:#FFFBEB;color:#D97706;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;border:1px solid #FDE68A;">⛽ $${u.dieselPrice}/gal</span>`:''}
@@ -2375,7 +2580,10 @@ function renderUsers(){
     </div>`).join('');
 }
 function addUser(){
-  const name=document.getElementById('nu-name').value.trim();
+  const firstName=document.getElementById('nu-firstname').value.trim();
+  const lastName=document.getElementById('nu-lastname').value.trim();
+  const phone=document.getElementById('nu-phone').value.trim();
+  const name=document.getElementById('nu-name').value.trim() || [firstName,lastName].filter(Boolean).join(' ');
   const username=document.getElementById('nu-user').value.trim();
   const password=document.getElementById('nu-pass').value;
   const role=document.getElementById('nu-role').value;
@@ -2383,14 +2591,14 @@ function addUser(){
   const dieselPrice=parseFloat(document.getElementById('nu-diesel-price').value)||null;
   const msg=document.getElementById('nu-msg');
   function sm(t,type){msg.className='msg '+type;msg.textContent=t;msg.style.display='block';if(type==='ok')setTimeout(()=>msg.style.display='none',3000);}
-  if(!name||!username||!password){sm('Completa todos los campos.','err');return;}
+  if(!firstName||!lastName||!username||!password){sm('Completa nombre, apellido, usuario y contraseña.','err');return;}
   if(password.length < 4){sm('La contraseña debe tener al menos 4 caracteres.','err');return;}
   if(username.includes(' ')){sm('El usuario no puede tener espacios.','err');return;}
   const users=getUsers();
   if(users.find(u=>u.username===username)){sm('Ese usuario ya existe.','err');return;}
-  users.push({id:Date.now(),name,username,password,role,mpg,dieselPrice});
+  users.push({id:Date.now(),name,firstName,lastName,phone,username,password,role,mpg,dieselPrice});
   saveUsers(users);
-  ['nu-name','nu-user','nu-pass','nu-mpg','nu-diesel-price'].forEach(id=>document.getElementById(id).value='');
+  ['nu-firstname','nu-lastname','nu-phone','nu-name','nu-user','nu-pass','nu-mpg','nu-diesel-price'].forEach(id=>document.getElementById(id).value='');
   sm('✓ Usuario creado!','ok');renderUsers();
 }
 
@@ -2398,6 +2606,9 @@ function openEditUserModal(id){
   const u=getUsers().find(x=>x.id===id);if(!u)return;
   document.getElementById('eu-id').value=id;
   document.getElementById('eu-sub').textContent=u.username+' · '+u.role;
+  document.getElementById('eu-firstname').value=u.firstName||'';
+  document.getElementById('eu-lastname').value=u.lastName||'';
+  document.getElementById('eu-phone').value=u.phone||'';
   document.getElementById('eu-name').value=u.name||'';
   document.getElementById('eu-pass').value='';
   document.getElementById('eu-mpg').value=u.mpg||'';
@@ -2409,12 +2620,15 @@ function saveEditUser(){
   const id=parseInt(document.getElementById('eu-id').value);
   const users=getUsers();
   const idx=users.findIndex(u=>u.id===id);if(idx<0)return;
-  const name=document.getElementById('eu-name').value.trim();
+  const firstName=document.getElementById('eu-firstname').value.trim();
+  const lastName=document.getElementById('eu-lastname').value.trim();
+  const phone=document.getElementById('eu-phone').value.trim();
+  const name=document.getElementById('eu-name').value.trim() || [firstName,lastName].filter(Boolean).join(' ');
   const pass=document.getElementById('eu-pass').value;
   const mpg=parseFloat(document.getElementById('eu-mpg').value)||null;
   const dieselPrice=parseFloat(document.getElementById('eu-diesel-price').value)||null;
   if(!name){alert('El nombre no puede estar vacío.');return;}
-  users[idx]={...users[idx],name,mpg,dieselPrice};
+  users[idx]={...users[idx],name,firstName,lastName,phone,mpg,dieselPrice};
   if(pass) users[idx].password=pass;
   saveUsers(users);closeEditUserModal();renderUsers();
   const toast=document.createElement('div');
@@ -2557,18 +2771,27 @@ function addFuelBlock(){
       <div style="display:flex;align-items:center;"><div class="fuel-block-num">${n}</div><span class="fuel-block-title" style="margin-left:8px;">Carga #${n}</span></div>
       <button class="btn-del-row" onclick="delFuelBlock(${n})">&#x2715; Eliminar</button>
     </div>
+    <div class="field" style="margin-bottom:10px;">
+      <label style="font-size:11px;color:var(--text2);font-weight:700;text-transform:uppercase;letter-spacing:.4px;">⛽ Nombre de la gasolinera</label>
+      <input type="text" id="fstation-${n}" placeholder="Ej. Shell, Loves, Pilot, TA..." style="margin-top:4px;"/>
+    </div>
     <div class="fuel-inputs">
       <div><label>Galones</label><input type="number" id="fgal-${n}" placeholder="0.0" min="0" step="0.1" oninput="calcAll()"/></div>
       <div><label>Precio/galón ($)</label><input type="number" id="fprice-${n}" placeholder="3.80" value="3.80" min="0" step="0.01" oninput="calcAll()"/></div>
       <div><label>Subtotal</label><div class="computed" id="fsub-${n}" style="font-size:15px;">$0.00</div></div>
     </div>
     <div class="invoice-area">
-      <div class="invoice-label">&#x1F4F7; Invoice / Recibo</div>
-      <label class="invoice-upload-btn" for="finv-${n}" id="inv-btn-${n}">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-        Subir foto del invoice
-      </label>
-      <input type="file" id="finv-${n}" accept="image/*" capture="environment" onchange="handleInvoice(${n},this)"/>
+      <div class="invoice-label">&#x1F4F7; Foto del recibo</div>
+      <div id="inv-btn-${n}" style="display:flex;gap:8px;flex-wrap:wrap;">
+        <label for="finv-cam-${n}" style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border:1.5px dashed var(--border3);border-radius:9px;cursor:pointer;font-size:13px;font-weight:600;color:var(--text2);background:var(--bg3);">
+          📷 Cámara
+        </label>
+        <input type="file" id="finv-cam-${n}" accept="image/*" capture="environment" onchange="handleInvoice(${n},this)" style="display:none;"/>
+        <label for="finv-gal-${n}" style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border:1.5px dashed var(--border3);border-radius:9px;cursor:pointer;font-size:13px;font-weight:600;color:var(--text2);background:var(--bg3);">
+          🖼️ Galería
+        </label>
+        <input type="file" id="finv-gal-${n}" accept="image/*" onchange="handleInvoice(${n},this)" style="display:none;"/>
+      </div>
       <div class="invoice-preview" id="inv-preview-${n}" style="display:none;"></div>
     </div>`;
   document.getElementById('fuel-blocks').appendChild(div);
@@ -2593,8 +2816,11 @@ function handleInvoice(n,input){
 }
 function removeInvoice(n){
   delete invoiceImages[n];
-  document.getElementById('inv-preview-'+n).innerHTML='';document.getElementById('inv-preview-'+n).style.display='none';
-  document.getElementById('inv-btn-'+n).style.display='flex';document.getElementById('finv-'+n).value='';
+  document.getElementById('inv-preview-'+n).innerHTML='';
+  document.getElementById('inv-preview-'+n).style.display='none';
+  document.getElementById('inv-btn-'+n).style.display='flex';
+  document.getElementById('finv-cam-'+n).value='';
+  document.getElementById('finv-gal-'+n).value='';
 }
 function openLightbox(src){document.getElementById('lightbox-img').src=src;document.getElementById('lightbox').classList.add('open');}
 function closeLightbox(){document.getElementById('lightbox').classList.remove('open');}
@@ -2605,9 +2831,10 @@ function getFuelBlocks(){
     const gal=parseFloat(document.getElementById('fgal-'+n)?.value)||0;
     const price=parseFloat(document.getElementById('fprice-'+n)?.value)||0;
     const cost=parseFloat((gal*price).toFixed(2));
+    const station=(document.getElementById('fstation-'+n)?.value||'').trim();
     const sub=document.getElementById('fsub-'+n);
     if(sub)sub.textContent=(gal&&price)?'$'+cost.toFixed(2):'$0.00';
-    rows.push({gal,price,cost,image:invoiceImages[n]||null});
+    rows.push({gal,price,cost,station,image:invoiceImages[n]||null});
   });return rows;
 }
 
@@ -2626,17 +2853,17 @@ function calcAll(){
   document.getElementById('c-mpg-real').textContent=(miles&&totalGal)?(miles/totalGal).toFixed(1)+' MPG':'—';
   if(currentUser&&currentUser.role==='admin'){
     const loadVal=parseFloat(document.getElementById('f-load').value)||0;
-    const fee=parseFloat((loadVal*0.15).toFixed(2));
-    const driver=parseFloat((loadVal*0.25).toFixed(2));
+    const fee=0;
+    const driver=0;
     const net=parseFloat((loadVal-fee-driver-totalCost).toFixed(2));
     document.getElementById('c-load').textContent=loadVal?'$'+fmt(loadVal):'$—';
     document.getElementById('pb-load').textContent=loadVal?'$'+fmt(loadVal):'$—';
-    document.getElementById('pb-fee').textContent=loadVal?'- $'+fmt(fee):'- $—';
-    document.getElementById('pb-driver').textContent=loadVal?'- $'+fmt(driver):'- $—';
+    document.getElementById('pb-fee').textContent='- $—';
+    document.getElementById('pb-driver').textContent='- $—';
     document.getElementById('pb-diesel').textContent=totalCost?'- $'+fmt(totalCost):'- $—';
     document.getElementById('pb-net').textContent=loadVal?'$'+fmt(net):'$—';
     const nb=document.getElementById('net-box'),nv=document.getElementById('net-val'),ns=document.getElementById('net-sub');
-    if(loadVal){nv.textContent='$'+fmt(net);nb.className=net>=0?'net-box':'net-box loss';ns.textContent=net>=0?'Load $'+fmt(loadVal)+' − Fee $'+fmt(fee)+' − Driver $'+fmt(driver)+' − Diesel $'+fmt(totalCost):'Pérdida en este viaje';}
+    if(loadVal){nv.textContent='$'+fmt(net);nb.className=net>=0?'net-box':'net-box loss';ns.textContent='Load $'+fmt(loadVal)+' − Diesel $'+fmt(totalCost);}
     else{nb.className='net-box';nv.textContent='$—';ns.textContent='Ingresa el Load Value para calcular';}
   }
 }
@@ -2696,8 +2923,8 @@ async function addTrip(){
   const miles=(!isNaN(miEnd)&&miEnd>miStart)?(miEnd-miStart):0;
   const totalGal=parseFloat(validRows.reduce((a,r)=>a+(r.gal||0),0).toFixed(2));
   const totalCost=parseFloat(validRows.reduce((a,r)=>a+(r.cost||0),0).toFixed(2));
-  const fee=parseFloat((loadVal*0.15).toFixed(2));
-  const driver=parseFloat((loadVal*0.25).toFixed(2));
+  const fee=0;
+  const driver=0;
   const net=parseFloat((loadVal-fee-driver-totalCost).toFixed(2));
   const trips=loadTrips();
   trips.unshift({
@@ -3109,13 +3336,13 @@ function renderLog(){
         <div class="trip-stat"><div class="trip-stat-lbl">MPG real</div><div class="trip-stat-val">${t.mpgReal||'—'}</div><div class="trip-stat-unit">mi/gal</div></div>
         <div class="trip-stat"><div class="trip-stat-lbl">Total galones</div><div class="trip-stat-val">${t.totalGal||0}</div><div class="trip-stat-unit">gal</div></div>
         <div class="trip-stat"><div class="trip-stat-lbl">Costo diesel</div><div class="trip-stat-val">${fmtD(t.totalCost||0)}</div><div class="trip-stat-unit">total</div></div>
-        <div class="trip-stat"><div class="trip-stat-lbl">Fee 15%</div><div class="trip-stat-val" style="color:${t.profitSet?'#c0392b':'#bbb'};">${t.profitSet?fmtD(t.fee):'—'}</div><div class="trip-stat-unit">desc.</div></div>
-        <div class="trip-stat"><div class="trip-stat-lbl">Driver 25%</div><div class="trip-stat-val" style="color:${t.profitSet?'#c0392b':'#bbb'};">${t.profitSet?fmtD(t.driver):'—'}</div><div class="trip-stat-unit">desc.</div></div>
+        <div class="trip-stat"><div class="trip-stat-lbl">Fee</div><div class="trip-stat-val" style="color:${t.profitSet?'#c0392b':'#bbb'};">${t.profitSet?fmtD(t.fee):'—'}</div><div class="trip-stat-unit">desc.</div></div>
+        <div class="trip-stat"><div class="trip-stat-lbl">Driver Pay</div><div class="trip-stat-val" style="color:${t.profitSet?'#c0392b':'#bbb'};">${t.profitSet?fmtD(t.driver):'—'}</div><div class="trip-stat-unit">desc.</div></div>
       </div>
       <div class="profit-detail">
         <div class="pd-stat ${t.profitSet?'':'gray'}"><div class="pd-stat-lbl">Load Value</div><div class="pd-stat-val" style="color:${t.profitSet?'#1a1a1a':'#bbb'};">${t.profitSet?fmtD(t.loadVal):'—'}</div></div>
-        <div class="pd-stat red"><div class="pd-stat-lbl">Fee 15%</div><div class="pd-stat-val">${t.profitSet?'- '+fmtD(t.fee):'—'}</div></div>
-        <div class="pd-stat red"><div class="pd-stat-lbl">Driver 25%</div><div class="pd-stat-val">${t.profitSet?'- '+fmtD(t.driver):'—'}</div></div>
+        <div class="pd-stat red"><div class="pd-stat-lbl">Fee</div><div class="pd-stat-val">${t.profitSet?'- '+fmtD(t.fee):'—'}</div></div>
+        <div class="pd-stat red"><div class="pd-stat-lbl">Driver Pay</div><div class="pd-stat-val">${t.profitSet?'- '+fmtD(t.driver):'—'}</div></div>
         ${t.extras&&t.extras.length?`<div class="pd-stat red"><div class="pd-stat-lbl">Gastos extras</div><div class="pd-stat-val">- ${fmtD(t.extrasTotal||0)}</div></div>`:''}
         <div class="pd-stat ${t.profitSet?(t.net>=0?'':'red'):'gray'}"><div class="pd-stat-lbl">Ganancia neta</div><div class="pd-stat-val" style="${t.profitSet&&t.net<0?'color:#c0392b':(!t.profitSet?'color:#bbb':'')}">${t.profitSet?fmtD(t.net):'—'}</div></div>
       </div>
@@ -3123,8 +3350,8 @@ function renderLog(){
         <div class="fuel-detail-title">Cargas de diesel (${(t.fuelLoads||[]).length})</div>
         ${(t.fuelLoads||[]).map((fl,fi)=>`
           <div class="fuel-item">
-            <div class="fuel-item-row"><span class="fuel-item-info">Carga #${fi+1} &nbsp;·&nbsp; ${fl.gal} gal &nbsp;@&nbsp; $${fl.price}/gal</span><span class="fuel-item-cost">$${fl.cost.toFixed(2)}</span></div>
-            ${fl.image?`<div class="fuel-item-img"><img src="${fl.image}" onclick="openLightbox('${fl.image.replace(/'/g,"\\'")}')"/><div style="font-size:11px;color:#aaa;margin-top:3px;">Toca para ampliar</div></div>`:'<div style="font-size:11px;color:#ccc;margin-top:4px;">Sin invoice adjunto</div>'}
+            <div class="fuel-item-row"><span class="fuel-item-info">${fl.station?'⛽ <b>'+fl.station+'</b> &nbsp;·&nbsp; ':''}Carga #${fi+1} &nbsp;·&nbsp; ${fl.gal} gal &nbsp;@&nbsp; $${fl.price}/gal</span><span class="fuel-item-cost">$${fl.cost.toFixed(2)}</span></div>
+            ${fl.image?`<div class="fuel-item-img"><img src="${fl.image}" onclick="openLightbox('${fl.image.replace(/'/g,"\\'")}')"/><div style="font-size:11px;color:#aaa;margin-top:3px;">Toca para ampliar</div></div>`:'<div style="font-size:11px;color:#ccc;margin-top:4px;">Sin recibo adjunto</div>'}
           </div>`).join('')}
       </div>
       <div class="trip-actions">
@@ -3176,14 +3403,22 @@ function clearAll(){
   _cachedTrips=[];
   localStorage.removeItem(TRIPS_KEY);
   if(fbReady) db.collection('data').doc('trips').set({trips:[], updatedAt: new Date().toISOString()}).catch(()=>{});
-  renderLog();renderSummary();
+  // Resetear UI de combustible
+  document.getElementById('fuel-blocks').innerHTML='';
+  fuelCount=0;
+  Object.keys(invoiceImages).forEach(k=>delete invoiceImages[k]);
+  addFuelBlock(); calcAll();
+  renderLog(); renderSummary();
 }
 
 function exportCSV(){
   const trips=filterTrips(loadTrips());if(!trips.length){alert('No hay viajes para exportar.');return;}
-  const h=['Fecha','Driver','ZIP Orig','Ciudad Orig','Estado','ZIP Dest','Ciudad Dest','Estado','Mi.Iniciales','Mi.Finales','Millas','MPG Real','Total Galones','Costo Diesel($)','Load Value($)','Fee 15%','Driver 25%','Ganancia Neta($)','Estado Pago','Notas'];
-  const rows=trips.map(t=>[t.date,t.driverName||'—',t.z1,t.city1,t.state1,t.z2,t.city2,t.state2,t.miStart,t.miEnd,t.miles,t.mpgReal,t.totalGal,t.totalCost,t.profitSet?t.loadVal:'—',t.profitSet?t.fee:'—',t.profitSet?t.driver:'—',t.profitSet?t.net:'—',t.payStatus==='paid'?'Pagado':'Pendiente',t.payNotes||'']);
-  const csv=[h,...rows].map(r=>r.join(',')).join('\n');
+  const h=['Fecha','Driver','ZIP Orig','Ciudad Orig','Estado','ZIP Dest','Ciudad Dest','Estado','Mi.Iniciales','Mi.Finales','Millas','MPG Real','Total Galones','Costo Diesel($)','Load Value($)','Fee($)','Driver Pay($)','Ganancia Neta($)','Estado Pago','Notas','Gasolineras'];
+  const rows=trips.map(t=>{
+    const stations=(t.fuelLoads||[]).map(f=>f.station||'').filter(Boolean).join(' | ');
+    return [t.date,t.driverName||'—',t.z1,t.city1,t.state1,t.z2,t.city2,t.state2,t.miStart,t.miEnd,t.miles,t.mpgReal,t.totalGal,t.totalCost,t.profitSet?t.loadVal:'—',t.profitSet?t.fee:'—',t.profitSet?t.driver:'—',t.profitSet?t.net:'—',t.payStatus==='paid'?'Pagado':'Pendiente',t.payNotes||'',stations];
+  });
+  const csv=[h,...rows].map(r=>r.map(v=>'"'+(String(v||'').replace(/"/g,'""'))+'"').join(',')).join('\n');
   const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
   a.download='truck-log-'+todayStr()+'.csv';a.click();
 }
@@ -3527,6 +3762,9 @@ function initDark(){
 // UBICACION
 let liveMap=null, liveMarker=null;
 let histMap=null;
+let _driverWatchId=null;
+let _driverMarkers={};
+let _locationsListener=null;
 
 function getDriverLocation(){
   const btn=document.getElementById('ubi-btn');
@@ -3571,10 +3809,52 @@ function getDriverLocation(){
   );
 }
 
+// ===== DRIVER: enviar ubicación en tiempo real a Firebase =====
+function startDriverTracking(){
+  if(!navigator.geolocation || !currentUser || currentUser.role!=='driver') return;
+  if(_driverWatchId!==null) return; // ya está activo
+  _driverWatchId = navigator.geolocation.watchPosition(
+    pos=>{
+      const lat=parseFloat(pos.coords.latitude.toFixed(6));
+      const lon=parseFloat(pos.coords.longitude.toFixed(6));
+      const now=new Date().toISOString();
+      const payload={
+        lat, lon, time:now,
+        name: currentUser.name,
+        username: currentUser.username,
+        active: true
+      };
+      // Guardar en Firebase
+      if(fbReady && db){
+        db.collection('locations').doc(currentUser.username).set(payload).catch(()=>{});
+      }
+      // También en localStorage como respaldo
+      localStorage.setItem('trucklog_last_location', JSON.stringify({lat,lon,time:now,driver:currentUser.name}));
+    },
+    err=>{ console.warn('GPS watch error:',err.message); },
+    {enableHighAccuracy:true, maximumAge:15000, timeout:20000}
+  );
+}
+
+function stopDriverTracking(){
+  if(_driverWatchId!==null){
+    navigator.geolocation.clearWatch(_driverWatchId);
+    _driverWatchId=null;
+  }
+  // Marcar como inactivo en Firebase
+  if(fbReady && db && currentUser && currentUser.role==='driver'){
+    db.collection('locations').doc(currentUser.username).update({active:false}).catch(()=>{});
+  }
+}
+
 function renderLiveMap(lat,lon){
   if(!window.L)return;
   const el=document.getElementById('ubi-map');
   if(!el)return;
+  // Si el mapa existe pero apunta al elemento equivocado (admin map), destruirlo
+  if(liveMap && (!liveMap._container || liveMap._container.id !== 'ubi-map')){
+    liveMap.remove(); liveMap=null; liveMarker=null;
+  }
   if(liveMap){
     liveMap.setView([lat,lon],13);
     if(liveMarker)liveMarker.setLatLng([lat,lon]);
@@ -3589,7 +3869,13 @@ function renderLiveMap(lat,lon){
 }
 
 function renderUbicacion(){
-  // show last known location
+  // ── ADMIN: mapa en tiempo real con todos los drivers ──
+  if(currentUser && currentUser.role==='admin'){
+    renderAdminDriversMap();
+    return;
+  }
+
+  // ── DRIVER: mostrar su propia última ubicación (fallback) ──
   const last=localStorage.getItem('trucklog_last_location');
   if(last){
     try{
@@ -3605,22 +3891,20 @@ function renderUbicacion(){
       setTimeout(()=>renderLiveMap(l.lat,l.lon),200);
     }catch(e){}
   } else {
-    document.getElementById('ubi-status').textContent='Presiona el botón para obtener la ubicación actual del driver.';
+    document.getElementById('ubi-status').textContent='Tu ubicación GPS se enviará automáticamente al admin.';
     document.getElementById('ubi-info').style.display='none';
   }
 
   // trip location history
   const trips=loadTrips().filter(t=>t.gpsLat);
-  const el=document.getElementById('ubi-history');
-  const histMapEl=document.getElementById('ubi-hist-map');
-
+  const el=document.getElementById('ubi-history-driver');
+  const histMapEl=document.getElementById('ubi-hist-map-driver');
   if(!trips.length){
-    el.innerHTML='<div class="empty">No hay ubicaciones registradas en los viajes aún.</div>';
-    histMapEl.style.display='none';
+    if(el) el.innerHTML='<div class="empty">No hay ubicaciones registradas en los viajes aún.</div>';
+    if(histMapEl) histMapEl.style.display='none';
     return;
   }
-
-  el.innerHTML=trips.slice(0,10).map((t,i)=>`
+  if(el) el.innerHTML=trips.slice(0,10).map((t,i)=>`
     <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f0f0ec;">
       <div>
         <div style="font-size:13px;font-weight:700;color:#1a1a1a;">${t.city1}, ${t.state1} &rarr; ${t.city2}, ${t.state2}</div>
@@ -3632,25 +3916,175 @@ function renderUbicacion(){
         &#x1F5FA; Ver
       </a>
     </div>`).join('');
+  if(histMapEl){
+    histMapEl.style.display='block';
+    setTimeout(()=>{
+      if(!window.L)return;
+      if(histMap){histMap.remove();histMap=null;}
+      const first=trips[0];
+      histMap=L.map('ubi-hist-map-driver').setView([first.gpsLat,first.gpsLon],6);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:19}).addTo(histMap);
+      const bounds=[];
+      trips.slice(0,10).forEach((t,i)=>{
+        const m=L.marker([t.gpsLat,t.gpsLon]).addTo(histMap);
+        m.bindPopup(`<b>#${i+1} ${t.city1} &rarr; ${t.city2}</b><br>${fmtDate(t.date)}<br>${t.driverName||'—'}`);
+        bounds.push([t.gpsLat,t.gpsLon]);
+      });
+      if(bounds.length>1)histMap.fitBounds(bounds,{padding:[20,20]});
+    },200);
+  }
+}
 
-  // render history map with all trip markers
-  histMapEl.style.display='block';
+// ── Admin: mapa en tiempo real con todos los drivers ──
+function renderAdminDriversMap(){
+  const page=document.getElementById('page-ubicacion');
+  if(!page) return;
+
+  // Reemplazar contenido de la página con vista de admin
+  page.innerHTML=`
+    <div class="card">
+      <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;">
+        <span>&#x1F4E1; Ubicación en tiempo real de drivers</span>
+        <span id="ubi-live-dot" style="display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--green);font-weight:600;">
+          <span style="width:8px;height:8px;border-radius:50%;background:var(--green);animation:pulse 1.5s infinite;"></span>
+          EN VIVO
+        </span>
+      </div>
+      <style>@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}</style>
+
+      <!-- Lista de drivers activos -->
+      <div id="ubi-drivers-list" style="margin-bottom:14px;display:grid;gap:8px;"></div>
+
+      <!-- Mapa principal -->
+      <div id="ubi-admin-map" style="height:380px;border-radius:12px;overflow:hidden;border:1px solid var(--border);"></div>
+      <div style="font-size:11px;color:var(--text3);margin-top:8px;text-align:center;">El mapa se actualiza automáticamente cuando los drivers envían su ubicación.</div>
+    </div>
+
+    <!-- Historial de ubicaciones por viaje -->
+    <div class="card">
+      <div class="card-title">&#x1F4CB; Ubicaciones registradas por viaje</div>
+      <div id="ubi-history"><div class="empty">Cargando...</div></div>
+      <div id="ubi-hist-map" style="height:300px;border-radius:12px;overflow:hidden;margin-top:1rem;border:1px solid var(--border);display:none;"></div>
+    </div>
+  `;
+
+  // Inicializar mapa admin
   setTimeout(()=>{
-    if(!window.L)return;
-    if(histMap){histMap.remove();histMap=null;}
-    const first=trips[0];
-    histMap=L.map('ubi-hist-map').setView([first.gpsLat,first.gpsLon],6);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-      attribution:'© OpenStreetMap',maxZoom:19
-    }).addTo(histMap);
-    const bounds=[];
-    trips.slice(0,10).forEach((t,i)=>{
-      const m=L.marker([t.gpsLat,t.gpsLon]).addTo(histMap);
-      m.bindPopup(`<b>#${i+1} ${t.city1} &rarr; ${t.city2}</b><br>${fmtDate(t.date)}<br>${t.driverName||'—'}`);
-      bounds.push([t.gpsLat,t.gpsLon]);
-    });
-    if(bounds.length>1)histMap.fitBounds(bounds,{padding:[20,20]});
+    if(!window.L) return;
+    if(liveMap){liveMap.remove();liveMap=null;_driverMarkers={};}
+    liveMap=L.map('ubi-admin-map').setView([31.5,-98],5);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:19}).addTo(liveMap);
+
+    // Escuchar ubicaciones en Firebase
+    if(fbReady && db){
+      if(_locationsListener){_locationsListener();}
+      _locationsListener=db.collection('locations').onSnapshot(snapshot=>{
+        const drivers=[];
+        snapshot.forEach(doc=>{
+          const d=doc.data();
+          drivers.push(d);
+          updateDriverMarker(d);
+        });
+        renderDriversList(drivers);
+      });
+    } else {
+      document.getElementById('ubi-drivers-list').innerHTML=
+        '<div style="font-size:13px;color:var(--text3);padding:12px;text-align:center;">Firebase no disponible. Los drivers deben estar en línea para ver su ubicación.</div>';
+    }
+
+    // Cargar historial de viajes
+    const trips=loadTrips().filter(t=>t.gpsLat);
+    const el=document.getElementById('ubi-history');
+    if(!trips.length){
+      el.innerHTML='<div class="empty">No hay ubicaciones registradas en los viajes aún.</div>';
+    } else {
+      el.innerHTML=trips.slice(0,10).map((t,i)=>`
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f0f0ec;">
+          <div>
+            <div style="font-size:13px;font-weight:700;color:var(--text);">${t.city1}, ${t.state1} &rarr; ${t.city2}, ${t.state2}</div>
+            <div style="font-size:11px;color:var(--text3);margin-top:2px;">${fmtDate(t.date)} &middot; ${t.driverName||'—'}</div>
+            <div style="font-size:11px;color:var(--text2);margin-top:2px;">&#x1F4CD; ${t.gpsLat}, ${t.gpsLon}</div>
+          </div>
+          <a href="https://www.google.com/maps?q=${t.gpsLat},${t.gpsLon}" target="_blank"
+             style="padding:6px 12px;background:var(--accent-bg);color:var(--accent);border-radius:6px;font-size:12px;font-weight:600;text-decoration:none;flex-shrink:0;margin-left:10px;">
+            &#x1F5FA; Ver
+          </a>
+        </div>`).join('');
+      const histMapEl=document.getElementById('ubi-hist-map');
+      histMapEl.style.display='block';
+      setTimeout(()=>{
+        if(!window.L||!histMapEl)return;
+        if(histMap){histMap.remove();histMap=null;}
+        const first=trips[0];
+        histMap=L.map('ubi-hist-map').setView([first.gpsLat,first.gpsLon],6);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:19}).addTo(histMap);
+        const bounds=[];
+        trips.slice(0,10).forEach((t,i)=>{
+          const m=L.marker([t.gpsLat,t.gpsLon]).addTo(histMap);
+          m.bindPopup(`<b>${t.city1} &rarr; ${t.city2}</b><br>${fmtDate(t.date)}<br>${t.driverName||'—'}`);
+          bounds.push([t.gpsLat,t.gpsLon]);
+        });
+        if(bounds.length>1)histMap.fitBounds(bounds,{padding:[20,20]});
+      },300);
+    }
   },200);
+}
+
+function updateDriverMarker(d){
+  if(!liveMap || !window.L) return;
+  const {lat,lon,name,username,active}=d;
+  if(!lat||!lon) return;
+
+  const color = active ? '#16A34A' : '#9CA3AF';
+  const icon = L.divIcon({
+    className:'',
+    html:`<div style="background:${color};color:#fff;border-radius:50% 50% 50% 0;width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.3);transform:rotate(-45deg);">
+      <span style="transform:rotate(45deg);">${(name||'D').charAt(0).toUpperCase()}</span>
+    </div>`,
+    iconSize:[34,34],iconAnchor:[17,34]
+  });
+
+  const timeStr=d.time?new Date(d.time).toLocaleTimeString('es'):'—';
+  const popupHtml=`<b>&#x1F69A; ${name||username}</b><br>
+    <span style="font-size:11px;color:#555;">Lat: ${lat}<br>Lon: ${lon}<br>Actualizado: ${timeStr}</span>
+    <br><a href="https://www.google.com/maps?q=${lat},${lon}" target="_blank" style="font-size:11px;color:#2563EB;">Ver en Google Maps</a>`;
+
+  if(_driverMarkers[username]){
+    _driverMarkers[username].setLatLng([lat,lon]).setIcon(icon).setPopupContent(popupHtml);
+  } else {
+    _driverMarkers[username]=L.marker([lat,lon],{icon}).addTo(liveMap).bindPopup(popupHtml);
+  }
+}
+
+function renderDriversList(drivers){
+  const el=document.getElementById('ubi-drivers-list');
+  if(!el) return;
+  if(!drivers.length){
+    el.innerHTML='<div style="font-size:13px;color:var(--text3);padding:10px;text-align:center;">Ningún driver ha enviado su ubicación aún.</div>';
+    return;
+  }
+  el.innerHTML=drivers.map(d=>{
+    const timeStr=d.time?new Date(d.time).toLocaleTimeString('es'):'—';
+    const isActive=d.active!==false;
+    return `<div style="display:flex;align-items:center;justify-content:space-between;background:${isActive?'var(--green-bg)':'var(--bg3)'};border:1px solid ${isActive?'#bbf7d0':'var(--border)'};border-radius:10px;padding:10px 14px;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:34px;height:34px;border-radius:50%;background:${isActive?'var(--green)':'var(--text3)'};display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:14px;flex-shrink:0;">
+          ${(d.name||'D').charAt(0).toUpperCase()}
+        </div>
+        <div>
+          <div style="font-size:13px;font-weight:700;color:var(--text);">${d.name||d.username}</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:1px;">&#x1F4CD; ${d.lat}, ${d.lon} &nbsp;·&nbsp; ${timeStr}</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:11px;font-weight:600;color:${isActive?'var(--green)':'var(--text3)'};">${isActive?'🟢 Activo':'⚫ Inactivo'}</span>
+        <button onclick="if(liveMap&&_driverMarkers['${d.username}']){liveMap.setView([${d.lat},${d.lon}],14);_driverMarkers['${d.username}'].openPopup();}"
+          style="padding:5px 10px;border-radius:7px;border:1px solid var(--border2);background:var(--bg2);font-size:11px;font-weight:600;cursor:pointer;color:var(--accent);">
+          &#x1F50D; Ver
+        </button>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 // BUSINESS & EXTRA EXPENSES
@@ -3982,8 +4416,8 @@ const T={
     profitTitle:'💰 Ganancia del viaje',
     labelLoadVal:'Load Value ($)',
     labelLoadValDisp:'Load Value',
-    labelFee:'Fee 15%',
-    labelDriver:'Driver 25%',
+    labelFee:'Fee',
+    labelDriver:'Driver Pay',
     labelDieselCost:'Costo diesel',
     labelNetProfit:'Ganancia neta',
     btnSaveTrip:'Guardar viaje',
@@ -4044,8 +4478,8 @@ const T={
     bizNet:'Ganancia neta real',
     bizExpenses:'Total gastos',
     bizDiesel:'Diesel',
-    bizFees:'Fees (15%)',
-    bizDriver:'Driver (25%)',
+    bizFees:'Fees',
+    bizDriver:'Driver Pay',
     bizExtras:'Gastos extras',
     bizCobrado:'Cobrado',
     bizUnpaid:'Por cobrar',
@@ -4138,8 +4572,8 @@ const T={
     profitTitle:'💰 Trip Profit',
     labelLoadVal:'Load Value ($)',
     labelLoadValDisp:'Load Value',
-    labelFee:'Fee 15%',
-    labelDriver:'Driver 25%',
+    labelFee:'Fee',
+    labelDriver:'Driver Pay',
     labelDieselCost:'Diesel cost',
     labelNetProfit:'Net profit',
     btnSaveTrip:'Save trip',
@@ -4200,8 +4634,8 @@ const T={
     bizNet:'Real net profit',
     bizExpenses:'Total expenses',
     bizDiesel:'Diesel',
-    bizFees:'Fees (15%)',
-    bizDriver:'Driver (25%)',
+    bizFees:'Fees',
+    bizDriver:'Driver Pay',
     bizExtras:'Extra expenses',
     bizCobrado:'Collected',
     bizUnpaid:'Pending',
@@ -4426,12 +4860,13 @@ function refreshRunningFuelList(){
   }
 
   listEl.innerHTML = loads.map(function(fl,i){
-    return '<div style="display:flex;justify-content:space-between;align-items:center;background:#f8f8f6;border-radius:8px;padding:10px 14px;margin-bottom:6px;">'
+    const stationLabel = fl.station ? '⛽ <b>'+fl.station+'</b> &nbsp;·&nbsp; ' : '';
+    return '<div style="display:flex;justify-content:space-between;align-items:center;background:var(--bg3);border-radius:8px;padding:10px 14px;margin-bottom:6px;">'
       +'<div>'
-      +'<div style="font-size:13px;font-weight:600;color:#1a1a1a;">Carga #'+(i+1)+' &nbsp;·&nbsp; '+fl.gal+' gal @ $'+fl.price+'/gal</div>'
-      +(fl.image?'<div style="margin-top:5px;"><img src="'+fl.image+'" style="max-height:60px;border-radius:6px;border:1px solid #eee;cursor:pointer;" onclick="openLightbox(\''+fl.image.replace(/'/g,"\\'")+'\')" /></div>':'')
+      +'<div style="font-size:13px;font-weight:600;color:var(--text);">'+stationLabel+'Carga #'+(i+1)+' &nbsp;·&nbsp; '+fl.gal+' gal @ $'+fl.price+'/gal</div>'
+      +(fl.image?'<div style="margin-top:5px;"><img src="'+fl.image+'" style="max-height:60px;border-radius:6px;border:1px solid var(--border2);cursor:pointer;" onclick="openLightbox(\''+fl.image.replace(/'/g,"\\'")+'\')" /></div>':'')
       +'</div>'
-      +'<div style="font-size:15px;font-weight:700;color:#1a1a1a;">$'+fl.cost.toFixed(2)+'</div>'
+      +'<div style="font-size:15px;font-weight:700;color:var(--text);">$'+fl.cost.toFixed(2)+'</div>'
       +'</div>';
   }).join('');
 
@@ -4618,6 +5053,7 @@ function selectGastoTipo(tipo, btn){
   const isOtro = tipo === 'otro';
   document.getElementById('gasto-fields-galones').style.display = isOtro ? 'none' : 'block';
   document.getElementById('gasto-fields-otro').style.display = isOtro ? 'block' : 'none';
+  document.getElementById('gasto-station-field').style.display = isOtro ? 'none' : 'block';
   // Update labels
   if(tipo === 'def'){
     document.getElementById('gasto-gal-label').textContent = 'Galones DEF';
@@ -4635,20 +5071,21 @@ function calcGastoSubtotalOtro(){
 }
 
 function openAddGastoModal(){
-  // Reset tipo to diesel
   gastoTipoActual = 'diesel';
   selectGastoTipo('diesel', document.getElementById('btn-tipo-diesel'));
   document.getElementById('gasto-gal').value = '';
   document.getElementById('gasto-price').value = '3.80';
   document.getElementById('gasto-monto').value = '';
   document.getElementById('gasto-desc').value = '';
+  document.getElementById('gasto-station').value = '';
   document.getElementById('gasto-subtotal').textContent = '$0.00';
   document.getElementById('gasto-img-preview').style.display = 'none';
-  document.getElementById('gasto-img-btn').style.display = 'flex';
-  document.getElementById('gasto-img').value = '';
+  document.getElementById('gasto-img-btns').style.display = 'flex';
+  document.getElementById('gasto-img-cam').value = '';
+  document.getElementById('gasto-img-gal').value = '';
   gastoImgData = null;
   document.getElementById('gasto-modal').classList.add('open');
-  setTimeout(function(){ document.getElementById('gasto-gal').focus(); }, 150);
+  setTimeout(function(){ document.getElementById('gasto-station').focus(); }, 150);
 }
 
 function closeGastoModal(){
@@ -4668,7 +5105,7 @@ function handleGastoImg(input){
     gastoImgData = e.target.result;
     document.getElementById('gasto-img-thumb').src = e.target.result;
     document.getElementById('gasto-img-preview').style.display = 'block';
-    document.getElementById('gasto-img-btn').style.display = 'none';
+    document.getElementById('gasto-img-btns').style.display = 'none';
   };
   reader.readAsDataURL(input.files[0]);
 }
@@ -4676,8 +5113,9 @@ function handleGastoImg(input){
 function removeGastoImg(){
   gastoImgData = null;
   document.getElementById('gasto-img-preview').style.display = 'none';
-  document.getElementById('gasto-img-btn').style.display = 'flex';
-  document.getElementById('gasto-img').value = '';
+  document.getElementById('gasto-img-btns').style.display = 'flex';
+  document.getElementById('gasto-img-cam').value = '';
+  document.getElementById('gasto-img-gal').value = '';
 }
 
 function saveGasto(){
@@ -4708,10 +5146,12 @@ function saveGasto(){
   } else {
     const gal = parseFloat(document.getElementById('gasto-gal').value)||0;
     const price = parseFloat(document.getElementById('gasto-price').value)||0;
+    const station = document.getElementById('gasto-station').value.trim();
     if(!gal||!price){alert('Ingresa los galones y el precio por galón.');return;}
     newLoad.gal = gal;
     newLoad.price = price;
     newLoad.cost = parseFloat((gal*price).toFixed(2));
+    newLoad.station = station;
     newLoad.desc = gastoTipoActual === 'def' ? 'DEF' : 'Diesel';
   }
 
@@ -5999,55 +6439,116 @@ function generarPDF(){
     return true;
   }).sort((a,b)=>(a.date||"").localeCompare(b.date||""));
 
-  const totalMiles   = filtered.reduce((a,t)=>a+(t.miles||0),0);
-  const totalPay     = filtered.filter(t=>t.profitSet).reduce((a,t)=>a+(t.driver||0),0);
-  const totalLoad    = filtered.filter(t=>t.profitSet).reduce((a,t)=>a+(t.loadVal||0),0);
-  const driverName   = driverF==='all' ? 'Todos los drivers' : driverF;
-  const initials     = driverName.split(' ').map(w=>w[0]||'').join('').toUpperCase().slice(0,2);
-  const periodo      = fromF||toF ? `${fromF?fmtDate(fromF):'—'} al ${toF?fmtDate(toF):'—'}` : 'Todos los registros';
-  const today        = fmtDate(new Date().toISOString().slice(0,10));
+  const totalMiles  = filtered.reduce((a,t)=>a+(t.miles||0),0);
+  const totalPay    = filtered.filter(t=>t.profitSet).reduce((a,t)=>a+(t.driver||0),0);
+  const totalLoad   = filtered.filter(t=>t.profitSet).reduce((a,t)=>a+(t.loadVal||0),0);
+  const totalExtras = filtered.reduce((a,t)=>a+(t.extrasTotal||0),0);
+  const co          = loadCompany();
+  const driverUser  = driverF==='all' ? null : getUsers().find(u=>u.name===driverF||u.username===driverF);
+  const driverFullName = driverUser ? [driverUser.firstName, driverUser.lastName].filter(Boolean).join(' ') || driverUser.name || driverF : 'All Drivers';
+  const driverName  = driverF==='all' ? 'All Drivers' : driverF;
+  const driverPhone = driverUser ? (driverUser.phone||'') : '';
+  const initials    = driverFullName.split(' ').map(w=>w[0]||'').join('').toUpperCase().slice(0,2);
+  const periodoEN   = fromF||toF ? `${fromF?fmtDate(fromF):'—'} to ${toF?fmtDate(toF):'—'}` : 'All records';
+  const periodoES   = fromF||toF ? `${fromF?fmtDate(fromF):'—'} al ${toF?fmtDate(toF):'—'}` : 'Todos los registros';
+  const today       = fmtDate(new Date().toISOString().slice(0,10));
+  const todayFull   = new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
 
-  const totalExtras   = filtered.reduce((a,t)=>a+(t.extrasTotal||0),0);
-
-  const rows = filtered.map((t,i)=>`
+  // ── Rows para página 2 (reporte de viajes) ──
+  const rows2 = filtered.map((t,i)=>`
     <tr class="${i%2===1?'alt':''}">
       <td class="num">${i+1}</td>
       <td class="date">${fmtDate(t.date)}</td>
       <td>${t.city1||t.z1||'—'}${t.state1?', '+t.state1:''}</td>
       <td>${t.city2||t.z2||'—'}${t.state2?', '+t.state2:''}</td>
       <td class="right miles">${(t.miles||0).toLocaleString()}<span class="unit"> mi</span></td>
-      <td class="right pay ${t.profitSet?'green':'muted'}">${t.profitSet?'$'+fmt(t.driver):'Pendiente'}</td>
+      <td class="right pay ${t.profitSet?'green':'muted'}">${t.profitSet?'$'+fmt(t.driver):'Pending'}</td>
     </tr>
     ${t.extras&&t.extras.length?t.extras.map(ex=>`
     <tr style="background:#FEF9F0;">
       <td></td>
       <td colspan="2" style="padding:5px 12px;font-size:11px;color:#92400E;">↳ 🔧 ${ex.tipo}${ex.desc?' — '+ex.desc:''}</td>
-      <td colspan="2" style="padding:5px 12px;font-size:11px;color:#92400E;text-align:right;">Gasto extra</td>
+      <td colspan="2" style="padding:5px 12px;font-size:11px;color:#92400E;text-align:right;">Extra expense</td>
       <td style="padding:5px 12px;font-size:11px;font-weight:700;color:#B45309;text-align:right;">- $${fmt(ex.monto||0)}</td>
     </tr>`).join(''):''}
   `).join('');
 
+  // ── Voucher rows (página 1) ──
+  const voucherRows = filtered.map((t,i)=>`
+    <tr class="${i%2===1?'alt':''}">
+      <td class="num">${i+1}</td>
+      <td class="date">${fmtDate(t.date)}</td>
+      <td>${t.city1||t.z1||'—'}${t.state1?', '+t.state1:''}</td>
+      <td>${t.city2||t.z2||'—'}${t.state2?', '+t.state2:''}</td>
+      <td class="right miles">${(t.miles||0).toLocaleString()}</td>
+      <td class="right ${t.profitSet?'green':'muted'}">${t.profitSet?'$'+fmt(t.driver):'Pending'}</td>
+    </tr>`).join('');
+
   const html = `<!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
 <meta charset="UTF-8"/>
-<title>Reporte de Pago — ${driverName}</title>
+<title>Driver Report — ${driverFullName}</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
 <style>
   *{box-sizing:border-box;margin:0;padding:0;}
   body{font-family:'Inter',sans-serif;color:#0F172A;background:#fff;font-size:13px;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
 
-  /* ── PAGE ── */
-  .page{max-width:900px;margin:0 auto;padding:48px 52px;}
+  /* ── PAGES ── */
+  .sheet{max-width:900px;margin:0 auto;padding:48px 52px;}
+  .page-break{page-break-after:always;break-after:page;}
 
-  /* ── HEADER BAND ── */
+  /* ── PAGE 1: B&W VOUCHER ── */
+  .bw-header{border-bottom:3px solid #000;padding-bottom:16px;margin-bottom:24px;display:flex;justify-content:space-between;align-items:flex-end;}
+  .bw-title{font-size:28px;font-weight:900;color:#000;letter-spacing:-1px;text-transform:uppercase;}
+  .bw-doc-info{text-align:right;}
+  .bw-doc-label{font-size:10px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.7px;}
+  .bw-doc-val{font-size:13px;font-weight:600;color:#000;margin-top:2px;}
+
+  .bw-driver-block{border:2px solid #000;border-radius:4px;padding:16px 20px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;}
+  .bw-driver-label{font-size:10px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.7px;margin-bottom:4px;}
+  .bw-driver-name{font-size:22px;font-weight:900;color:#000;letter-spacing:-.5px;}
+  .bw-driver-period{font-size:12px;color:#333;margin-top:3px;}
+  .bw-amount-block{text-align:right;border-left:2px solid #000;padding-left:24px;}
+  .bw-amount-label{font-size:10px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.7px;margin-bottom:4px;}
+  .bw-amount-val{font-size:36px;font-weight:900;color:#000;letter-spacing:-1px;line-height:1;}
+
+  .bw-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:0;border:2px solid #000;border-radius:4px;margin-bottom:20px;overflow:hidden;}
+  .bw-sum-box{padding:14px 16px;border-right:1px solid #000;text-align:center;}
+  .bw-sum-box:last-child{border-right:none;}
+  .bw-sum-label{font-size:10px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;}
+  .bw-sum-val{font-size:22px;font-weight:900;color:#000;}
+  .bw-sum-sub{font-size:10px;color:#666;margin-top:3px;}
+
+  .bw-line-items{border:2px solid #000;border-radius:4px;overflow:hidden;margin-bottom:20px;}
+  .bw-line-header{background:#000;color:#fff;padding:10px 18px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;}
+  .bw-line-row{display:flex;justify-content:space-between;align-items:center;padding:11px 18px;border-bottom:1px solid #ccc;}
+  .bw-line-row:last-child{border-bottom:none;}
+  .bw-line-row.total{border-top:2px solid #000;background:#f0f0f0;}
+  .bw-line-desc{font-size:13px;color:#000;}
+  .bw-line-desc small{display:block;font-size:11px;color:#555;margin-top:2px;}
+  .bw-line-amount{font-size:14px;font-weight:700;color:#000;}
+  .bw-line-row.total .bw-line-desc{font-size:14px;font-weight:800;}
+  .bw-line-row.total .bw-line-amount{font-size:20px;font-weight:900;}
+
+  /* ── SHARED: SIGNATURE ── */
+  .sig-section{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-bottom:24px;}
+  .sig-box{padding-top:10px;}
+  .sig-label{font-size:10px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.7px;margin-bottom:36px;}
+  .sig-line{border-top:1.5px solid #000;padding-top:6px;}
+  .sig-name{font-size:12px;font-weight:600;color:#000;}
+
+  /* ── SHARED: FOOTER ── */
+  .footer-band{border-top:1px solid #ccc;padding-top:10px;display:flex;justify-content:space-between;align-items:center;}
+  .footer-left{font-size:10px;color:#666;line-height:1.6;}
+  .footer-right{font-size:10px;color:#666;text-align:right;line-height:1.6;}
+
+  /* ── PAGE 2: HEADER BAND (keeps color) ── */
   .header-band{
     background:linear-gradient(135deg,#1e3a8a 0%,#2563EB 100%);
-    border-radius:16px;
-    padding:28px 32px;
+    border-radius:16px;padding:28px 32px;
     display:flex;justify-content:space-between;align-items:center;
-    margin-bottom:28px;
-    position:relative;overflow:hidden;
+    margin-bottom:28px;position:relative;overflow:hidden;
   }
   .header-band::before{content:'';position:absolute;top:-30px;right:-30px;width:160px;height:160px;border-radius:50%;background:rgba(255,255,255,.07);}
   .header-band::after{content:'';position:absolute;bottom:-40px;right:80px;width:100px;height:100px;border-radius:50%;background:rgba(255,255,255,.05);}
@@ -6059,28 +6560,42 @@ function generarPDF(){
   .doc-title{font-size:13px;font-weight:700;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px;}
   .doc-date{font-size:11px;color:rgba(255,255,255,.45);}
 
-  /* ── DRIVER CARD ── */
-  .driver-card{
-    display:flex;align-items:center;gap:18px;
-    background:#F8FAFF;border:1px solid #E2E8F8;border-radius:14px;
-    padding:20px 24px;margin-bottom:24px;
-  }
-  .driver-avatar{
-    width:54px;height:54px;border-radius:50%;
-    background:linear-gradient(135deg,#2563EB,#1D4ED8);
-    display:flex;align-items:center;justify-content:center;
-    font-size:20px;font-weight:800;color:#fff;flex-shrink:0;
-    box-shadow:0 4px 12px rgba(37,99,235,.35);
-  }
+  /* ── PAGE 2: DRIVER CARD ── */
+  .driver-card{display:flex;align-items:center;gap:18px;background:#F8FAFF;border:1px solid #E2E8F8;border-radius:14px;padding:20px 24px;margin-bottom:24px;}
+  .driver-avatar{width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,#2563EB,#1D4ED8);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;color:#fff;flex-shrink:0;box-shadow:0 4px 12px rgba(37,99,235,.35);}
   .driver-info{flex:1;}
   .driver-label{font-size:10px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px;}
   .driver-name{font-size:20px;font-weight:800;color:#0F172A;letter-spacing:-.3px;}
   .driver-period{font-size:12px;color:#64748B;margin-top:3px;}
-  .driver-badge{background:#EFF6FF;border:1px solid #BFDBFE;border-radius:20px;padding:5px 14px;font-size:11px;font-weight:700;color:#2563EB;white-space:nowrap;}
 
-  /* ── KPI TILES ── */
+  /* ── PAGE 2: TABLE ── */
+  .table-wrap{border:1px solid #E2E8F0;border-radius:14px;overflow:hidden;margin-bottom:28px;}
+  .table-header{background:#F8FAFC;padding:14px 20px;border-bottom:1px solid #E2E8F0;display:flex;justify-content:space-between;align-items:center;}
+  .table-title{font-size:12px;font-weight:700;color:#0F172A;}
+  .table-count{font-size:11px;color:#94A3B8;background:#fff;border:1px solid #E2E8F0;border-radius:20px;padding:3px 10px;}
+  table{width:100%;border-collapse:collapse;}
+  thead tr{background:#F1F5F9;}
+  th{padding:11px 14px;text-align:left;font-size:10px;font-weight:700;color:#64748B;letter-spacing:.7px;text-transform:uppercase;border-bottom:1px solid #E2E8F0;}
+  th.right{text-align:right;}
+  td{padding:11px 14px;border-bottom:1px solid #F1F5F9;color:#0F172A;vertical-align:middle;}
+  tr.alt td{background:#FAFBFF;}
+  tr:last-child td{border-bottom:none;}
+  td.num{color:#CBD5E1;font-size:11px;font-weight:600;width:32px;}
+  td.date{font-weight:600;white-space:nowrap;color:#334155;}
+  td.right{text-align:right;}
+  td.miles{font-weight:600;color:#334155;}
+  td.unit{font-size:10px;color:#94A3B8;}
+  td.green{color:#15803D;font-weight:700;}
+  td.muted{color:#CBD5E1;font-style:italic;}
+  .total-row{background:linear-gradient(135deg,#1e3a8a,#2563EB)!important;}
+  .total-row td{border-bottom:none!important;padding:14px!important;}
+  .total-label{font-size:12px;font-weight:800;color:#fff;letter-spacing:.5px;text-transform:uppercase;}
+  .total-miles{font-size:13px;font-weight:700;color:rgba(255,255,255,.8);text-align:right;}
+  .total-pay{font-size:18px;font-weight:900;color:#fff;text-align:right;}
+
+  /* ── PAGE 2: KPI ── */
   .kpi-row{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:28px;}
-  .kpi{border-radius:12px;padding:18px 20px;position:relative;overflow:hidden;}
+  .kpi{border-radius:12px;padding:18px 20px;}
   .kpi.blue{background:#EFF6FF;border:1.5px solid #BFDBFE;}
   .kpi.slate{background:#F8FAFC;border:1.5px solid #E2E8F0;}
   .kpi.green{background:#F0FDF4;border:1.5px solid #BBF7D0;}
@@ -6095,129 +6610,142 @@ function generarPDF(){
   .kpi.green .kpi-value{color:#15803D;}
   .kpi-sub{font-size:10px;color:#94A3B8;margin-top:5px;}
 
-  /* ── TABLE ── */
-  .table-wrap{border:1px solid #E2E8F0;border-radius:14px;overflow:hidden;margin-bottom:28px;}
-  .table-header{background:#F8FAFC;padding:14px 20px;border-bottom:1px solid #E2E8F0;display:flex;justify-content:space-between;align-items:center;}
-  .table-title{font-size:12px;font-weight:700;color:#0F172A;letter-spacing:-.1px;}
-  .table-count{font-size:11px;color:#94A3B8;background:#fff;border:1px solid #E2E8F0;border-radius:20px;padding:3px 10px;}
-  table{width:100%;border-collapse:collapse;}
-  thead tr{background:#F1F5F9;}
-  th{padding:11px 14px;text-align:left;font-size:10px;font-weight:700;color:#64748B;letter-spacing:.7px;text-transform:uppercase;border-bottom:1px solid #E2E8F0;}
-  th.right{text-align:right;}
-  td{padding:11px 14px;border-bottom:1px solid #F1F5F9;color:#0F172A;vertical-align:middle;}
-  tr.alt td{background:#FAFBFF;}
-  tr:last-child td{border-bottom:none;}
-  td.num{color:#CBD5E1;font-size:11px;font-weight:600;width:32px;}
-  td.date{font-weight:600;white-space:nowrap;color:#334155;}
-  td.right{text-align:right;}
-  td.miles{font-weight:600;color:#334155;}
-  td.unit{font-size:10px;color:#94A3B8;}
-  td.load{color:#475569;}
-  td.green{color:#15803D;font-weight:700;}
-  td.muted{color:#CBD5E1;font-style:italic;}
-
-  /* ── TOTAL ROW ── */
-  .total-row{background:linear-gradient(135deg,#1e3a8a,#2563EB)!important;}
-  .total-row td{border-bottom:none!important;padding:14px!important;}
-  .total-row td:first-child{border-radius:0 0 0 0;}
-  .total-label{font-size:12px;font-weight:800;color:#fff;letter-spacing:.5px;text-transform:uppercase;}
-  .total-miles{font-size:13px;font-weight:700;color:rgba(255,255,255,.8);text-align:right;}
-  .total-load{font-size:13px;font-weight:700;color:rgba(255,255,255,.7);text-align:right;}
-  .total-pay{font-size:18px;font-weight:900;color:#fff;text-align:right;}
-
-  /* ── SIGNATURE ── */
-  .sig-section{display:grid;grid-template-columns:1fr 1fr;gap:32px;margin-bottom:28px;}
-  .sig-box{border-top:2px solid #E2E8F0;padding-top:10px;}
-  .sig-label{font-size:10px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:.7px;margin-bottom:6px;}
-  .sig-name{font-size:13px;font-weight:600;color:#0F172A;}
-
-  /* ── FOOTER ── */
-  .footer-band{background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;padding:12px 18px;display:flex;justify-content:space-between;align-items:center;}
-  .footer-left{font-size:10px;color:#94A3B8;}
-  .footer-right{font-size:10px;color:#94A3B8;text-align:right;}
-  .footer-badge{display:inline-block;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:20px;padding:3px 10px;font-size:10px;font-weight:700;color:#2563EB;margin-top:4px;}
-
   @media print{
     body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
-    .page{padding:24px 28px;}
+    .sheet{padding:24px 28px;}
     .no-print{display:none!important;}
+    .page-break{page-break-after:always;break-after:page;}
   }
 </style>
 </head>
 <body>
-<div class="page">
+
+<!-- ══════════════════════════════════════════════
+     PAGE 1 — PAYMENT VOUCHER (B&W, payment only)
+══════════════════════════════════════════════ -->
+<div class="sheet page-break">
 
   <!-- HEADER -->
-  <div class="header-band">
-    <div class="brand">
-      <div class="brand-name">🚚 Truck<span>Trip</span> Log</div>
-      <div class="brand-sub">SISTEMA DE GESTIÓN DE VIAJES</div>
+  <div class="bw-header">
+    <div style="display:flex;align-items:center;gap:14px;">
+      ${co.logo?`<img src="${co.logo}" style="width:54px;height:54px;object-fit:contain;border-radius:8px;border:1px solid #ddd;flex-shrink:0;"/>`:''}
+      <div>
+        ${co.name?`<div style="font-size:20px;font-weight:900;color:#000;letter-spacing:-.5px;">${co.name}</div>`:''}
+        ${co.address?`<div style="font-size:11px;color:#444;margin-top:2px;">📍 ${co.address}</div>`:''}
+        ${co.phone?`<div style="font-size:11px;color:#444;margin-top:1px;">📞 ${applyPhoneFmt(co.phone)}</div>`:''}
+        ${co.mc||co.dot?`<div style="font-size:10px;color:#666;margin-top:3px;">${co.mc?'MC: '+co.mc:''}${co.mc&&co.dot?' &nbsp;|&nbsp; ':''}${co.dot?'DOT: '+co.dot:''}</div>`:''}
+        ${!co.name?`<div class="bw-title">Payment Voucher</div>`:''}
+      </div>
     </div>
-    <div class="doc-type">
-      <div class="doc-title">Reporte de Pago</div>
-      <div class="doc-date">Emitido: ${today}</div>
+    <div class="bw-doc-info">
+      ${co.name?`<div style="font-size:16px;font-weight:900;color:#000;text-align:right;margin-bottom:6px;">Payment Voucher</div>`:''}
+      <div class="bw-doc-label">Date Issued</div>
+      <div class="bw-doc-val">${todayFull}</div>
+      <div class="bw-doc-label" style="margin-top:8px;">Period</div>
+      <div class="bw-doc-val">${periodoEN}</div>
     </div>
   </div>
 
-  <!-- DRIVER CARD -->
-  <div class="driver-card">
-    <div class="driver-avatar">${initials||'DR'}</div>
-    <div class="driver-info">
-      <div class="driver-label">Driver</div>
-      <div class="driver-name">${driverName}</div>
-      <div class="driver-period">📅 Período: ${periodo}</div>
-    </div>
-    <div class="driver-badge">25% por viaje</div>
+  <!-- DRIVER INFO -->
+  <div style="margin-bottom:28px;padding:20px 24px;border:2px solid #000;border-radius:4px;">
+    <div style="font-size:10px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.7px;margin-bottom:6px;">Driver</div>
+    <div style="font-size:26px;font-weight:900;color:#000;letter-spacing:-.5px;">${driverFullName}</div>
+    ${driverPhone?`<div style="font-size:13px;color:#333;margin-top:4px;">📞 ${applyPhoneFmt(driverPhone)}</div>`:''}
   </div>
 
-  <!-- KPI TILES -->
-  <div class="kpi-row">
-    <div class="kpi blue">
-      <div class="kpi-icon">🚛</div>
-      <div class="kpi-label">Total Viajes</div>
-      <div class="kpi-value">${filtered.length}</div>
-      <div class="kpi-sub">viajes completados</div>
-    </div>
-    <div class="kpi slate">
-      <div class="kpi-icon">🛣️</div>
-      <div class="kpi-label">Millas Totales</div>
-      <div class="kpi-value">${totalMiles.toLocaleString()}</div>
-      <div class="kpi-sub">millas recorridas</div>
-    </div>
-    <div class="kpi green">
-      <div class="kpi-icon">💵</div>
-      <div class="kpi-label">Total a Pagar</div>
-      <div class="kpi-value">$${totalPay.toFixed(2)}</div>
-      <div class="kpi-sub">25% del load value</div>
+  <!-- PAYMENT AMOUNT — centro de atención -->
+  <div style="border:3px solid #000;border-radius:4px;padding:32px;text-align:center;margin-bottom:28px;">
+    <div style="font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">Amount Paid</div>
+    <div style="font-size:64px;font-weight:900;color:#000;letter-spacing:-2px;line-height:1;">\$${totalPay.toFixed(2)}</div>
+    <div style="font-size:13px;color:#555;margin-top:10px;">Period: ${periodoEN}</div>
+  </div>
+
+  <!-- FIRMA DEL DRIVER -->
+  <div style="margin-top:48px;">
+    <div style="font-size:10px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.7px;margin-bottom:52px;">Driver Signature</div>
+    <div style="border-top:2px solid #000;width:55%;padding-top:10px;">
+      <div style="font-size:15px;font-weight:900;color:#000;letter-spacing:-.3px;">${driverFullName}</div>
+      <div style="font-size:11px;color:#555;margin-top:6px;">Date: ${todayFull}</div>
     </div>
   </div>
+
+  <!-- FOOTER -->
+  <div class="footer-band" style="margin-top:40px;">
+    <div class="footer-left">This document is an official payment record.</div>
+    <div class="footer-right"><strong>${todayFull}</strong></div>
+  </div>
+
+</div><!-- end page 1 -->
+
+
+<!-- ══════════════════════════════════════════════
+     PAGE 2 — TRIP REPORT (Detailed)
+══════════════════════════════════════════════ -->
+<div class="sheet">
+
+  <!-- HEADER B&W page 2 -->
+  <div class="bw-header">
+    <div style="display:flex;align-items:center;gap:14px;">
+      ${co.logo?`<img src="${co.logo}" style="width:54px;height:54px;object-fit:contain;border-radius:8px;border:1px solid #ddd;flex-shrink:0;"/>`:''}
+      <div>
+        ${co.name?`<div style="font-size:20px;font-weight:900;color:#000;letter-spacing:-.5px;">${co.name}</div>`:''}
+        ${co.address?`<div style="font-size:11px;color:#444;margin-top:2px;">📍 ${co.address}</div>`:''}
+        ${co.phone?`<div style="font-size:11px;color:#444;margin-top:1px;">📞 ${applyPhoneFmt(co.phone)}</div>`:''}
+        ${co.mc||co.dot?`<div style="font-size:10px;color:#666;margin-top:3px;">${co.mc?'MC: '+co.mc:''}${co.mc&&co.dot?' &nbsp;|&nbsp; ':''}${co.dot?'DOT: '+co.dot:''}</div>`:''}
+        ${!co.name?`<div class="bw-title">Trip Report</div>`:''}
+      </div>
+    </div>
+    <div class="bw-doc-info">
+      ${co.name?`<div style="font-size:16px;font-weight:900;color:#000;text-align:right;margin-bottom:6px;">Trip Report</div>`:''}
+      <div class="bw-doc-label">Date Issued</div>
+      <div class="bw-doc-val">${todayFull}</div>
+      <div class="bw-doc-label" style="margin-top:8px;">Period</div>
+      <div class="bw-doc-val">${periodoEN}</div>
+    </div>
+  </div>
+
+  <!-- DRIVER -->
+  <div class="bw-driver-block">
+    <div>
+      <div class="bw-driver-label">Driver Name</div>
+      <div class="bw-driver-name">${driverFullName}</div>
+      <div class="bw-driver-period">📅 ${periodoEN}</div>
+      ${driverPhone?`<div class="bw-driver-period">📞 ${applyPhoneFmt(driverPhone)}</div>`:""}
+    </div>
+    <div class="bw-amount-block">
+      <div class="bw-amount-label">Total Payment</div>
+      <div class="bw-amount-val">$${totalPay.toFixed(2)}</div>
+    </div>
+  </div>
+
+  <!-- PAYMENT BREAKDOWN POR VIAJE -->
 
   <!-- TABLE -->
   <div class="table-wrap">
     <div class="table-header">
-      <div class="table-title">📋 Detalle de viajes</div>
-      <div class="table-count">${filtered.length} registros</div>
+      <div class="table-title">📋 Trip Detail</div>
+      <div class="table-count">${filtered.length} records</div>
     </div>
     <table>
       <thead>
         <tr>
           <th>#</th>
-          <th>Fecha</th>
-          <th>Ciudad Origen</th>
-          <th>Ciudad Destino</th>
-          <th class="right">Millas</th>
-          <th class="right">Pago Driver (25%)</th>
+          <th>Date</th>
+          <th>Origin</th>
+          <th>Destination</th>
+          <th class="right">Miles</th>
+          <th class="right">Driver Pay</th>
         </tr>
       </thead>
-      <tbody>${rows}</tbody>
+      <tbody>${rows2}</tbody>
       <tbody>
         <tr class="total-row">
-          <td colspan="4"><span class="total-label">Total del período</span></td>
+          <td colspan="4"><span class="total-label">Period Total</span></td>
           <td><span class="total-miles">${totalMiles.toLocaleString()} mi</span></td>
           <td><span class="total-pay">$${totalPay.toFixed(2)}</span></td>
         </tr>
         ${totalExtras>0?`<tr style="background:#FEF3C7;">
-          <td colspan="5" style="padding:10px 14px;font-size:12px;font-weight:700;color:#92400E;">🔧 Total gastos extras del período</td>
+          <td colspan="5" style="padding:10px 14px;font-size:12px;font-weight:700;color:#92400E;">🔧 Total extra expenses for the period</td>
           <td style="padding:10px 14px;font-size:13px;font-weight:800;color:#B45309;text-align:right;">- $${totalExtras.toFixed(2)}</td>
         </tr>`:''}
       </tbody>
@@ -6227,28 +6755,28 @@ function generarPDF(){
   <!-- SIGNATURES -->
   <div class="sig-section">
     <div class="sig-box">
-      <div class="sig-label">Firma del Driver</div>
-      <div class="sig-name">${driverName}</div>
+      <div class="sig-label">Driver Signature</div>
+      <div class="sig-name">${driverFullName}</div>
     </div>
     <div class="sig-box">
-      <div class="sig-label">Autorizado por</div>
-      <div class="sig-name">Administrador</div>
+      <div class="sig-label">Authorized by</div>
+      <div class="sig-name">Administrator</div>
     </div>
   </div>
 
   <!-- FOOTER -->
   <div class="footer-band">
     <div class="footer-left">
-      Generado automáticamente por el sistema<br/>
-      <span class="footer-badge">🚚 Truck Trip Log</span>
+      Automatically generated by the system<br/>
     </div>
     <div class="footer-right">
-      Este documento es un comprobante oficial de pago<br/>
-      <strong>${today}</strong>
+      This document is an official payment record<br/>
+      <strong>${todayFull}</strong>
     </div>
   </div>
 
-</div>
+</div><!-- end page 2 -->
+
 <script>window.onload=()=>window.print();<\/script>
 </body>
 </html>`;
@@ -6316,6 +6844,12 @@ function sidebarNav(id){
   if(id==='gastos') renderGastosReport();
   if(id==='reporte') renderReporte();
   if(id==='calcruta') { document.getElementById('cr-results').style.display='none'; }
+  if(id==='new' && !document.querySelector('.fuel-block')){
+    document.getElementById('fuel-blocks').innerHTML='';
+    fuelCount=0;
+    Object.keys(invoiceImages).forEach(k=>delete invoiceImages[k]);
+    addFuelBlock();calcAll();
+  }
   closeSidebar();
 }
 

@@ -2186,6 +2186,9 @@ let fbReady = false;
 let _cachedTrips = null;
 let _cachedUsers = null;
 let _tripsListener = null;
+let _usersListener = null;
+let _extrasListener = null;
+let _companyListener = null;
 
 function initFirebase(){
   try{
@@ -2308,14 +2311,15 @@ async function storeTrips(trips){
 // Real-time listener — keeps all devices in sync automatically
 function startRealtimeSync(){
   if(!fbReady) return;
-  if(_tripsListener) _tripsListener(); // unsubscribe previous
+
+  // ── Trips ──
+  if(_tripsListener) _tripsListener();
   _tripsListener = db.collection('data').doc('trips').onSnapshot(snap=>{
     if(!snap.exists) return;
     const data = snap.data();
     if(data && data.trips){
       _cachedTrips = data.trips;
       localStorage.setItem(TRIPS_KEY, JSON.stringify(data.trips));
-      // Refresh current visible page
       const activeTab = document.querySelector('.tab.active');
       if(activeTab){
         const id = activeTab.getAttribute('data-id');
@@ -2327,9 +2331,40 @@ function startRealtimeSync(){
         if(id==='miviaje') renderMiViaje();
       }
     }
-  }, err=>{
-    console.warn('Realtime sync error:', err);
-  });
+  }, err=>{ console.warn('Trips sync error:', err); });
+
+  // ── Users ──
+  if(_usersListener) _usersListener();
+  _usersListener = db.collection('data').doc('users').onSnapshot(snap=>{
+    if(!snap.exists) return;
+    const data = snap.data();
+    if(data && data.users){
+      localStorage.setItem('trucklog_users', JSON.stringify(data.users));
+      // Refrescar si admin está en página de usuarios
+      const activeTab = document.querySelector('.tab.active');
+      if(activeTab && activeTab.getAttribute('data-id')==='users') renderUsers();
+    }
+  }, err=>{ console.warn('Users sync error:', err); });
+
+  // ── Extras/Gastos ──
+  if(_extrasListener) _extrasListener();
+  _extrasListener = db.collection('data').doc('extras').onSnapshot(snap=>{
+    if(!snap.exists) return;
+    const data = snap.data();
+    if(data && data.extras){
+      localStorage.setItem('trucklog_extras', JSON.stringify(data.extras));
+    }
+  }, err=>{ console.warn('Extras sync error:', err); });
+
+  // ── Company ──
+  if(_companyListener) _companyListener();
+  _companyListener = db.collection('data').doc('company').onSnapshot(snap=>{
+    if(!snap.exists) return;
+    const data = snap.data();
+    if(data && Object.keys(data).length){
+      localStorage.setItem('trucklog_company', JSON.stringify(data));
+    }
+  }, err=>{ console.warn('Company sync error:', err); });
 }
 
 // Also sync extras
@@ -2483,6 +2518,10 @@ function saveCompanySettings(){
 
 function doLogout(){
   stopDriverTracking();
+  if(_tripsListener){_tripsListener();_tripsListener=null;}
+  if(_usersListener){_usersListener();_usersListener=null;}
+  if(_extrasListener){_extrasListener();_extrasListener=null;}
+  if(_companyListener){_companyListener();_companyListener=null;}
   if(_locationsListener){_locationsListener();_locationsListener=null;}
   clearSession();currentUser=null;
   document.getElementById('app-screen').style.display='none';

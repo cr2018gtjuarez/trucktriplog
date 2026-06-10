@@ -1951,7 +1951,7 @@
     <!-- Preview del reporte -->
     <div id="rep-preview" style="display:none;">
       <!-- Resumen -->
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px;" id="rep-tiles"></div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:12px;" id="rep-tiles"></div>
 
       <!-- Tabla -->
       <div class="card" style="padding:0;overflow:hidden;">
@@ -1969,7 +1969,6 @@
                 <th style="padding:10px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.6px;text-transform:uppercase;border-bottom:1px solid var(--border2);white-space:nowrap;">Fecha</th>
                 <th style="padding:10px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.6px;text-transform:uppercase;border-bottom:1px solid var(--border2);">Origen</th>
                 <th style="padding:10px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.6px;text-transform:uppercase;border-bottom:1px solid var(--border2);">Destino</th>
-                <th style="padding:10px 12px;text-align:right;font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.6px;text-transform:uppercase;border-bottom:1px solid var(--border2);white-space:nowrap;">Millas</th>
                 <th style="padding:10px 12px;text-align:right;font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.6px;text-transform:uppercase;border-bottom:1px solid var(--border2);white-space:nowrap;">Pago Driver</th>
               </tr>
             </thead>
@@ -1988,9 +1987,18 @@
 <!-- MODAL: AGREGAR DIESEL A VIAJE EXISTENTE -->
 <div class="modal-overlay" id="add-diesel-modal">
   <div class="modal-box" style="max-width:420px;">
-    <div class="modal-title">⛽ Agregar carga de diesel</div>
+    <div class="modal-title">⛽ Agregar carga</div>
     <div class="modal-sub" id="add-diesel-trip-info">—</div>
     <input type="hidden" id="add-diesel-trip-id"/>
+
+    <div class="field" style="margin-bottom:12px;">
+      <label>Tipo de carga</label>
+      <div style="display:flex;gap:8px;">
+        <button id="fuel-type-diesel" onclick="setFuelType('diesel')" style="flex:1;padding:10px;border-radius:10px;border:2px solid var(--accent);background:var(--accent);color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">⛽ Diesel</button>
+        <button id="fuel-type-def" onclick="setFuelType('def')" style="flex:1;padding:10px;border-radius:10px;border:2px solid var(--border2);background:var(--bg3);color:var(--text2);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">🧴 DEF</button>
+      </div>
+      <input type="hidden" id="add-diesel-type" value="diesel"/>
+    </div>
 
     <div class="field" style="margin-bottom:12px;">
       <label>⛽ Nombre de la gasolinera</label>
@@ -2218,7 +2226,7 @@
     <!-- Breakdown -->
     <div class="profit-breakdown" id="edit-preview" style="display:none;">
       <div class="pb-row"><span class="pb-label">Load Value</span><span class="pb-val" id="ep-load">$—</span></div>
-      <div class="pb-row"><span class="pb-label sub">Fee 15%</span><span class="pb-val red" id="ep-fee">- $—</span></div>
+      <div class="pb-row"><span class="pb-label sub">Fee 13%</span><span class="pb-val red" id="ep-fee">- $—</span></div>
       <div class="pb-row"><span class="pb-label sub">Driver Pay</span><span class="pb-val red" id="ep-driver">- $—</span></div>
       <div class="pb-row"><span class="pb-label sub">Costo diesel</span><span class="pb-val red" id="ep-diesel">- $—</span></div>
       <div class="pb-row" id="ep-extras-row" style="display:none;"><span class="pb-label sub">Gastos extras</span><span class="pb-val red" id="ep-extras">- $—</span></div>
@@ -3010,6 +3018,17 @@ async function fetchZip(z){
     return ZC[z];
   }catch(e){ZC[z]=null;return null;}
 }
+async function fetchRoadMiles(lat1,lon1,lat2,lon2){
+  try{
+    const url=`https://router.project-osrm.org/route/v1/driving/${lon1},${lat1};${lon2},${lat2}?overview=false`;
+    const r=await fetch(url);
+    if(!r.ok) return null;
+    const d=await r.json();
+    if(d.routes&&d.routes[0]) return parseFloat((d.routes[0].distance/1609.34).toFixed(1));
+    return null;
+  }catch(e){ return null; }
+}
+
 async function onZipAdmin(el,hid){
   el.value=el.value.replace(/\D/g,'');
   const h=document.getElementById(hid);
@@ -3122,7 +3141,7 @@ function calcAll(){
   if(currentUser&&currentUser.role==='admin'){
     const loadVal=parseFloat(document.getElementById('f-load')?.value)||0;
     const payPct=parseFloat(document.getElementById('f-pay-pct')?.value)||0;
-    const fee=loadVal?parseFloat((loadVal*0.15).toFixed(2)):0;
+    const fee=loadVal?parseFloat((loadVal*0.13).toFixed(2)):0;
     const driver=payPct&&loadVal?parseFloat((loadVal*payPct/100).toFixed(2)):0;
     const net=parseFloat((loadVal-fee-driver-totalCost).toFixed(2));
     if(document.getElementById('c-load'))   document.getElementById('c-load').textContent=loadVal?'$'+fmt(loadVal):'$—';
@@ -3248,7 +3267,7 @@ async function adminFinishTrip(){
   const totalCost = parseFloat(validRows.reduce((a,r)=>a+(r.cost||0),0).toFixed(2));
   const miles = miEnd - _adminActiveTrip.miStart;
   const payPct = _adminActiveTrip.payPct || 0;
-  const fee = loadVal ? parseFloat((loadVal * 0.15).toFixed(2)) : 0;
+  const fee = loadVal ? parseFloat((loadVal * 0.13).toFixed(2)) : 0;
   const driver = payPct && loadVal ? parseFloat((loadVal * payPct / 100).toFixed(2)) : 0;
   const net = parseFloat((loadVal - fee - driver - totalCost).toFixed(2));
 
@@ -3391,10 +3410,16 @@ async function addTrip(){
   btn.disabled=false;
   if(!p1||!p2){showFMsg('No se encontró uno o ambos ZIP codes.','err');return;}
   const miles=(!isNaN(miEnd)&&miEnd>miStart)?(miEnd-miStart):0;
+  // Calcular millas exactas por carretera usando OSRM
+  let roadMiles = null;
+  if(p1.lat&&p1.lon&&p2.lat&&p2.lon){
+    showFMsg('Calculando millas por carretera...','');
+    roadMiles = await fetchRoadMiles(p1.lat,p1.lon,p2.lat,p2.lon);
+  }
   const totalGal=parseFloat(validRows.reduce((a,r)=>a+(r.gal||0),0).toFixed(2));
   const totalCost=parseFloat(validRows.reduce((a,r)=>a+(r.cost||0),0).toFixed(2));
   const payPct = parseFloat(document.getElementById('f-pay-pct')?.value)||0;
-  const fee=loadVal?parseFloat((loadVal*0.15).toFixed(2)):0;
+  const fee=loadVal?parseFloat((loadVal*0.13).toFixed(2)):0;
   const driver = payPct && loadVal ? parseFloat((loadVal * payPct / 100).toFixed(2)) : 0;
   const net=parseFloat((loadVal-fee-driver-totalCost).toFixed(2));
   // Driver: si es admin, usa el seleccionado del dropdown; si es driver, usa el usuario actual
@@ -3427,6 +3452,7 @@ async function addTrip(){
     driverName, driverUser,
     payStatus:'unpaid', payNotes:'',
     gpsLat,gpsLon,gpsAddress,gpsTime,
+    roadMiles: roadMiles||null,
     tripDuration: timerDuration||0,
     tripDurationFmt: timerDuration? (Math.floor(timerDuration/3600)+'h '+String(Math.floor((timerDuration%3600)/60)).padStart(2,'0')+'min') : '—'
   });
@@ -3536,7 +3562,7 @@ function previewEdit(){
   const diesel=parseFloat(document.getElementById('edit-diesel').value)||t.totalCost||0;
   const payPct=parseFloat(document.getElementById('edit-pay-pct').value)||t.payPct||0;
   const extrasTotal=_editExtras.reduce((a,e)=>a+(parseFloat(e.monto)||0),0);
-  const fee=loadVal?parseFloat((loadVal*0.15).toFixed(2)):0;
+  const fee=loadVal?parseFloat((loadVal*0.13).toFixed(2)):0;
   const driver=loadVal&&payPct?parseFloat((loadVal*payPct/100).toFixed(2)):0;
   const net=parseFloat((loadVal-fee-driver-diesel-extrasTotal).toFixed(2));
   document.getElementById('ep-load').textContent=loadVal?'$'+fmt(loadVal):'$—';
@@ -3583,7 +3609,7 @@ async function saveEditModal(){
   const loadVal=loadValRaw?parseFloat(loadValRaw):t.loadVal||0;
   let profitFields={};
   if(loadVal){
-    const fee=parseFloat((loadVal*0.15).toFixed(2));
+    const fee=parseFloat((loadVal*0.13).toFixed(2));
     const driver=newPayPct?parseFloat((loadVal*newPayPct/100).toFixed(2)):t.driver||0;
     const net=parseFloat((loadVal-fee-driver-newDiesel-extrasTotal).toFixed(2));
     profitFields={loadVal,fee,driver,net,payPct:newPayPct,profitSet:true};
@@ -3852,7 +3878,7 @@ function renderLog(){
         </div>
         ${(t.fuelLoads||[]).map((fl,fi)=>`
           <div class="fuel-item">
-            <div class="fuel-item-row"><span class="fuel-item-info">${fl.station?'⛽ <b>'+fl.station+'</b> &nbsp;·&nbsp; ':''}Carga #${fi+1} &nbsp;·&nbsp; ${fl.gal} gal &nbsp;@&nbsp; $${fl.price}/gal</span>
+            <div class="fuel-item-row"><span class="fuel-item-info">${fl.station?'⛽ <b>'+fl.station+'</b> &nbsp;·&nbsp; ':''}${fl.type==='def'?'🧴 DEF':'⛽ Diesel'} &nbsp;·&nbsp; Carga #${fi+1} &nbsp;·&nbsp; ${fl.gal} gal &nbsp;@&nbsp; $${fl.price}/gal</span>
             <span style="display:flex;align-items:center;gap:6px;"><span class="fuel-item-cost">$${fl.cost.toFixed(2)}</span>
             <button onclick="deleteDieselFromTrip(${t.id},${fi})" style="font-size:10px;color:var(--red);background:none;border:none;cursor:pointer;font-family:inherit;">✕</button>
             </span></div>
@@ -3919,11 +3945,28 @@ function openAddDieselModal(tripId){
   document.getElementById('add-diesel-cam').value = '';
   document.getElementById('add-diesel-gal-img').value = '';
   _addDieselImgData = null;
+  setFuelType('diesel');
   document.getElementById('add-diesel-modal').classList.add('open');
 }
 
 function closeAddDieselModal(){
   document.getElementById('add-diesel-modal').classList.remove('open');
+}
+
+function setFuelType(type){
+  document.getElementById('add-diesel-type').value = type;
+  const dBtn = document.getElementById('fuel-type-diesel');
+  const defBtn = document.getElementById('fuel-type-def');
+  if(type==='diesel'){
+    dBtn.style.background='var(--accent)'; dBtn.style.color='#fff'; dBtn.style.borderColor='var(--accent)';
+    defBtn.style.background='var(--bg3)'; defBtn.style.color='var(--text2)'; defBtn.style.borderColor='var(--border2)';
+    document.getElementById('add-diesel-price').value='3.80';
+  } else {
+    defBtn.style.background='var(--accent)'; defBtn.style.color='#fff'; defBtn.style.borderColor='var(--accent)';
+    dBtn.style.background='var(--bg3)'; dBtn.style.color='var(--text2)'; dBtn.style.borderColor='var(--border2)';
+    document.getElementById('add-diesel-price').value='5.00';
+  }
+  calcAddDiesel();
 }
 
 function calcAddDiesel(){
@@ -3960,8 +4003,9 @@ async function saveAddDiesel(){
 
   if(!gal||!price){ alert('Ingresa los galones y el precio.'); return; }
 
+  const fuelType = document.getElementById('add-diesel-type').value || 'diesel';
   const cost = parseFloat((gal*price).toFixed(2));
-  const newLoad = { gal, price, cost, station, image: _addDieselImgData||null };
+  const newLoad = { gal, price, cost, station, type: fuelType, image: _addDieselImgData||null };
 
   const trips = loadTrips();
   const idx = trips.findIndex(t=>t.id===tripId);
@@ -7176,7 +7220,6 @@ function renderReporte(){
   preview.style.display='block';
   empty.style.display='none';
 
-  const totalMiles  = filtered.reduce((a,t)=>a+(t.miles||0),0);
   const totalPay    = filtered.filter(t=>t.profitSet).reduce((a,t)=>a+(t.driver||0),0);
   const totalTrips  = filtered.length;
 
@@ -7186,11 +7229,7 @@ function renderReporte(){
       <div style="font-size:10px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Viajes</div>
       <div style="font-size:26px;font-weight:800;color:var(--accent);">${totalTrips}</div>
     </div>
-    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:13px;padding:14px;text-align:center;">
-      <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Millas totales</div>
-      <div style="font-size:26px;font-weight:800;color:var(--text);">${totalMiles.toLocaleString()}</div>
-    </div>
-    <div style="background:var(--green-bg);border:1px solid #14532d44;border-radius:13px;padding:14px;text-align:center;">
+    <div style="background:var(--green-bg);border:1px solid #14532d44;border-radius:13px;padding:14px;text-align:center;grid-column:span 2;">
       <div style="font-size:10px;font-weight:700;color:var(--green2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Total a pagar</div>
       <div style="font-size:26px;font-weight:800;color:var(--green);">$${totalPay.toFixed(2)}</div>
     </div>`;
@@ -7203,7 +7242,6 @@ function renderReporte(){
       <td style="padding:10px 12px;white-space:nowrap;font-weight:600;">${fmtDate(t.date)}</td>
       <td style="padding:10px 12px;">${t.city1||t.z1||'—'}${t.state1?', '+t.state1:''}</td>
       <td style="padding:10px 12px;">${t.city2||t.z2||'—'}${t.state2?', '+t.state2:''}</td>
-      <td style="padding:10px 12px;text-align:right;font-weight:600;">${(t.miles||0).toLocaleString()} mi</td>
       <td style="padding:10px 12px;text-align:right;font-weight:700;color:${t.profitSet?'var(--green)':'var(--text3)'};">
         ${t.profitSet?'$'+(t.driver||0).toFixed(2):'—'}
       </td>
@@ -7213,7 +7251,6 @@ function renderReporte(){
   document.getElementById('rep-tfoot').innerHTML = `
     <tr style="background:var(--bg3);border-top:2px solid var(--border2);">
       <td colspan="4" style="padding:12px;font-size:13px;font-weight:700;color:var(--text);">TOTAL</td>
-      <td style="padding:12px;text-align:right;font-size:13px;font-weight:700;">${totalMiles.toLocaleString()} mi</td>
       <td style="padding:12px;text-align:right;font-size:14px;font-weight:800;color:var(--green);">$${totalPay.toFixed(2)}</td>
     </tr>`;
 }
@@ -7249,7 +7286,6 @@ function generarPDF(){
     return true;
   }).sort((a,b)=>(a.date||"").localeCompare(b.date||""));
 
-  const totalMiles  = filtered.reduce((a,t)=>a+(t.miles||0),0);
   const totalPay    = filtered.filter(t=>t.profitSet).reduce((a,t)=>a+(t.driver||0),0);
   const totalLoad   = filtered.filter(t=>t.profitSet).reduce((a,t)=>a+(t.loadVal||0),0);
   const totalExtras = filtered.reduce((a,t)=>a+(t.extrasTotal||0),0);
@@ -7269,9 +7305,8 @@ function generarPDF(){
     <tr class="${i%2===1?'alt':''}">
       <td class="num">${i+1}</td>
       <td class="date">${fmtDate(t.date)}</td>
-      <td>${t.city1||t.z1||'—'}${t.state1?', '+t.state1:''}</td>
-      <td>${t.city2||t.z2||'—'}${t.state2?', '+t.state2:''}</td>
-      <td class="right miles">${(t.miles||0).toLocaleString()}<span class="unit"> mi</span></td>
+      <td>${t.city1||'—'}${t.state1?', '+t.state1:''}</td>
+      <td>${t.city2||'—'}${t.state2?', '+t.state2:''}</td>
       <td class="right pay ${t.profitSet?'green':'muted'}">${t.profitSet?'$'+fmt(t.driver):'Pending'}</td>
     </tr>
     ${t.extras&&t.extras.length?t.extras.map(ex=>`
@@ -7283,16 +7318,7 @@ function generarPDF(){
     </tr>`).join(''):''}
   `).join('');
 
-  // ── Voucher rows (página 1) ──
-  const voucherRows = filtered.map((t,i)=>`
-    <tr class="${i%2===1?'alt':''}">
-      <td class="num">${i+1}</td>
-      <td class="date">${fmtDate(t.date)}</td>
-      <td>${t.city1||t.z1||'—'}${t.state1?', '+t.state1:''}</td>
-      <td>${t.city2||t.z2||'—'}${t.state2?', '+t.state2:''}</td>
-      <td class="right miles">${(t.miles||0).toLocaleString()}</td>
-      <td class="right ${t.profitSet?'green':'muted'}">${t.profitSet?'$'+fmt(t.driver):'Pending'}</td>
-    </tr>`).join('');
+
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -7543,7 +7569,6 @@ function generarPDF(){
           <th>Date</th>
           <th>Origin</th>
           <th>Destination</th>
-          <th class="right">Miles</th>
           <th class="right">Driver Pay</th>
         </tr>
       </thead>
@@ -7551,11 +7576,10 @@ function generarPDF(){
       <tbody>
         <tr class="total-row">
           <td colspan="4"><span class="total-label">Period Total</span></td>
-          <td><span class="total-miles">${totalMiles.toLocaleString()} mi</span></td>
           <td><span class="total-pay">$${totalPay.toFixed(2)}</span></td>
         </tr>
         ${totalExtras>0?`<tr style="background:#FEF3C7;">
-          <td colspan="5" style="padding:10px 14px;font-size:12px;font-weight:700;color:#92400E;">🔧 Total extra expenses for the period</td>
+          <td colspan="4" style="padding:10px 14px;font-size:12px;font-weight:700;color:#92400E;">🔧 Total extra expenses for the period</td>
           <td style="padding:10px 14px;font-size:13px;font-weight:800;color:#B45309;text-align:right;">- $${totalExtras.toFixed(2)}</td>
         </tr>`:''}
       </tbody>

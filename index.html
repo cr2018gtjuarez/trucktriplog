@@ -298,6 +298,33 @@
     .driver-tag{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;background:var(--accent-bg);color:var(--accent);font-weight:600;margin-left:6px;border:1px solid #1e3a6e;}
     .empty{text-align:center;padding:2.5rem 1rem;color:var(--text3);font-size:14px;}
 
+    /* ── ANÁLISIS POR MILLA ── */
+    .mile-analysis{margin-top:9px;border-top:1px solid var(--border);padding-top:9px;}
+    .mile-analysis-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+    .mile-analysis-title{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;}
+    .mile-analysis-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+    .ma-stat{border-radius:10px;padding:10px;text-align:center;border:1px solid var(--border);}
+    .ma-stat.blue{background:var(--accent-bg);border-color:#1e3a6e;}
+    .ma-stat.green{background:var(--green-bg);border-color:#14532d44;}
+    .ma-stat.red{background:var(--red-bg);border-color:#7f1d1d33;}
+    .ma-stat.orange{background:var(--orange-bg);border-color:#92400e44;}
+    .ma-stat-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;margin-bottom:3px;}
+    .ma-stat.blue .ma-stat-lbl{color:var(--accent);}
+    .ma-stat.green .ma-stat-lbl{color:var(--green2);}
+    .ma-stat.red .ma-stat-lbl{color:var(--red2);}
+    .ma-stat.orange .ma-stat-lbl{color:var(--orange);}
+    .ma-stat-val{font-size:16px;font-weight:800;color:var(--text);}
+    .ma-stat.blue .ma-stat-val{color:var(--accent);}
+    .ma-stat.green .ma-stat-val{color:var(--green);}
+    .ma-stat.red .ma-stat-val{color:var(--red);}
+    .ma-stat.orange .ma-stat-val{color:var(--orange);}
+    .ma-stat-unit{font-size:10px;color:var(--text3);margin-top:2px;}
+    .ma-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;}
+    .ma-badge.good{background:var(--green-bg);color:var(--green);border:1px solid #14532d44;}
+    .ma-badge.warn{background:var(--orange-bg);color:var(--orange);border:1px solid #92400e44;}
+    .ma-badge.bad{background:var(--red-bg);color:var(--red);border:1px solid #7f1d1d33;}
+    .ma-loading{font-size:12px;color:var(--text3);padding:10px;text-align:center;}
+
     /* ── PAGOS TABLE ── */
     .pagos-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:1rem;}
     .pago-tile{background:var(--bg3);border-radius:11px;padding:1rem;text-align:center;border:1px solid var(--border);}
@@ -2497,17 +2524,69 @@ async function storeTrips(trips){
   localStorage.setItem(TRIPS_KEY, JSON.stringify(trips));
   if(fbReady){
     try{
-      // Save all trips as a single document for simplicity (works up to ~1MB)
-      await db.collection('data').doc('trips').set({ trips: trips, updatedAt: new Date().toISOString() });
+      // ── Separar imágenes antes de guardar en Firestore ──
+      // Esto evita el límite de 1MB del documento
+      const images = {};
+      const tripsClean = trips.map(t => {
+        const fuelLoads = (t.fuelLoads||[]).map((fl, fi) => {
+          if(fl.image){
+            images[`${t.id}_${fi}`] = fl.image;
+            return {...fl, image: null}; // quitar imagen del viaje
+          }
+          return fl;
+        });
+        return {...t, fuelLoads};
+      });
+
+      // Guardar viajes sin imágenes
+      await db.collection('data').doc('trips').set({ trips: tripsClean, updatedAt: new Date().toISOString() });
+
+      // Guardar imágenes en documento separado (si hay)
+      if(Object.keys(images).length > 0){
+        await db.collection('data').doc('images').set({ images, updatedAt: new Date().toISOString() });
+      }
+
       showSyncBanner('Datos guardados en la nube ☁️', 'ok');
     }catch(e){
       console.warn('storeTrips error:', e);
+      // Mostrar tamaño estimado para diagnóstico
+      const size = new Blob([JSON.stringify(trips)]).size;
+      console.warn('Tamaño estimado del documento:', (size/1024).toFixed(1)+'KB');
       showSyncBanner('Error al guardar en la nube', 'err');
     }
   }
 }
 
+// Cargar imágenes desde Firestore y reinyectarlas en los viajes en memoria
+async function loadImagesFromCloud(){
+  if(!fbReady) return;
+  try{
+    const snap = await db.collection('data').doc('images').get();
+    if(!snap.exists) return;
+    const { images } = snap.data();
+    if(!images || !Object.keys(images).length) return;
+
+    // Reinyectar en _cachedTrips
+    if(_cachedTrips){
+      _cachedTrips = _cachedTrips.map(t => {
+        const fuelLoads = (t.fuelLoads||[]).map((fl, fi) => {
+          const key = `${t.id}_${fi}`;
+          if(images[key]) return {...fl, image: images[key]};
+          return fl;
+        });
+        return {...t, fuelLoads};
+      });
+      // Actualizar localStorage con imágenes incluidas
+      localStorage.setItem(TRIPS_KEY, JSON.stringify(_cachedTrips));
+    }
+  }catch(e){
+    console.warn('loadImagesFromCloud error:', e);
+  }
+}
+
 // Real-time listener — keeps all devices in sync automatically
+let _imagesCache = {}; // cache de imágenes en memoria
+
 function startRealtimeSync(){
   if(!fbReady) return;
 
@@ -2517,20 +2596,47 @@ function startRealtimeSync(){
     if(!snap.exists) return;
     const data = snap.data();
     if(data && data.trips){
-      _cachedTrips = data.trips;
-      localStorage.setItem(TRIPS_KEY, JSON.stringify(data.trips));
-      const activeTab = document.querySelector('.tab.active');
-      if(activeTab){
-        const id = activeTab.getAttribute('data-id');
-        if(id==='home') renderHome();
-        if(id==='log') renderLog();
-        if(id==='summary') renderSummary();
-        if(id==='pagos') renderPagos();
-        if(id==='business') renderBusiness();
-        if(id==='miviaje') renderMiViaje();
-      }
+      // Reinyectar imágenes del cache antes de actualizar
+      _cachedTrips = data.trips.map(t => {
+        const fuelLoads = (t.fuelLoads||[]).map((fl, fi) => {
+          const key = `${t.id}_${fi}`;
+          if(!fl.image && _imagesCache[key]) return {...fl, image: _imagesCache[key]};
+          return fl;
+        });
+        return {...t, fuelLoads};
+      });
+      localStorage.setItem(TRIPS_KEY, JSON.stringify(_cachedTrips));
+      // Usar _currentSidebarId en lugar de .tab.active (bug fix)
+      const id = _currentSidebarId;
+      if(id==='home') renderHome();
+      if(id==='log') renderLog();
+      if(id==='summary') renderSummary();
+      if(id==='pagos') renderPagos();
+      if(id==='business') renderBusiness();
+      if(id==='miviaje') renderMiViaje();
     }
   }, err=>{ console.warn('Trips sync error:', err); });
+
+  // ── Images (documento separado) ──
+  db.collection('data').doc('images').onSnapshot(snap=>{
+    if(!snap.exists) return;
+    const data = snap.data();
+    if(data && data.images){
+      _imagesCache = data.images;
+      // Reinyectar en trips cacheados
+      if(_cachedTrips){
+        _cachedTrips = _cachedTrips.map(t => {
+          const fuelLoads = (t.fuelLoads||[]).map((fl, fi) => {
+            const key = `${t.id}_${fi}`;
+            if(!fl.image && _imagesCache[key]) return {...fl, image: _imagesCache[key]};
+            return fl;
+          });
+          return {...t, fuelLoads};
+        });
+        localStorage.setItem(TRIPS_KEY, JSON.stringify(_cachedTrips));
+      }
+    }
+  }, err=>{ console.warn('Images sync error:', err); });
 
   // ── Users ──
   if(_usersListener) _usersListener();
@@ -2539,9 +2645,8 @@ function startRealtimeSync(){
     const data = snap.data();
     if(data && data.users){
       localStorage.setItem('trucklog_users', JSON.stringify(data.users));
-      // Refrescar si admin está en página de usuarios
-      const activeTab = document.querySelector('.tab.active');
-      if(activeTab && activeTab.getAttribute('data-id')==='users') renderUsers();
+      // Fix: usar _currentSidebarId en lugar de .tab.active
+      if(_currentSidebarId === 'users') renderUsers();
     }
   }, err=>{ console.warn('Users sync error:', err); });
 
@@ -3885,11 +3990,104 @@ function renderLog(){
             ${fl.image?`<div class="fuel-item-img"><img src="${fl.image}" onclick="openLightbox('${fl.image.replace(/'/g,"\\'")}')"/><div style="font-size:11px;color:#aaa;margin-top:3px;">Toca para ampliar</div></div>`:'<div style="font-size:11px;color:#ccc;margin-top:4px;">Sin recibo adjunto</div>'}
           </div>`).join('')}
       </div>
+      <!-- ANÁLISIS POR MILLA -->
+      <div class="mile-analysis" id="ma-${t.id}">
+        <div class="mile-analysis-header">
+          <span class="mile-analysis-title">📊 Análisis por milla</span>
+          ${(()=>{
+            if(!t.roadMiles) return '<span class="ma-loading" id="ma-status-'+t.id+'">⏳ Calculando distancia real...</span>';
+            const rpm = t.profitSet && t.roadMiles ? (t.net / t.roadMiles) : null;
+            const badge = rpm===null ? '' : rpm>=2.5 ? '<span class="ma-badge good">✔ Excelente</span>' : rpm>=1.5 ? '<span class="ma-badge warn">~ Aceptable</span>' : '<span class="ma-badge bad">↓ Bajo</span>';
+            return badge;
+          })()}
+        </div>
+        <div class="mile-analysis-grid" id="ma-grid-${t.id}">
+          ${renderMileAnalysisGrid(t)}
+        </div>
+      </div>
       <div class="trip-actions">
         <button class="btn-sm btn-edit" onclick="openEditModal(${t.id})">&#x270F; ${t.profitSet?'Editar ganancia':'Agregar ganancia'}</button>
         <button class="btn-sm btn-red-sm" onclick="delTrip(${t.id})">Eliminar</button>
       </div>
     </div>`).join('');
+
+  // Calcular roadMiles para viajes que no lo tienen
+  filtered.forEach(t => {
+    if(!t.roadMiles) calcAndRenderMileAnalysis(t);
+  });
+}
+
+// ===== ANÁLISIS POR MILLA =====
+function renderMileAnalysisGrid(t){
+  const rm = t.roadMiles;
+  if(!rm) return '<div class="ma-loading" style="grid-column:1/-1;">Calculando distancia real entre ZIP codes...</div>';
+
+  const rpm     = t.profitSet ? parseFloat((t.net / rm).toFixed(2))            : null;
+  const cpm     = rm && t.totalCost ? parseFloat((t.totalCost / rm).toFixed(3)) : null;
+  const rpmLoad = t.profitSet && rm  ? parseFloat((t.loadVal / rm).toFixed(2))  : null;
+
+  const rpmColor = rpm===null ? 'orange' : rpm >= 2.5 ? 'green' : rpm >= 1.2 ? 'orange' : 'red';
+  const rpmVal   = rpm===null ? '—' : (rpm>=0?'+':'')+'$'+Math.abs(rpm).toFixed(2);
+
+  return `
+    <div class="ma-stat blue">
+      <div class="ma-stat-lbl">Dist. real</div>
+      <div class="ma-stat-val">${rm.toLocaleString('en-US')}</div>
+      <div class="ma-stat-unit">millas carretera</div>
+    </div>
+    <div class="ma-stat ${rpmColor}">
+      <div class="ma-stat-lbl">Gan. / milla</div>
+      <div class="ma-stat-val">${rpmVal}</div>
+      <div class="ma-stat-unit">por milla</div>
+    </div>
+    <div class="ma-stat red">
+      <div class="ma-stat-lbl">Costo / milla</div>
+      <div class="ma-stat-val">${cpm!==null ? '$'+cpm.toFixed(3) : '—'}</div>
+      <div class="ma-stat-unit">diesel / mi</div>
+    </div>
+    <div class="ma-stat ${t.profitSet?'blue':'orange'}">
+      <div class="ma-stat-lbl">Load / milla</div>
+      <div class="ma-stat-val">${rpmLoad!==null ? '$'+rpmLoad.toFixed(2) : '—'}</div>
+      <div class="ma-stat-unit">ingreso / mi</div>
+    </div>`;
+}
+
+async function calcAndRenderMileAnalysis(t){
+  let p1 = ZC[t.z1], p2 = ZC[t.z2];
+  if(!p1) p1 = await fetchZip(t.z1);
+  if(!p2) p2 = await fetchZip(t.z2);
+  if(!p1||!p2||!p1.lat||!p2.lat){
+    const statusEl = document.getElementById('ma-status-'+t.id);
+    if(statusEl) statusEl.textContent = '⚠ No se encontraron coordenadas para los ZIP codes.';
+    return;
+  }
+  const rm = await fetchRoadMiles(p1.lat, p1.lon, p2.lat, p2.lon);
+  if(!rm){
+    const statusEl = document.getElementById('ma-status-'+t.id);
+    if(statusEl) statusEl.textContent = '⚠ No se pudo calcular (sin conexión o ZIP inválido).';
+    return;
+  }
+  // Guardar en el viaje para futuros accesos
+  const trips = loadTrips();
+  const idx = trips.findIndex(x => x.id === t.id);
+  let updated = t;
+  if(idx >= 0){
+    trips[idx].roadMiles = rm;
+    storeTrips(trips);
+    updated = trips[idx];
+  } else {
+    updated = {...t, roadMiles: rm};
+  }
+  // Actualizar DOM de esta card
+  const gridEl = document.getElementById('ma-grid-'+updated.id);
+  if(gridEl) gridEl.innerHTML = renderMileAnalysisGrid(updated);
+  // Actualizar badge
+  const statusEl = document.getElementById('ma-status-'+updated.id);
+  if(statusEl){
+    const rpm = updated.profitSet ? (updated.net / rm) : null;
+    const badge = rpm===null ? '' : rpm>=2.5 ? '<span class="ma-badge good">✔ Excelente</span>' : rpm>=1.5 ? '<span class="ma-badge warn">~ Aceptable</span>' : '<span class="ma-badge bad">↓ Bajo</span>';
+    statusEl.outerHTML = badge || '<span></span>';
+  }
 }
 
 function renderSummary(){
@@ -7744,10 +7942,29 @@ window.addEventListener('load', function(){
       else{clearSession();}
     }
     if(fbReady){
+      // Cargar trips y luego reinyectar imágenes del documento separado
       db.collection('data').doc('trips').get().then(snap=>{
         if(snap.exists&&snap.data().trips){
           _cachedTrips=snap.data().trips;
           localStorage.setItem(TRIPS_KEY,JSON.stringify(_cachedTrips));
+        }
+        // Cargar imágenes desde documento separado
+        return db.collection('data').doc('images').get();
+      }).then(imgSnap=>{
+        if(imgSnap && imgSnap.exists && imgSnap.data().images){
+          _imagesCache = imgSnap.data().images;
+          // Reinyectar imágenes en trips cacheados
+          if(_cachedTrips){
+            _cachedTrips = _cachedTrips.map(t => {
+              const fuelLoads = (t.fuelLoads||[]).map((fl, fi) => {
+                const key = `${t.id}_${fi}`;
+                if(!fl.image && _imagesCache[key]) return {...fl, image: _imagesCache[key]};
+                return fl;
+              });
+              return {...t, fuelLoads};
+            });
+            localStorage.setItem(TRIPS_KEY,JSON.stringify(_cachedTrips));
+          }
         }
         startRealtimeSync();
       }).catch(()=>{startRealtimeSync();});

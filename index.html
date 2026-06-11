@@ -2519,37 +2519,51 @@ function loadTrips(){
   try{return JSON.parse(localStorage.getItem(TRIPS_KEY))||[];}catch(e){return[];}
 }
 
+// Firestore no acepta undefined — convierte todo undefined a null
+function sanitizeForFirestore(obj){
+  if(Array.isArray(obj)) return obj.map(sanitizeForFirestore);
+  if(obj !== null && typeof obj === 'object'){
+    const clean = {};
+    for(const k of Object.keys(obj)){
+      const v = obj[k];
+      clean[k] = (v === undefined) ? null : sanitizeForFirestore(v);
+    }
+    return clean;
+  }
+  return obj;
+}
+
 async function storeTrips(trips){
   _cachedTrips = trips;
   localStorage.setItem(TRIPS_KEY, JSON.stringify(trips));
   if(fbReady){
     try{
       // ── Separar imágenes antes de guardar en Firestore ──
-      // Esto evita el límite de 1MB del documento
       const images = {};
       const tripsClean = trips.map(t => {
         const fuelLoads = (t.fuelLoads||[]).map((fl, fi) => {
           if(fl.image){
             images[`${t.id}_${fi}`] = fl.image;
-            return {...fl, image: null}; // quitar imagen del viaje
+            return {...fl, image: null};
           }
           return fl;
         });
         return {...t, fuelLoads};
       });
 
-      // Guardar viajes sin imágenes
-      await db.collection('data').doc('trips').set({ trips: tripsClean, updatedAt: new Date().toISOString() });
+      // Limpiar undefined antes de enviar a Firestore
+      const tripsPayload = sanitizeForFirestore({ trips: tripsClean, updatedAt: new Date().toISOString() });
+      await db.collection('data').doc('trips').set(tripsPayload);
 
       // Guardar imágenes en documento separado (si hay)
       if(Object.keys(images).length > 0){
-        await db.collection('data').doc('images').set({ images, updatedAt: new Date().toISOString() });
+        const imagesPayload = sanitizeForFirestore({ images, updatedAt: new Date().toISOString() });
+        await db.collection('data').doc('images').set(imagesPayload);
       }
 
       showSyncBanner('Datos guardados en la nube ☁️', 'ok');
     }catch(e){
       console.warn('storeTrips error:', e);
-      // Mostrar tamaño estimado para diagnóstico
       const size = new Blob([JSON.stringify(trips)]).size;
       console.warn('Tamaño estimado del documento:', (size/1024).toFixed(1)+'KB');
       showSyncBanner('Error al guardar en la nube', 'err');

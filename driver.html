@@ -2084,23 +2084,23 @@
           <div style="font-size:11px;font-weight:700;color:var(--text3);letter-spacing:.8px;text-transform:uppercase;margin-bottom:8px;">Documentos y fotos del viaje</div>
           <div class="g2">
             <div>
-              <input type="file" id="mv-loaded-input" accept="image/*" capture="environment" style="display:none;" onchange="handleBolUpload('loaded',this)"/>
-              <button class="btn-sm" onclick="triggerBolUpload('loaded')" style="width:100%;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);">📦 <span id="mv-loaded-label">Foto de carga (loaded)</span></button>
+              <input type="file" id="mv-loaded-input" accept="image/*" capture="environment" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;" onchange="handleBolUpload('loaded',this)"/>
+              <label for="mv-loaded-input" class="btn-sm" style="display:block;width:100%;box-sizing:border-box;text-align:center;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);cursor:pointer;">📦 <span id="mv-loaded-label">Foto de carga (loaded)</span></label>
               <div id="mv-loaded-preview" style="margin-top:6px;"></div>
             </div>
             <div>
-              <input type="file" id="mv-unloaded-input" accept="image/*" capture="environment" style="display:none;" onchange="handleBolUpload('unloaded',this)"/>
-              <button class="btn-sm" onclick="triggerBolUpload('unloaded')" style="width:100%;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);">📭 <span id="mv-unloaded-label">Foto de descarga (unloaded)</span></button>
+              <input type="file" id="mv-unloaded-input" accept="image/*" capture="environment" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;" onchange="handleBolUpload('unloaded',this)"/>
+              <label for="mv-unloaded-input" class="btn-sm" style="display:block;width:100%;box-sizing:border-box;text-align:center;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);cursor:pointer;">📭 <span id="mv-unloaded-label">Foto de descarga (unloaded)</span></label>
               <div id="mv-unloaded-preview" style="margin-top:6px;"></div>
             </div>
             <div>
-              <input type="file" id="mv-bol-input" accept="image/*" capture="environment" style="display:none;" onchange="handleBolUpload('bol',this)"/>
-              <button class="btn-sm" onclick="triggerBolUpload('bol')" style="width:100%;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);">📄 <span id="mv-bol-label">Subir BOL (pickup)</span></button>
+              <input type="file" id="mv-bol-input" accept="image/*" capture="environment" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;" onchange="handleBolUpload('bol',this)"/>
+              <label for="mv-bol-input" class="btn-sm" style="display:block;width:100%;box-sizing:border-box;text-align:center;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);cursor:pointer;">📄 <span id="mv-bol-label">Subir BOL (pickup)</span></label>
               <div id="mv-bol-preview" style="margin-top:6px;"></div>
             </div>
             <div>
-              <input type="file" id="mv-pod-input" accept="image/*" capture="environment" style="display:none;" onchange="handleBolUpload('pod',this)"/>
-              <button class="btn-sm" onclick="triggerBolUpload('pod')" style="width:100%;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);">📄 <span id="mv-pod-label">Subir POD (entrega)</span></button>
+              <input type="file" id="mv-pod-input" accept="image/*" capture="environment" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;" onchange="handleBolUpload('pod',this)"/>
+              <label for="mv-pod-input" class="btn-sm" style="display:block;width:100%;box-sizing:border-box;text-align:center;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);cursor:pointer;">📄 <span id="mv-pod-label">Subir POD (entrega)</span></label>
               <div id="mv-pod-preview" style="margin-top:6px;"></div>
             </div>
           </div>
@@ -9444,40 +9444,49 @@ function triggerBolUpload(kind){
 
 async function handleBolUpload(kind, input){
   const file = input.files && input.files[0];
-  if(!file) return;
+  if(!file){ console.warn('handleBolUpload: no se seleccionó ningún archivo'); return; }
   const tripId = parseInt(document.getElementById('mv-trip-id').value);
-  if(!tripId) return;
+  if(!tripId){ alert('No se encontró el viaje activo. Recarga la página e intenta de nuevo.'); return; }
 
   const reader = new FileReader();
+  reader.onerror = function(){
+    console.error('FileReader error al leer la foto');
+    alert('No se pudo leer la foto. Intenta de nuevo.');
+  };
   reader.onload = async function(e){
-    const dataUrl = e.target.result;
-    const trips = loadTrips();
-    const idx = trips.findIndex(t=>t.id===tripId);
-    if(idx<0) return;
-    trips[idx] = {...trips[idx], [kind+'Image']: dataUrl, [kind+'DriveStatus']: 'uploading'};
-    await storeTrips(trips);
-    renderMiViaje();
-
-    // Subir a Google Drive en segundo plano
     try{
-      const trip = trips[idx];
-      const result = await uploadPhotoToDrive(trip, kind, dataUrl);
-      const trips2 = loadTrips();
-      const idx2 = trips2.findIndex(t=>t.id===tripId);
-      if(idx2>=0){
-        trips2[idx2] = {...trips2[idx2], [kind+'DriveLink']: result.webViewLink, [kind+'DriveStatus']: 'done'};
-        await storeTrips(trips2);
-        renderMiViaje();
+      const dataUrl = e.target.result;
+      const trips = loadTrips();
+      const idx = trips.findIndex(t=>t.id===tripId);
+      if(idx<0){ alert('No se encontró el viaje. Recarga la página e intenta de nuevo.'); return; }
+      trips[idx] = {...trips[idx], [kind+'Image']: dataUrl, [kind+'DriveStatus']: 'uploading'};
+      await storeTrips(trips);
+      renderMiViaje();
+
+      // Subir a Google Drive en segundo plano
+      try{
+        const trip = trips[idx];
+        const result = await uploadPhotoToDrive(trip, kind, dataUrl);
+        const trips2 = loadTrips();
+        const idx2 = trips2.findIndex(t=>t.id===tripId);
+        if(idx2>=0){
+          trips2[idx2] = {...trips2[idx2], [kind+'DriveLink']: result.webViewLink, [kind+'DriveStatus']: 'done'};
+          await storeTrips(trips2);
+          renderMiViaje();
+        }
+      }catch(err){
+        console.warn('uploadPhotoToDrive error:', err);
+        const trips3 = loadTrips();
+        const idx3 = trips3.findIndex(t=>t.id===tripId);
+        if(idx3>=0){
+          trips3[idx3] = {...trips3[idx3], [kind+'DriveStatus']: 'error'};
+          await storeTrips(trips3);
+          renderMiViaje();
+        }
       }
-    }catch(err){
-      console.warn('uploadPhotoToDrive error:', err);
-      const trips3 = loadTrips();
-      const idx3 = trips3.findIndex(t=>t.id===tripId);
-      if(idx3>=0){
-        trips3[idx3] = {...trips3[idx3], [kind+'DriveStatus']: 'error'};
-        await storeTrips(trips3);
-        renderMiViaje();
-      }
+    }catch(fatalErr){
+      console.error('handleBolUpload error fatal:', fatalErr);
+      alert('Ocurrió un error guardando la foto: '+(fatalErr && fatalErr.message ? fatalErr.message : fatalErr));
     }
   };
   reader.readAsDataURL(file);

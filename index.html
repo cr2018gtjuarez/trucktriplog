@@ -138,6 +138,36 @@
     .sidebar-logout{display:flex;align-items:center;justify-content:center;gap:10px;padding:12px 16px;border-radius:11px;background:var(--red-bg);border:1px solid #7f1d1d44;cursor:pointer;width:100%;font-size:14px;font-weight:600;color:var(--red);-webkit-tap-highlight-color:transparent;font-family:inherit;transition:all .2s;}
     .sidebar-logout:hover{background:#2d0f0f;}
 
+    /* ── SIDEBAR OSCURO (admin, estilo AxionRoute) ── */
+    .sidebar.sidebar-dark{background:#10162B;border-right:1px solid #1E2645;}
+    .sidebar.sidebar-dark .sidebar-header{background:#10162B;border-bottom:1px solid #1E2645;}
+    .sidebar.sidebar-dark .sidebar-app-name{color:#fff;}
+    .sidebar.sidebar-dark .sidebar-tagline{color:#7B87B8;}
+    .sidebar.sidebar-dark .sidebar-user-info{background:#161D38;border:1px solid #232B4D;}
+    .sidebar.sidebar-dark .sidebar-user-name{color:#fff;}
+    .sidebar.sidebar-dark .sidebar-user-role{color:#7B87B8;}
+    .sidebar.sidebar-dark .sidebar-section-label{color:#5A659A;}
+    .sidebar.sidebar-dark .sidebar-item{color:#B4BEE0;}
+    .sidebar.sidebar-dark .sidebar-item:hover{background:#161D38;color:#fff;}
+    .sidebar.sidebar-dark .sidebar-item.active{background:#1D2A5E;color:#fff;border:1px solid #2D3D7A;}
+    .sidebar.sidebar-dark .sidebar-item-icon{background:#161D38;border:1px solid #232B4D;}
+    .sidebar.sidebar-dark .sidebar-item.active .sidebar-item-icon{background:var(--accent);border-color:transparent;}
+    .sidebar.sidebar-dark .sidebar-footer{border-top:1px solid #1E2645;}
+    .sidebar.sidebar-dark .sidebar-footer-btn{background:#161D38;border:1px solid #232B4D;color:#B4BEE0;}
+    .sidebar.sidebar-dark .sidebar-footer-btn:hover{border-color:#2D3D7A;color:#fff;}
+    .sidebar.sidebar-dark .sidebar-logout{background:#2A1420;border:1px solid #4A1F2D;}
+
+    /* ── BARRA DE CONTADORES DE ESTATUS (admin) ── */
+    #admin-status-bar{display:none;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 16px;background:var(--bg2);border-bottom:1px solid var(--border);}
+    .status-pill{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;padding:5px 11px;border-radius:20px;border:1px solid var(--border2);background:var(--bg3);color:var(--text2);}
+    .status-pill .dot{width:7px;height:7px;border-radius:50%;}
+    .status-pill.driving{color:var(--green);border-color:#BBF7D0;background:var(--green-bg);}
+    .status-pill.driving .dot{background:var(--green);}
+    .status-pill.stopped{color:var(--red);border-color:#f0997b55;background:var(--red-bg);}
+    .status-pill.stopped .dot{background:var(--red);}
+    .status-pill.offline{color:var(--text3);background:var(--bg3);}
+    .status-pill.offline .dot{background:var(--text3);}
+
     .tabs{display:none!important;}
 
     /* ── PAGE ── */
@@ -425,6 +455,9 @@
     .dark-toggle{display:none;}
 
     /* ── RESPONSIVE ── */
+    @media(max-width:900px){
+      .ubi-layout-grid{grid-template-columns:1fr!important;}
+    }
     @media(max-width:600px){
       .g2,.g3,.fuel-inputs{grid-template-columns:1fr;}
       .tiles{grid-template-columns:1fr 1fr;}
@@ -525,7 +558,7 @@
   </div>
 
   <!-- TOP HEADER -->
-  <div class="app-header">
+  <div class="app-header" id="app-header">
     <div class="app-header-left">
       <button class="hamburger-btn" onclick="toggleSidebar()" id="hamburger-btn" style="position:relative;">
         <span></span><span></span><span></span>
@@ -565,6 +598,13 @@
 
   <!-- Toast de notificación -->
   <div id="notif-toast" style="display:none;position:fixed;top:64px;left:50%;transform:translateX(-50%);z-index:400;background:var(--bg2);border:1px solid var(--border2);border-radius:12px;box-shadow:var(--shadow-lg);padding:12px 16px;max-width:90vw;font-size:13px;color:var(--text);"></div>
+
+  <!-- Barra de contadores de estatus (admin) -->
+  <div id="admin-status-bar">
+    <span class="status-pill driving"><span class="dot"></span>Manejando: <span id="cnt-driving">0</span></span>
+    <span class="status-pill stopped"><span class="dot"></span>Detenido: <span id="cnt-stopped">0</span></span>
+    <span class="status-pill offline"><span class="dot"></span>Sin actividad: <span id="cnt-offline">0</span></span>
+  </div>
 
   <div class="tabs" id="tab-bar"></div>
 
@@ -1614,6 +1654,11 @@
         <div class="field"><label>Descripción</label><input type="text" id="ex-desc" placeholder="Detalle del gasto..."/></div>
         <div class="field"><label>Monto ($)</label><input type="number" id="ex-amount" placeholder="0.00" min="0" step="0.01"/></div>
       </div>
+      <div style="margin-top:10px;">
+        <input type="file" id="receipt-input-extra" accept="image/*,application/pdf" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;" onchange="handleReceiptUpload('extra',this)"/>
+        <label for="receipt-input-extra" class="btn-sm" style="display:inline-block;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);cursor:pointer;">📎 Adjuntar recibo/factura (opcional)</label>
+        <div id="receipt-preview-extra" style="margin-top:6px;"></div>
+      </div>
       <div class="msg" id="ex-msg"></div>
       <button class="btn-save" onclick="addExtra()" style="margin-top:12px;">Guardar gasto extra</button>
     </div>
@@ -2120,23 +2165,43 @@
           <div style="font-size:11px;font-weight:700;color:var(--text3);letter-spacing:.8px;text-transform:uppercase;margin-bottom:8px;">Documentos y fotos del viaje</div>
           <div class="g2">
             <div>
-              <input type="file" id="mv-loaded-input" accept="image/*" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;" onchange="handleBolUpload('loaded',this)"/>
-              <label for="mv-loaded-input" class="btn-sm" style="display:block;width:100%;box-sizing:border-box;text-align:center;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);cursor:pointer;">📦 <span id="mv-loaded-label">Foto de carga (loaded)</span></label>
+              <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:4px;">📦 <span id="mv-loaded-label">Foto de carga (loaded)</span></div>
+              <div style="display:flex;gap:6px;">
+                <input type="file" id="mv-loaded-input-cam" accept="image/*" capture="environment" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;" onchange="handleBolUpload('loaded',this)"/>
+                <label for="mv-loaded-input-cam" class="btn-sm" style="flex:1;text-align:center;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);cursor:pointer;">📷 Cámara</label>
+                <input type="file" id="mv-loaded-input-gal" accept="image/*" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;" onchange="handleBolUpload('loaded',this)"/>
+                <label for="mv-loaded-input-gal" class="btn-sm" style="flex:1;text-align:center;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);cursor:pointer;">🖼️ Galería</label>
+              </div>
               <div id="mv-loaded-preview" style="margin-top:6px;"></div>
             </div>
             <div>
-              <input type="file" id="mv-unloaded-input" accept="image/*" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;" onchange="handleBolUpload('unloaded',this)"/>
-              <label for="mv-unloaded-input" class="btn-sm" style="display:block;width:100%;box-sizing:border-box;text-align:center;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);cursor:pointer;">📭 <span id="mv-unloaded-label">Foto de descarga (unloaded)</span></label>
+              <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:4px;">📭 <span id="mv-unloaded-label">Foto de descarga (unloaded)</span></div>
+              <div style="display:flex;gap:6px;">
+                <input type="file" id="mv-unloaded-input-cam" accept="image/*" capture="environment" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;" onchange="handleBolUpload('unloaded',this)"/>
+                <label for="mv-unloaded-input-cam" class="btn-sm" style="flex:1;text-align:center;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);cursor:pointer;">📷 Cámara</label>
+                <input type="file" id="mv-unloaded-input-gal" accept="image/*" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;" onchange="handleBolUpload('unloaded',this)"/>
+                <label for="mv-unloaded-input-gal" class="btn-sm" style="flex:1;text-align:center;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);cursor:pointer;">🖼️ Galería</label>
+              </div>
               <div id="mv-unloaded-preview" style="margin-top:6px;"></div>
             </div>
             <div>
-              <input type="file" id="mv-bol-input" accept="image/*" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;" onchange="handleBolUpload('bol',this)"/>
-              <label for="mv-bol-input" class="btn-sm" style="display:block;width:100%;box-sizing:border-box;text-align:center;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);cursor:pointer;">📄 <span id="mv-bol-label">Subir BOL (pickup)</span></label>
+              <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:4px;">📄 <span id="mv-bol-label">Subir BOL (pickup)</span></div>
+              <div style="display:flex;gap:6px;">
+                <input type="file" id="mv-bol-input-cam" accept="image/*" capture="environment" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;" onchange="handleBolUpload('bol',this)"/>
+                <label for="mv-bol-input-cam" class="btn-sm" style="flex:1;text-align:center;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);cursor:pointer;">📷 Cámara</label>
+                <input type="file" id="mv-bol-input-gal" accept="image/*" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;" onchange="handleBolUpload('bol',this)"/>
+                <label for="mv-bol-input-gal" class="btn-sm" style="flex:1;text-align:center;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);cursor:pointer;">🖼️ Galería</label>
+              </div>
               <div id="mv-bol-preview" style="margin-top:6px;"></div>
             </div>
             <div>
-              <input type="file" id="mv-pod-input" accept="image/*" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;" onchange="handleBolUpload('pod',this)"/>
-              <label for="mv-pod-input" class="btn-sm" style="display:block;width:100%;box-sizing:border-box;text-align:center;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);cursor:pointer;">📄 <span id="mv-pod-label">Subir POD (entrega)</span></label>
+              <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:4px;">📄 <span id="mv-pod-label">Subir POD (entrega)</span></div>
+              <div style="display:flex;gap:6px;">
+                <input type="file" id="mv-pod-input-cam" accept="image/*" capture="environment" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;" onchange="handleBolUpload('pod',this)"/>
+                <label for="mv-pod-input-cam" class="btn-sm" style="flex:1;text-align:center;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);cursor:pointer;">📷 Cámara</label>
+                <input type="file" id="mv-pod-input-gal" accept="image/*" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;" onchange="handleBolUpload('pod',this)"/>
+                <label for="mv-pod-input-gal" class="btn-sm" style="flex:1;text-align:center;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);cursor:pointer;">🖼️ Galería</label>
+              </div>
               <div id="mv-pod-preview" style="margin-top:6px;"></div>
             </div>
           </div>
@@ -2644,6 +2709,11 @@
         <div class="field"><label>Taller / Proveedor</label><input type="text" id="mt-vendor" placeholder="Ej. Taller El Rápido"/></div>
         <div class="field"><label>Descripción</label><input type="text" id="mt-desc" placeholder="Detalle del servicio..."/></div>
       </div>
+      <div style="margin-top:10px;">
+        <input type="file" id="receipt-input-maint" accept="image/*,application/pdf" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;" onchange="handleReceiptUpload('maint',this)"/>
+        <label for="receipt-input-maint" class="btn-sm" style="display:inline-block;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);cursor:pointer;">📎 Adjuntar recibo/factura (opcional)</label>
+        <div id="receipt-preview-maint" style="margin-top:6px;"></div>
+      </div>
       <div class="msg" id="mt-msg"></div>
       <button class="btn-save" onclick="addMaintenanceRecord()" style="margin-top:12px;">Guardar servicio</button>
     </div>
@@ -2747,6 +2817,11 @@
         <div class="field"><label>Monto ($)</label><input type="number" id="be-amount" placeholder="0.00" min="0" step="0.01"/></div>
         <div class="field" style="grid-column:1/-1;"><label>Descripción</label><input type="text" id="be-desc" placeholder="Ej. Pago mensual Camión 1 - Banco XYZ"/></div>
       </div>
+      <div style="margin-top:10px;">
+        <input type="file" id="receipt-input-company" accept="image/*,application/pdf" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;" onchange="handleReceiptUpload('company',this)"/>
+        <label for="receipt-input-company" class="btn-sm" style="display:inline-block;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);cursor:pointer;">📎 Adjuntar recibo/factura (opcional)</label>
+        <div id="receipt-preview-company" style="margin-top:6px;"></div>
+      </div>
       <div class="msg" id="be-msg"></div>
       <button class="btn-save" onclick="addCompanyExpense()" style="margin-top:12px;">Guardar gasto</button>
     </div>
@@ -2795,6 +2870,11 @@
         </div>
         <div class="field"><label>Monto ($)</label><input type="number" id="og-amount" placeholder="0.00" min="0" step="0.01"/></div>
         <div class="field"><label>Descripción</label><input type="text" id="og-desc" placeholder="Ej. Almuerzo en ruta, Trámite de permiso..."/></div>
+      </div>
+      <div style="margin-top:10px;">
+        <input type="file" id="receipt-input-og" accept="image/*,application/pdf" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;" onchange="handleReceiptUpload('og',this)"/>
+        <label for="receipt-input-og" class="btn-sm" style="display:inline-block;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);cursor:pointer;">📎 Adjuntar recibo/factura (opcional)</label>
+        <div id="receipt-preview-og" style="margin-top:6px;"></div>
       </div>
       <div class="msg" id="og-msg"></div>
       <button class="btn-save" onclick="addOtroGasto()" style="margin-top:12px;">Guardar gasto</button>
@@ -3346,6 +3426,7 @@ let fbReady = false;
 let _cachedTrips = null;
 let _cachedUsers = null;
 let _tripsListener = null;
+let _statusCountListener = null;
 let _trucksListener = null;
 let _inspectionsListener = null;
 let _atInterval = null;
@@ -3561,6 +3642,25 @@ let _imagesCache = {}; // cache de imágenes en memoria
 
 function startRealtimeSync(){
   if(!fbReady) return;
+
+  // ── Contadores de estatus en la barra superior (admin) ──
+  if(currentUser && currentUser.role==='admin'){
+    if(_statusCountListener) _statusCountListener();
+    _statusCountListener = db.collection('locations').onSnapshot(snap=>{
+      let driving=0, stopped=0, offline=0;
+      snap.forEach(doc=>{
+        const d = doc.data();
+        if(d.active===false){ offline++; return; }
+        if(d.movingStatus==='driving') driving++;
+        else if(d.movingStatus==='stopped') stopped++;
+        else offline++;
+      });
+      const s = id => document.getElementById(id);
+      if(s('cnt-driving')) s('cnt-driving').textContent = driving;
+      if(s('cnt-stopped')) s('cnt-stopped').textContent = stopped;
+      if(s('cnt-offline')) s('cnt-offline').textContent = offline;
+    }, err=>{ console.warn('Status count sync error:', err); });
+  }
 
   // ── Trips ──
   if(_tripsListener) _tripsListener();
@@ -3845,6 +3945,8 @@ function doLogout(){
   if(_companyListener){_companyListener();_companyListener=null;}
   if(_locationsListener){_locationsListener();_locationsListener=null;}
   if(_notifListener){_notifListener();_notifListener=null;}
+  if(_statusCountListener){_statusCountListener();_statusCountListener=null;}
+  if(_ubiTickInterval){clearInterval(_ubiTickInterval);_ubiTickInterval=null;}
   if(_trucksListener){_trucksListener();_trucksListener=null;}
   if(_inspectionsListener){_inspectionsListener();_inspectionsListener=null;}
   document.getElementById('notif-bell-btn').style.display='none';
@@ -6790,6 +6892,7 @@ let liveMap=null, liveMarker=null;
 let histMap=null;
 let _driverWatchId=null;
 let _driverMarkers={};
+let _ubiTickInterval=null;
 let _locationsListener=null;
 
 function getDriverLocation(){
@@ -6979,6 +7082,67 @@ function renderLiveMap(lat,lon){
   }
 }
 
+let _ubiBalPeriod = 'week';
+
+function setUbiBalPeriod(period){
+  _ubiBalPeriod = period;
+  renderUbiBalance();
+}
+
+function renderUbiBalance(){
+  const now = new Date();
+  let from, to, label;
+  if(_ubiBalPeriod==='week'){
+    const d = new Date(now); d.setDate(d.getDate()-6);
+    from = d.toISOString().slice(0,10); to = now.toISOString().slice(0,10);
+    label = 'Últimos 7 días';
+  } else if(_ubiBalPeriod==='month'){
+    from = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
+    to = now.toISOString().slice(0,10);
+    label = 'Este mes';
+  } else {
+    from = `${now.getFullYear()}-01-01`;
+    to = now.toISOString().slice(0,10);
+    label = 'Este año';
+  }
+
+  ['week','month','year'].forEach(function(p){
+    const btn = document.getElementById('ubi-bal-btn-'+p);
+    if(btn){
+      const active = p===_ubiBalPeriod;
+      btn.style.background = active ? 'var(--accent)' : 'var(--bg3)';
+      btn.style.color = active ? '#fff' : 'var(--text2)';
+      btn.style.borderColor = active ? 'var(--accent)' : 'var(--border2)';
+    }
+  });
+
+  const completed = loadTrips().filter(t=>t.tripStatus==='completed' && inDashRange(t.date, from, to));
+  const extras = loadExtras().filter(e=>inDashRange(e.date, from, to));
+  const maint = loadMaintenance().filter(m=>inDashRange(m.date, from, to));
+  const companyExp = loadCompanyExpenses().filter(e=>inDashRange(e.date, from, to));
+
+  const facturacion = completed.reduce((a,t)=>a+(t.loadVal||0),0);
+  const brokerFee = completed.reduce((a,t)=>a+(t.fee||0),0);
+  const factoringFeeTotal = completed.reduce((a,t)=>a+(t.factoringFee||0),0);
+  const driverFee = completed.reduce((a,t)=>a+(t.driver||0),0);
+  const dieselTrips = completed.reduce((a,t)=>a+(t.totalCost||0),0);
+  const extrasTotal = extras.reduce((a,e)=>a+(e.amount||0),0);
+  const maintTotal = maint.reduce((a,m)=>a+(m.cost||0),0);
+  const fixedTotal = companyExp.reduce((a,e)=>a+(e.amount||0),0);
+
+  const totalExpenses = brokerFee + factoringFeeTotal + driverFee + dieselTrips + extrasTotal + maintTotal + fixedTotal;
+  const gananciaReal = facturacion - totalExpenses;
+
+  const s = id => document.getElementById(id);
+  if(s('ubi-bal-revenue')) s('ubi-bal-revenue').textContent = '$'+fmt(facturacion);
+  if(s('ubi-bal-expenses')) s('ubi-bal-expenses').textContent = '$'+fmt(totalExpenses);
+  if(s('ubi-bal-net')){
+    s('ubi-bal-net').textContent = '$'+fmt(gananciaReal);
+    s('ubi-bal-net').style.color = gananciaReal>=0 ? 'var(--green)' : 'var(--red)';
+  }
+  if(s('ubi-bal-label')) s('ubi-bal-label').textContent = label+' · '+completed.length+' viaje'+(completed.length!==1?'s':'')+' completado'+(completed.length!==1?'s':'');
+}
+
 function renderUbicacion(){
   // ── ADMIN: mapa en tiempo real con todos los drivers ──
   if(currentUser && currentUser.role==='admin'){
@@ -7063,12 +7227,47 @@ function renderAdminDriversMap(){
       </div>
       <style>@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}</style>
 
-      <!-- Lista de drivers activos -->
-      <div id="ubi-drivers-list" style="margin-bottom:14px;display:grid;gap:8px;"></div>
+      <input type="text" id="ubi-search" placeholder="🔍 Buscar por nombre de driver o camión..." oninput="filterUbiDrivers(this.value)" style="width:100%;margin-bottom:12px;"/>
 
-      <!-- Mapa principal -->
-      <div id="ubi-admin-map" style="height:380px;border-radius:12px;overflow:hidden;border:1px solid var(--border);"></div>
-      <div style="font-size:11px;color:var(--text3);margin-top:8px;text-align:center;">El mapa se actualiza automáticamente cuando los drivers envían su ubicación.</div>
+      <div class="ubi-layout-grid" style="display:grid;grid-template-columns:340px 1fr;gap:14px;align-items:start;">
+        <div>
+          <!-- Lista de drivers activos -->
+          <div id="ubi-drivers-list" style="margin-bottom:14px;display:grid;gap:10px;max-height:600px;overflow-y:auto;"></div>
+        </div>
+
+        <!-- Mapa principal -->
+        <div>
+          <div id="ubi-admin-map" style="height:600px;border-radius:12px;overflow:hidden;border:1px solid var(--border);"></div>
+          <div style="font-size:11px;color:var(--text3);margin-top:8px;text-align:center;">El mapa se actualiza automáticamente cuando los drivers envían su ubicación.</div>
+        </div>
+      </div>
+
+      <!-- Balance de ganancia (últimos días) -->
+      <div class="card" style="margin-top:14px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <div class="card-title" style="margin:0;">💰 Balance de ganancia</div>
+          <div style="display:flex;gap:6px;">
+            <button class="btn-sm" id="ubi-bal-btn-week" onclick="setUbiBalPeriod('week')" style="background:var(--bg3);border:1px solid var(--border2);color:var(--text2);">Semana</button>
+            <button class="btn-sm" id="ubi-bal-btn-month" onclick="setUbiBalPeriod('month')" style="background:var(--bg3);border:1px solid var(--border2);color:var(--text2);">Mes</button>
+            <button class="btn-sm" id="ubi-bal-btn-year" onclick="setUbiBalPeriod('year')" style="background:var(--bg3);border:1px solid var(--border2);color:var(--text2);">Año</button>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+          <div style="background:var(--green-bg);border-radius:10px;padding:12px;text-align:center;">
+            <div style="font-size:10px;font-weight:700;color:var(--green2);text-transform:uppercase;">Facturación</div>
+            <div style="font-size:18px;font-weight:800;color:var(--green);" id="ubi-bal-revenue">$0</div>
+          </div>
+          <div style="background:var(--bg3);border-radius:10px;padding:12px;text-align:center;">
+            <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;">Gastos</div>
+            <div style="font-size:18px;font-weight:800;color:var(--red);" id="ubi-bal-expenses">$0</div>
+          </div>
+          <div style="background:var(--accent-bg);border-radius:10px;padding:12px;text-align:center;">
+            <div style="font-size:10px;font-weight:700;color:var(--accent);text-transform:uppercase;">Ganancia neta</div>
+            <div style="font-size:18px;font-weight:800;color:var(--accent);" id="ubi-bal-net">$0</div>
+          </div>
+        </div>
+        <div style="font-size:11px;color:var(--text3);margin-top:8px;text-align:center;" id="ubi-bal-label"></div>
+      </div>
     </div>
 
     <!-- Historial de ubicaciones por viaje -->
@@ -7082,9 +7281,38 @@ function renderAdminDriversMap(){
   // Inicializar mapa admin
   setTimeout(()=>{
     if(!window.L) return;
+    renderUbiBalance();
     if(liveMap){liveMap.remove();liveMap=null;_driverMarkers={};}
-    liveMap=L.map('ubi-admin-map').setView([31.5,-98],5);
+    liveMap=L.map('ubi-admin-map');
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:19}).addTo(liveMap);
+    // Ajustar a los límites reales de EE.UU. continental — siempre se ve el país completo sin importar el tamaño de la pantalla
+    liveMap.invalidateSize();
+    liveMap.fitBounds([[24.4,-125.0],[49.4,-66.9]]);
+    setTimeout(()=>{ if(liveMap){ liveMap.invalidateSize(); liveMap.fitBounds([[24.4,-125.0],[49.4,-66.9]]); } }, 300);
+
+    // Banderas de viajes ya finalizados
+    const completedTrips = loadTrips().filter(t=>t.tripStatus==='completed');
+    completedTrips.forEach(function(t){
+      const destPos = (t.destLat!=null) ? {lat:t.destLat, lon:t.destLon} : ZC[t.z2||''];
+      if(!destPos) return;
+      const flagIcon = L.divIcon({
+        className:'',
+        html:`<div style="font-size:20px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.4));">🏁</div>`,
+        iconSize:[24,24], iconAnchor:[6,22]
+      });
+      const revenue = t.loadVal ? '$'+t.loadVal.toLocaleString() : '—';
+      const popupHtml = `<b>🏁 Viaje finalizado</b><br>
+        <span style="font-size:11px;color:#333;">${t.driverName||'—'}<br>
+        ${t.city1||'—'}, ${t.state1||''} → ${t.city2||'—'}, ${t.state2||''}<br>
+        ${fmtDate(t.date)} · ${revenue}</span>`;
+      L.marker([destPos.lat, destPos.lon], {icon:flagIcon, opacity:0.85}).addTo(liveMap).bindPopup(popupHtml);
+    });
+
+    // Cronómetro: refresca el "tiempo en este estatus" cada segundo sin re-pedir datos a Firebase
+    if(_ubiTickInterval) clearInterval(_ubiTickInterval);
+    _ubiTickInterval = setInterval(()=>{
+      if(document.getElementById('ubi-drivers-list') && _lastDriversData.length) renderDriversList(_lastDriversData);
+    }, 1000);
 
     // Escuchar ubicaciones en Firebase
     if(fbReady && db){
@@ -7096,6 +7324,7 @@ function renderAdminDriversMap(){
           drivers.push(d);
           updateDriverMarker(d);
         });
+        _lastDriversData = drivers;
         renderDriversList(drivers);
       });
     } else {
@@ -7141,6 +7370,34 @@ function renderAdminDriversMap(){
   },200);
 }
 
+// Calcula progreso de ruta + ETA de un driver a partir de su viaje activo y su posición GPS actual
+function computeDriverRouteETA(driverUsername, driverPos){
+  const trips = loadTrips();
+  const trip = trips.find(t=>t.tripStatus==='active' && t.driverUser===driverUsername);
+  if(!trip) return null;
+
+  const hasRealRoute = trip.routeMiles && trip.routeDurationSec && trip.origLat!=null && trip.destLat!=null;
+  const origPos = hasRealRoute ? {lat:trip.origLat, lon:trip.origLon} : ZC[trip.z1||''];
+  const destPos = hasRealRoute ? {lat:trip.destLat, lon:trip.destLon} : ZC[trip.z2||''];
+
+  let totalMiles = 0;
+  if(hasRealRoute) totalMiles = trip.routeMiles;
+  else if(origPos && destPos) totalMiles = Math.round(haversineKm(origPos.lat,origPos.lon,destPos.lat,destPos.lon) * 0.621371 * 1.20);
+
+  if(!origPos || totalMiles<=0) return {trip, city1:trip.city1, city2:trip.city2, hasData:false};
+
+  const kmDone = driverPos ? haversineKm(origPos.lat,origPos.lon,driverPos.lat,driverPos.lon) : 0;
+  const milesDone = Math.min(Math.round(kmDone*0.621371), totalMiles);
+  const milesLeft = Math.max(totalMiles-milesDone, 0);
+  const pct = totalMiles>0 ? Math.round((milesDone/totalMiles)*100) : 0;
+
+  const remainMin = hasRealRoute && totalMiles>0 ? (milesLeft/totalMiles)*(trip.routeDurationSec/60) : (milesLeft/60)*60;
+  const etaDate = new Date(Date.now()+remainMin*60000);
+  const etaTime = etaDate.toLocaleTimeString('es-US',{hour:'2-digit',minute:'2-digit',hour12:true});
+
+  return {trip, city1:trip.city1, city2:trip.city2, totalMiles, milesDone, milesLeft, pct, etaTime, hasData:true};
+}
+
 function updateDriverMarker(d){
   if(!liveMap || !window.L) return;
   const {lat,lon,name,username,active,movingStatus}=d;
@@ -7149,16 +7406,26 @@ function updateDriverMarker(d){
   const color = !active ? '#9CA3AF' : (movingStatus==='driving' ? '#16A34A' : movingStatus==='stopped' ? '#DC2626' : '#2563EB');
   const icon = L.divIcon({
     className:'',
-    html:`<div style="background:${color};color:#fff;border-radius:50% 50% 50% 0;width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.3);transform:rotate(-45deg);">
-      <span style="transform:rotate(45deg);">${(name||'D').charAt(0).toUpperCase()}</span>
+    html:`<div style="position:relative;width:38px;height:38px;">
+      <div style="background:${color};width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;border:3px solid #fff;box-shadow:0 2px 10px rgba(0,0,0,.35);">🚚</div>
+      <div style="position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:7px solid ${color};"></div>
     </div>`,
-    iconSize:[34,34],iconAnchor:[17,34]
+    iconSize:[38,42],iconAnchor:[19,42]
   });
 
   const timeStr=d.time?new Date(d.time).toLocaleTimeString('es'):'—';
   const statusLabel = movingStatus==='driving' ? '🟢 Manejando' : movingStatus==='stopped' ? '🔴 Detenido' : '';
-  const popupHtml=`<b>&#x1F69A; ${name||username}</b>${statusLabel?'<br>'+statusLabel:''}<br>
-    <span style="font-size:11px;color:#555;">Lat: ${lat}<br>Lon: ${lon}<br>Actualizado: ${timeStr}</span>
+  const routeInfo = computeDriverRouteETA(username, {lat,lon});
+  let routeHtml = '';
+  if(routeInfo && routeInfo.hasData){
+    routeHtml = `<br><span style="font-size:11px;color:#333;"><b>${routeInfo.city1||'—'} → ${routeInfo.city2||'—'}</b><br>
+      ${routeInfo.pct}% completado (${routeInfo.milesDone} de ${routeInfo.totalMiles} mi)<br>
+      <b>ETA: ${routeInfo.etaTime}</b></span>`;
+  } else if(routeInfo){
+    routeHtml = `<br><span style="font-size:11px;color:#333;"><b>${routeInfo.city1||'—'} → ${routeInfo.city2||'—'}</b></span>`;
+  }
+  const popupHtml=`<b>&#x1F69A; ${name||username}</b>${statusLabel?'<br>'+statusLabel:''}${routeHtml}<br>
+    <span style="font-size:11px;color:#555;">${(typeof d.speedMph==='number')?('<b>'+d.speedMph+' mph</b> · '):''}Actualizado: ${timeStr}</span>
     <br><a href="https://www.google.com/maps?q=${lat},${lon}" target="_blank" style="font-size:11px;color:#2563EB;">Ver en Google Maps</a>`;
 
   if(_driverMarkers[username]){
@@ -7168,35 +7435,109 @@ function updateDriverMarker(d){
   }
 }
 
+let _lastDriversData = [];
+let _ubiSearchQuery = '';
+
+function filterUbiDrivers(query){
+  _ubiSearchQuery = (query||'').toLowerCase().trim();
+  renderDriversList(_lastDriversData);
+}
+
+function fmtElapsed(sinceIso){
+  if(!sinceIso) return '—';
+  const ms = Date.now() - new Date(sinceIso).getTime();
+  if(ms<0) return '00:00:00';
+  const totalSec = Math.floor(ms/1000);
+  const h = Math.floor(totalSec/3600);
+  const m = Math.floor((totalSec%3600)/60);
+  const s = totalSec%60;
+  return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+}
+
+function toggleDriverDetails(username){
+  const el = document.getElementById('ubi-detail-'+username);
+  const chevron = document.getElementById('ubi-chevron-'+username);
+  if(!el) return;
+  const isOpen = el.style.display==='block';
+  el.style.display = isOpen ? 'none' : 'block';
+  if(chevron) chevron.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
+}
+
 function renderDriversList(drivers){
   const el=document.getElementById('ubi-drivers-list');
   if(!el) return;
-  if(!drivers.length){
-    el.innerHTML='<div style="font-size:13px;color:var(--text3);padding:10px;text-align:center;">Ningún driver ha enviado su ubicación aún.</div>';
+
+  const filtered = _ubiSearchQuery
+    ? drivers.filter(d=>{
+        const insp = getLastInspection(d.username);
+        const truck = insp ? loadTrucks().find(t=>t.id===insp.truckId) : null;
+        const hay = ((d.name||'')+' '+(d.username||'')+' '+(truck?truck.name:'')).toLowerCase();
+        return hay.includes(_ubiSearchQuery);
+      })
+    : drivers;
+
+  if(!filtered.length){
+    el.innerHTML='<div style="font-size:13px;color:var(--text3);padding:10px;text-align:center;">'+(drivers.length?'Sin resultados para tu búsqueda.':'Ningún driver ha enviado su ubicación aún.')+'</div>';
     return;
   }
-  el.innerHTML=drivers.map(d=>{
-    const timeStr=d.time?new Date(d.time).toLocaleTimeString('es'):'—';
+
+  el.innerHTML=filtered.map(d=>{
+    const dateStr = d.time ? new Date(d.time).toLocaleString('es-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit',hour12:true}) : '—';
     const isActive=d.active!==false;
-    let statusText = isActive ? '🟢 Activo' : '⚫ Inactivo';
+    let statusText = isActive ? 'ACTIVO' : 'INACTIVO';
     let statusColor = isActive ? 'var(--green)' : 'var(--text3)';
-    if(isActive && d.movingStatus==='driving'){ statusText='🟢 Manejando'; statusColor='var(--green)'; }
-    else if(isActive && d.movingStatus==='stopped'){ statusText='🔴 Detenido'; statusColor='#DC2626'; }
-    return `<div style="display:flex;align-items:center;justify-content:space-between;background:${isActive?'var(--green-bg)':'var(--bg3)'};border:1px solid ${isActive?'#bbf7d0':'var(--border)'};border-radius:10px;padding:10px 14px;">
-      <div style="display:flex;align-items:center;gap:10px;">
-        <div style="width:34px;height:34px;border-radius:50%;background:${isActive?'var(--green)':'var(--text3)'};display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:14px;flex-shrink:0;">
-          ${(d.name||'D').charAt(0).toUpperCase()}
+    let statusDot = isActive ? 'var(--green)' : 'var(--text3)';
+    if(isActive && d.movingStatus==='driving'){ statusText='MANEJANDO'; statusColor='var(--green)'; statusDot='var(--green)'; }
+    else if(isActive && d.movingStatus==='stopped'){ statusText='DETENIDO'; statusColor='#DC2626'; statusDot='#DC2626'; }
+
+    const insp = getLastInspection(d.username);
+    const truck = insp ? loadTrucks().find(t=>t.id===insp.truckId) : null;
+    const truckLabel = truck ? truck.name+(truck.plate?' · '+truck.plate:'') : 'Camión no asignado';
+
+    const routeInfo = computeDriverRouteETA(d.username, {lat:d.lat, lon:d.lon});
+    const routeBlock = (routeInfo && routeInfo.hasData) ? `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div style="font-size:11px;color:var(--text2);"><b>${routeInfo.city1||'—'} → ${routeInfo.city2||'—'}</b><br>${routeInfo.pct}% · ${routeInfo.milesLeft} mi restantes</div>
+          <div style="text-align:right;"><div style="font-size:9px;color:var(--text3);text-transform:uppercase;">ETA</div><div style="font-size:14px;font-weight:800;color:var(--green);">${routeInfo.etaTime}</div></div>
+        </div>` : (routeInfo ? `<div style="font-size:11px;color:var(--text2);margin-bottom:8px;"><b>${routeInfo.city1||'—'} → ${routeInfo.city2||'—'}</b></div>` : '<div style="font-size:11px;color:var(--text3);margin-bottom:8px;">Sin viaje activo.</div>');
+
+    return `<div style="background:var(--bg2);border:1px solid ${isActive?'#bbf7d0':'var(--border)'};border-radius:12px;padding:12px 14px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span style="width:9px;height:9px;border-radius:50%;background:${statusDot};"></span>
+          <span style="font-size:11px;font-weight:800;color:${statusColor};letter-spacing:.3px;">${statusText}</span>
+          <span style="font-size:11px;color:var(--text3);">· ${fmtElapsed(d.statusSince)}</span>
         </div>
+        <span style="font-size:10px;color:var(--text3);white-space:nowrap;">${dateStr}</span>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
         <div>
-          <div style="font-size:13px;font-weight:700;color:var(--text);">${d.name||d.username}</div>
-          <div style="font-size:11px;color:var(--text3);margin-top:1px;">&#x1F4CD; ${d.lat}, ${d.lon} &nbsp;·&nbsp; ${timeStr}</div>
+          <div style="font-size:14px;font-weight:700;color:var(--text);">${d.name||d.username}</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:2px;">🚚 ${truckLabel}</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:16px;font-weight:800;color:var(--text);">${typeof d.speedMph==='number'?d.speedMph:0}<span style="font-size:9px;font-weight:600;color:var(--text3);"> mph</span></div>
+          <div style="font-size:10px;color:var(--text3);margin-top:1px;">${(truck&&truck.mileage)?truck.mileage.toLocaleString()+' mi':''}</div>
         </div>
       </div>
-      <div style="display:flex;align-items:center;gap:8px;">
-        <span style="font-size:11px;font-weight:600;color:${statusColor};">${statusText}</span>
+
+      <div style="display:flex;align-items:center;gap:8px;background:var(--bg3);border-radius:9px;padding:8px 10px;margin-bottom:8px;">
+        <span style="font-size:13px;">📍</span>
+        <span style="flex:1;font-size:12px;color:var(--text2);">${d.lat}, ${d.lon}</span>
+        <a href="https://www.google.com/maps?q=${d.lat},${d.lon}" target="_blank" style="font-size:13px;text-decoration:none;" title="Abrir en Google Maps">🔗</a>
+        <button onclick="navigator.clipboard.writeText('${d.lat}, ${d.lon}')" style="border:none;background:none;font-size:13px;cursor:pointer;padding:0;" title="Copiar coordenadas">📋</button>
+      </div>
+
+      <div onclick="toggleDriverDetails('${d.username}')" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;padding-top:6px;border-top:1px solid var(--border);">
+        <span style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.5px;">DETALLE DEL VIAJE</span>
+        <span id="ubi-chevron-${d.username}" style="font-size:11px;color:var(--text3);transition:transform .2s;">⌄</span>
+      </div>
+      <div id="ubi-detail-${d.username}" style="display:none;margin-top:8px;">
+        ${routeBlock}
         <button onclick="if(liveMap&&_driverMarkers['${d.username}']){liveMap.setView([${d.lat},${d.lon}],14);_driverMarkers['${d.username}'].openPopup();}"
-          style="padding:5px 10px;border-radius:7px;border:1px solid var(--border2);background:var(--bg2);font-size:11px;font-weight:600;cursor:pointer;color:var(--accent);">
-          &#x1F50D; Ver
+          style="width:100%;padding:7px;border-radius:7px;border:1px solid var(--border2);background:var(--bg3);font-size:11px;font-weight:600;cursor:pointer;color:var(--accent);">
+          🔍 Ver en mapa
         </button>
       </div>
     </div>`;
@@ -7210,7 +7551,18 @@ let bizFilterYear=null;
 let bizFilterMonth=null;
 
 function loadExtras(){try{return JSON.parse(localStorage.getItem(EXTRAS_KEY))||[];}catch(e){return[];}}
-function saveExtras(e){localStorage.setItem(EXTRAS_KEY,JSON.stringify(e));}
+function saveExtras(e){
+  localStorage.setItem(EXTRAS_KEY,JSON.stringify(e));
+  if(fbReady && db) db.collection('data').doc('extras').set({extras:e, updatedAt:new Date().toISOString()}).catch(()=>{});
+}
+async function initExtras(){
+  if(fbReady){
+    try{
+      const snap = await db.collection('data').doc('extras').get();
+      if(snap.exists && snap.data().extras) localStorage.setItem(EXTRAS_KEY, JSON.stringify(snap.data().extras));
+    }catch(e){ console.warn('initExtras error:', e); }
+  }
+}
 
 function bizQuickYear(year,el){
   bizFilterYear=year;bizFilterMonth=null;
@@ -7306,10 +7658,14 @@ function addExtra(){
   if(!desc){sm('Ingresa una descripción.','err');return;}
   if(!amount||amount<=0){sm('Ingresa un monto válido.','err');return;}
   const extras=loadExtras();
-  extras.unshift({id:Date.now(),date,cat,desc,amount:parseFloat(amount.toFixed(2))});
+  const receipt = _pendingReceipt.extra;
+  extras.unshift({id:Date.now(),date,cat,desc,amount:parseFloat(amount.toFixed(2)),
+    receiptDriveFileId: receipt?receipt.fileId:null, receiptDriveLink: receipt?receipt.link:null, receiptDriveThumb: receipt?receipt.thumb:null});
   saveExtras(extras);
   ['ex-date','ex-cat','ex-desc','ex-amount'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('ex-date').value=todayStr();
+  _pendingReceipt.extra=null;
+  const rp=document.getElementById('receipt-preview-extra'); if(rp) rp.innerHTML='';
   sm('✓ Gasto guardado!','ok');
   renderBusiness();
 }
@@ -7974,7 +8330,18 @@ function saveTrucks(t){
   }
 }
 function loadMaintenance(){try{return JSON.parse(localStorage.getItem(MAINT_KEY))||[];}catch(e){return[];}}
-function saveMaintenance(m){localStorage.setItem(MAINT_KEY,JSON.stringify(m));}
+function saveMaintenance(m){
+  localStorage.setItem(MAINT_KEY,JSON.stringify(m));
+  if(fbReady && db) db.collection('data').doc('maintenance').set({records:m, updatedAt:new Date().toISOString()}).catch(()=>{});
+}
+async function initMaintenance(){
+  if(fbReady){
+    try{
+      const snap = await db.collection('data').doc('maintenance').get();
+      if(snap.exists && snap.data().records) localStorage.setItem(MAINT_KEY, JSON.stringify(snap.data().records));
+    }catch(e){ console.warn('initMaintenance error:', e); }
+  }
+}
 
 async function initTrucks(){
   if(fbReady){
@@ -8269,7 +8636,9 @@ function addMaintenanceRecord(){
   if(!cost||cost<0){sm('Ingresa un costo válido.','err');return;}
 
   const records=loadMaintenance();
-  records.unshift({id:Date.now(),truckId,date,category,description:desc,mileage,cost:parseFloat(cost.toFixed(2)),vendor});
+  const receiptM = _pendingReceipt.maint;
+  records.unshift({id:Date.now(),truckId,date,category,description:desc,mileage,cost:parseFloat(cost.toFixed(2)),vendor,
+    receiptDriveFileId: receiptM?receiptM.fileId:null, receiptDriveLink: receiptM?receiptM.link:null, receiptDriveThumb: receiptM?receiptM.thumb:null});
   saveMaintenance(records);
 
   if(mileage){
@@ -8284,6 +8653,8 @@ function addMaintenanceRecord(){
 
   ['mt-category','mt-mileage','mt-cost','mt-vendor','mt-desc'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('mt-date').value=todayStr();
+  _pendingReceipt.maint=null;
+  const rpm=document.getElementById('receipt-preview-maint'); if(rpm) rpm.innerHTML='';
   sm('✓ Gasto guardado!','ok');
   renderMantenimiento();
 }
@@ -8366,7 +8737,7 @@ function renderMaintHistory(){
     return `<tr>
       <td style="padding:8px 10px;border-bottom:1px solid var(--border);white-space:nowrap;">${fmtDate(m.date)}</td>
       <td style="padding:8px 10px;border-bottom:1px solid var(--border);white-space:nowrap;">${truck?truck.name:'—'}</td>
-      <td style="padding:8px 10px;border-bottom:1px solid var(--border);">${m.category}${m.description?`<div style="font-size:11px;color:var(--text3);">${m.description}</div>`:''}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--border);">${m.category}${m.description?`<div style="font-size:11px;color:var(--text3);">${m.description}</div>`:''}${m.receiptDriveLink?`<div style="margin-top:2px;"><a href="${m.receiptDriveLink}" target="_blank" style="font-size:11px;color:var(--green);font-weight:600;">📎 Ver recibo</a></div>`:''}</td>
       <td style="padding:8px 10px;border-bottom:1px solid var(--border);text-align:right;">${m.mileage?m.mileage.toLocaleString():'—'}</td>
       <td style="padding:8px 10px;border-bottom:1px solid var(--border);text-align:right;font-weight:700;">$${fmt(m.cost)}</td>
       <td style="padding:8px 10px;border-bottom:1px solid var(--border);font-size:12px;">${m.vendor||'—'}</td>
@@ -8564,7 +8935,18 @@ function renderMantenimiento(){
 // ===== BALANCE GENERAL (GANANCIA REAL) =====
 const COMPANY_EXP_KEY='trucklog_company_expenses';
 function loadCompanyExpenses(){try{return JSON.parse(localStorage.getItem(COMPANY_EXP_KEY))||[];}catch(e){return[];}}
-function saveCompanyExpenses(e){localStorage.setItem(COMPANY_EXP_KEY,JSON.stringify(e));}
+function saveCompanyExpenses(e){
+  localStorage.setItem(COMPANY_EXP_KEY,JSON.stringify(e));
+  if(fbReady && db) db.collection('data').doc('companyExpenses').set({expenses:e, updatedAt:new Date().toISOString()}).catch(()=>{});
+}
+async function initCompanyExpenses(){
+  if(fbReady){
+    try{
+      const snap = await db.collection('data').doc('companyExpenses').get();
+      if(snap.exists && snap.data().expenses) localStorage.setItem(COMPANY_EXP_KEY, JSON.stringify(snap.data().expenses));
+    }catch(e){ console.warn('initCompanyExpenses error:', e); }
+  }
+}
 
 let balMode='month';
 let balDay=todayStr();
@@ -8637,12 +9019,16 @@ function addCompanyExpense(){
   if(!amount||amount<=0){sm('Ingresa un monto válido.','err');return;}
 
   const expenses=loadCompanyExpenses();
-  expenses.unshift({id:Date.now(),date,category,truckId:truckId||null,amount:parseFloat(amount.toFixed(2)),description:desc});
+  const receiptC = _pendingReceipt.company;
+  expenses.unshift({id:Date.now(),date,category,truckId:truckId||null,amount:parseFloat(amount.toFixed(2)),description:desc,
+    receiptDriveFileId: receiptC?receiptC.fileId:null, receiptDriveLink: receiptC?receiptC.link:null, receiptDriveThumb: receiptC?receiptC.thumb:null});
   saveCompanyExpenses(expenses);
 
   ['be-amount','be-desc'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('be-truck').value='';
   document.getElementById('be-date').value=todayStr();
+  _pendingReceipt.company=null;
+  const rpc=document.getElementById('receipt-preview-company'); if(rpc) rpc.innerHTML='';
   sm('✓ Gasto guardado!','ok');
   renderBalance();
 }
@@ -8770,7 +9156,7 @@ function renderBalance(){
       const truck=trucks.find(t=>String(t.id)===String(e.truckId));
       return `<tr>
         <td style="padding:8px 10px;border-bottom:1px solid var(--border);white-space:nowrap;">${fmtDate(e.date)}</td>
-        <td style="padding:8px 10px;border-bottom:1px solid var(--border);white-space:nowrap;">${catIcon[e.category]||'📦'} ${e.category}${e.description?`<div style="font-size:11px;color:var(--text3);">${e.description}</div>`:''}</td>
+        <td style="padding:8px 10px;border-bottom:1px solid var(--border);white-space:nowrap;">${catIcon[e.category]||'📦'} ${e.category}${e.description?`<div style="font-size:11px;color:var(--text3);">${e.description}</div>`:''}${e.receiptDriveLink?`<div style="margin-top:2px;"><a href="${e.receiptDriveLink}" target="_blank" style="font-size:11px;color:var(--green);font-weight:600;">📎 Ver recibo</a></div>`:''}</td>
         <td style="padding:8px 10px;border-bottom:1px solid var(--border);white-space:nowrap;">${truck?truck.name:'—'}</td>
         <td style="padding:8px 10px;border-bottom:1px solid var(--border);text-align:right;font-weight:700;">$${fmt(e.amount)}</td>
         <td style="padding:8px 10px;border-bottom:1px solid var(--border);text-align:right;white-space:nowrap;">
@@ -8797,11 +9183,15 @@ function addOtroGasto(){
   if(!amount||amount<=0){sm('Ingresa un monto válido.','err');return;}
 
   const expenses=loadCompanyExpenses();
-  expenses.unshift({id:Date.now(),date,category,truckId:null,amount:parseFloat(amount.toFixed(2)),description:desc});
+  const receiptOg = _pendingReceipt.og;
+  expenses.unshift({id:Date.now(),date,category,truckId:null,amount:parseFloat(amount.toFixed(2)),description:desc,
+    receiptDriveFileId: receiptOg?receiptOg.fileId:null, receiptDriveLink: receiptOg?receiptOg.link:null, receiptDriveThumb: receiptOg?receiptOg.thumb:null});
   saveCompanyExpenses(expenses);
 
   ['og-amount','og-desc'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('og-date').value=todayStr();
+  _pendingReceipt.og=null;
+  const rpo=document.getElementById('receipt-preview-og'); if(rpo) rpo.innerHTML='';
   sm('✓ Gasto guardado!','ok');
   renderOtrosGastos();
 }
@@ -8818,7 +9208,7 @@ function renderOtrosGastosHistory(){
   }
   body.innerHTML=records.map(e=>`<tr>
     <td style="padding:8px 10px;border-bottom:1px solid var(--border);white-space:nowrap;">${fmtDate(e.date)}</td>
-    <td style="padding:8px 10px;border-bottom:1px solid var(--border);white-space:nowrap;">${OG_ICON[e.category]||'📦'} ${e.category}${e.description?`<div style="font-size:11px;color:var(--text3);">${e.description}</div>`:''}</td>
+    <td style="padding:8px 10px;border-bottom:1px solid var(--border);white-space:nowrap;">${OG_ICON[e.category]||'📦'} ${e.category}${e.description?`<div style="font-size:11px;color:var(--text3);">${e.description}</div>`:''}${e.receiptDriveLink?`<div style="margin-top:2px;"><a href="${e.receiptDriveLink}" target="_blank" style="font-size:11px;color:var(--green);font-weight:600;">📎 Ver recibo</a></div>`:''}</td>
     <td style="padding:8px 10px;border-bottom:1px solid var(--border);text-align:right;font-weight:700;">$${fmt(e.amount)}</td>
     <td style="padding:8px 10px;border-bottom:1px solid var(--border);text-align:right;white-space:nowrap;">
       <button class="btn-sm" onclick="openEditBalModal(${e.id})" style="padding:3px 10px;">✏️</button>
@@ -9090,7 +9480,7 @@ function renderBusiness(){
       <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f0f0ec;">
         <div>
           <div style="font-size:13px;font-weight:700;color:#1a1a1a;">${e.cat} — ${e.desc}</div>
-          <div style="font-size:11px;color:#aaa;margin-top:2px;">${fmtDate(e.date)}</div>
+          <div style="font-size:11px;color:#aaa;margin-top:2px;">${fmtDate(e.date)}${e.receiptDriveLink?' · <a href="'+e.receiptDriveLink+'" target="_blank" style="color:var(--green);font-weight:600;">📎 Ver recibo</a>':''}</div>
         </div>
         <div style="display:flex;align-items:center;gap:10px;">
           <div style="font-size:16px;font-weight:700;color:#c0392b;">-$${e.amount.toFixed(2)}</div>
@@ -9667,10 +10057,20 @@ function refreshRunningFuelList(){
 
   listEl.innerHTML = loads.map(function(fl,i){
     const stationLabel = fl.station ? '⛽ <b>'+fl.station+'</b> &nbsp;·&nbsp; ' : '';
+    let imgHtml = '';
+    if(fl.driveStatus==='done' && fl.driveThumb){
+      imgHtml = '<div style="margin-top:5px;"><img src="'+fl.driveThumb+'" style="max-height:60px;border-radius:6px;border:1px solid var(--border2);cursor:pointer;" onclick="window.open(\''+fl.driveLink+'\',\'_blank\')" /><div style="font-size:10px;color:var(--green);font-weight:700;margin-top:2px;">☁️ En Drive ✓</div></div>';
+    } else if(fl.driveStatus==='uploading'){
+      imgHtml = '<div style="margin-top:5px;font-size:10px;color:var(--text3);">☁️ Subiendo recibo a Drive...</div>';
+    } else if(fl.driveStatus==='error'){
+      imgHtml = '<div style="margin-top:5px;font-size:10px;color:var(--red);">☁️ No se pudo subir el recibo</div>';
+    } else if(fl.image){
+      imgHtml = '<div style="margin-top:5px;"><img src="'+fl.image+'" style="max-height:60px;border-radius:6px;border:1px solid var(--border2);cursor:pointer;" onclick="openLightbox(\''+fl.image.replace(/'/g,"\\'")+'\')" /></div>';
+    }
     return '<div style="display:flex;justify-content:space-between;align-items:center;background:var(--bg3);border-radius:8px;padding:10px 14px;margin-bottom:6px;">'
       +'<div>'
       +'<div style="font-size:13px;font-weight:600;color:var(--text);">'+stationLabel+'Carga #'+(i+1)+' &nbsp;·&nbsp; '+fl.gal+' gal @ $'+fl.price+'/gal</div>'
-      +(fl.image?'<div style="margin-top:5px;"><img src="'+fl.image+'" style="max-height:60px;border-radius:6px;border:1px solid var(--border2);cursor:pointer;" onclick="openLightbox(\''+fl.image.replace(/'/g,"\\'")+'\')" /></div>':'')
+      +imgHtml
       +'</div>'
       +'<div style="font-size:15px;font-weight:700;color:var(--text);">$'+fl.cost.toFixed(2)+'</div>'
       +'</div>';
@@ -9743,6 +10143,116 @@ function dataURLtoBlob(dataUrl){
 let _driveFolderCreationPromises = {};
 let _masterFolderId = null;
 let _masterFolderCreationPromise = null;
+
+let _receiptsFolderId = null;
+let _receiptsFolderPromise = null;
+
+async function getOrCreateReceiptsFolder(token){
+  if(_receiptsFolderId) return _receiptsFolderId;
+  if(_receiptsFolderPromise) return _receiptsFolderPromise;
+
+  _receiptsFolderPromise = (async function(){
+    const RECEIPTS_FOLDER_NAME = 'Truck Trip Log — Recibos';
+
+    if(fbReady && db){
+      try{
+        const snap = await db.collection('data').doc('driveConfig').get();
+        if(snap.exists && snap.data().receiptsFolderId){
+          _receiptsFolderId = snap.data().receiptsFolderId;
+          return _receiptsFolderId;
+        }
+      }catch(e){ /* ignore */ }
+    }
+
+    let folderId = null;
+    try{
+      const q = encodeURIComponent("name='"+RECEIPTS_FOLDER_NAME+"' and mimeType='application/vnd.google-apps.folder' and trashed=false");
+      const searchRes = await fetch('https://www.googleapis.com/drive/v3/files?q='+q+'&fields=files(id,name)', {
+        headers:{'Authorization':'Bearer '+token}
+      });
+      const searchData = await searchRes.json();
+      if(searchData.files && searchData.files.length) folderId = searchData.files[0].id;
+    }catch(e){ /* ignore */ }
+
+    if(!folderId){
+      const createRes = await fetch('https://www.googleapis.com/drive/v3/files', {
+        method:'POST',
+        headers:{'Authorization':'Bearer '+token, 'Content-Type':'application/json'},
+        body: JSON.stringify({name: RECEIPTS_FOLDER_NAME, mimeType:'application/vnd.google-apps.folder'})
+      });
+      const createData = await createRes.json();
+      if(!createData.id) throw new Error('No se pudo crear la carpeta de recibos: '+(createData.error?.message||'error desconocido'));
+      folderId = createData.id;
+      await fetch('https://www.googleapis.com/drive/v3/files/'+folderId+'/permissions', {
+        method:'POST',
+        headers:{'Authorization':'Bearer '+token, 'Content-Type':'application/json'},
+        body: JSON.stringify({role:'reader', type:'anyone'})
+      }).catch(()=>{});
+    }
+
+    _receiptsFolderId = folderId;
+    if(fbReady && db) db.collection('data').doc('driveConfig').set({receiptsFolderId: folderId}, {merge:true}).catch(()=>{});
+    return folderId;
+  })();
+
+  try{
+    return await _receiptsFolderPromise;
+  } finally {
+    _receiptsFolderPromise = null;
+  }
+}
+
+// Sube un recibo/factura (imagen o PDF) a la carpeta de Recibos en Drive
+async function uploadReceiptToDrive(categoryLabel, dataUrl){
+  const token = await getGoogleDriveToken();
+  const folderId = await getOrCreateReceiptsFolder(token);
+  const blob = dataURLtoBlob(dataUrl);
+  const metadata = {name: categoryLabel+'_'+todayStr()+'_'+Date.now()+(blob.type==='application/pdf'?'.pdf':'.jpg'), parents:[folderId]};
+  const form = new FormData();
+  form.append('metadata', new Blob([JSON.stringify(metadata)], {type:'application/json'}));
+  form.append('file', blob);
+
+  const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink', {
+    method:'POST',
+    headers:{'Authorization':'Bearer '+token},
+    body: form
+  });
+  const data = await res.json();
+  if(!data.id) throw new Error('No se pudo subir el recibo: '+(data.error?.message||'error desconocido'));
+  return data;
+}
+
+let _pendingReceipt = {extra:null, maint:null, company:null, og:null};
+
+async function handleReceiptUpload(kind, input){
+  const file = input.files && input.files[0];
+  if(!file) return;
+  const preview = document.getElementById('receipt-preview-'+kind);
+  const isImage = (file.type||'').startsWith('image/');
+  const localUrl = isImage ? URL.createObjectURL(file) : null;
+  if(preview) preview.innerHTML = (localUrl?'<img src="'+localUrl+'" style="max-height:60px;border-radius:6px;border:1px solid var(--border2);" /><br>':'📄 '+file.name+'<br>')+'<span style="font-size:10px;color:var(--text3);">☁️ Subiendo a Drive...</span>';
+
+  try{
+    const reader = new FileReader();
+    const dataUrl = await new Promise(function(resolve, reject){
+      reader.onload = function(e){ resolve(e.target.result); };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+    const categoryLabel = kind==='extra' ? 'OtrosGastos' : kind==='maint' ? 'Mantenimiento' : kind==='og' ? 'OtrosGastos' : 'GastosFijos';
+    const result = await uploadReceiptToDrive(categoryLabel, dataUrl);
+    const thumb = isImage ? 'https://drive.google.com/thumbnail?id='+result.id+'&sz=w400' : null;
+    _pendingReceipt[kind] = {fileId: result.id, link: result.webViewLink, thumb};
+
+    if(preview) preview.innerHTML = (thumb?'<img src="'+thumb+'" style="max-height:60px;border-radius:6px;border:1px solid var(--border2);" /><br>':'📄 '+file.name+'<br>')+'<span style="font-size:10px;color:var(--green);font-weight:700;">☁️ Recibo adjuntado ✓</span>';
+  }catch(err){
+    console.error('handleReceiptUpload error:', err);
+    if(preview) preview.innerHTML = '<span style="font-size:10px;color:var(--red);">No se pudo subir el recibo.</span>';
+    alert('No se pudo subir el recibo a Google Drive: '+(err && err.message ? err.message : err));
+  }
+  input.value = '';
+}
 
 async function getOrCreateMasterFolder(token){
   if(_masterFolderId) return _masterFolderId;
@@ -9867,6 +10377,7 @@ async function uploadPhotoToDrive(trip, kind, dataUrl){
 }
 
 let gastoImgData = null;
+let gastoImgFile = null;
 
 function triggerBolUpload(kind){
   const input = document.getElementById('mv-'+kind+'-input');
@@ -10062,11 +10573,21 @@ function renderMiViaje(){
           : tipo==='def' ? '<span style="background:#F0FDF4;color:#16A34A;border:1px solid #BBF7D0;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;margin-left:6px;">🧪 DEF</span>'
           : '<span style="background:#FFFBEB;color:#D97706;border:1px solid #FDE68A;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;margin-left:6px;">🧾 OTRO</span>';
         const desc = tipo==='otro' ? fl.desc : (fl.gal + ' gal @ $' + fl.price + '/gal');
+        let fuelImgHtml = '';
+        if(fl.driveStatus==='done' && fl.driveThumb){
+          fuelImgHtml = '<div style="margin-top:6px;"><img src="'+fl.driveThumb+'" style="max-height:80px;border-radius:6px;border:1px solid var(--border2);cursor:pointer;" onclick="window.open(\''+fl.driveLink+'\',\'_blank\')" /><div style="font-size:10px;color:var(--green);font-weight:700;margin-top:2px;">☁️ En Drive ✓</div></div>';
+        } else if(fl.driveStatus==='uploading'){
+          fuelImgHtml = '<div style="margin-top:6px;font-size:10px;color:var(--text3);">☁️ Subiendo recibo a Drive...</div>';
+        } else if(fl.driveStatus==='error'){
+          fuelImgHtml = '<div style="margin-top:6px;font-size:10px;color:var(--red);">☁️ No se pudo subir el recibo</div>';
+        } else if(fl.image){
+          fuelImgHtml = '<div style="margin-top:6px;"><img src="'+fl.image+'" style="max-height:80px;border-radius:6px;border:1px solid var(--border2);cursor:pointer;" onclick="openLightbox(\''+fl.image.replace(/'/g,"\\'")+'\')" /></div>';
+        }
         return '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:11px 14px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;">' +
           '<div>' +
           '<div style="font-size:13px;font-weight:600;color:var(--text);display:flex;align-items:center;">Gasto #' + (i+1) + tipoBadge + '</div>' +
           '<div style="font-size:12px;color:var(--text3);margin-top:3px;">' + desc + '</div>' +
-          (fl.image ? '<div style="margin-top:6px;"><img src="'+fl.image+'" style="max-height:80px;border-radius:6px;border:1px solid var(--border2);cursor:pointer;" onclick="openLightbox(\''+fl.image.replace(/'/g,"\\'")+'\')" /></div>' : '') +
+          fuelImgHtml +
           '</div>' +
           '<div style="font-size:16px;font-weight:800;color:var(--text);">$' + fl.cost.toFixed(2) + '</div>' +
           '</div>';
@@ -10229,6 +10750,7 @@ function openAddGastoModal(){
   document.getElementById('gasto-img-cam').value = '';
   document.getElementById('gasto-img-gal').value = '';
   gastoImgData = null;
+  gastoImgFile = null;
   document.getElementById('gasto-modal').classList.add('open');
   setTimeout(function(){ document.getElementById('gasto-station').focus(); }, 150);
 }
@@ -10245,6 +10767,7 @@ function calcGastoSubtotal(){
 
 function handleGastoImg(input){
   if(!input.files || !input.files[0]) return;
+  gastoImgFile = input.files[0];
   const reader = new FileReader();
   reader.onload = function(e){
     gastoImgData = e.target.result;
@@ -10257,6 +10780,7 @@ function handleGastoImg(input){
 
 function removeGastoImg(){
   gastoImgData = null;
+  gastoImgFile = null;
   document.getElementById('gasto-img-preview').style.display = 'none';
   document.getElementById('gasto-img-btns').style.display = 'flex';
   document.getElementById('gasto-img-cam').value = '';
@@ -10277,7 +10801,9 @@ function saveGasto(){
   if(idx<0){alert('No se encontró el viaje activo.');return;}
 
   const t = trips[idx];
-  let newLoad = { tipo: gastoTipoActual, image: gastoImgData||null };
+  const loadId = Date.now();
+  const pendingImageFile = gastoImgFile || null; // el archivo original, para subir a Drive en segundo plano
+  let newLoad = { loadId, tipo: gastoTipoActual, image: null, driveStatus: pendingImageFile ? 'uploading' : null };
 
   if(gastoTipoActual === 'otro'){
     const monto = parseFloat(document.getElementById('gasto-monto').value)||0;
@@ -10317,6 +10843,54 @@ function saveGasto(){
   refreshRunningFuelList();
   if(document.getElementById('page-miviaje')&&document.getElementById('page-miviaje').classList.contains('active')){
     renderMiViaje();
+  }
+
+  // Subir la foto del recibo a Google Drive en segundo plano (no bloquea al driver)
+  if(pendingImageFile){
+    uploadFuelReceiptInBackground(tripId||trips[idx].id, loadId, pendingImageFile);
+  }
+}
+
+async function uploadFuelReceiptInBackground(tripId, loadId, file){
+  try{
+    const reader = new FileReader();
+    const dataUrl = await new Promise(function(resolve, reject){
+      reader.onload = function(e){ resolve(e.target.result); };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+    const trips1 = loadTrips();
+    const idx1 = trips1.findIndex(t=>t.id===tripId);
+    if(idx1<0) return;
+    const trip = trips1[idx1];
+
+    const result = await uploadPhotoToDrive(trip, 'diesel', dataUrl);
+    const driveThumb = 'https://drive.google.com/thumbnail?id='+result.id+'&sz=w800';
+
+    const trips2 = loadTrips();
+    const idx2 = trips2.findIndex(t=>t.id===tripId);
+    if(idx2<0) return;
+    const loads2 = (trips2[idx2].fuelLoads||[]).map(l=>{
+      if(l.loadId===loadId) return {...l, driveFileId: result.id, driveLink: result.webViewLink, driveThumb, driveStatus:'done'};
+      return l;
+    });
+    trips2[idx2] = {...trips2[idx2], fuelLoads: loads2};
+    await storeTrips(trips2);
+    refreshRunningFuelList();
+    if(document.getElementById('page-miviaje')&&document.getElementById('page-miviaje').classList.contains('active')){
+      renderMiViaje();
+    }
+  }catch(err){
+    console.warn('uploadFuelReceiptInBackground error:', err);
+    const trips3 = loadTrips();
+    const idx3 = trips3.findIndex(t=>t.id===tripId);
+    if(idx3>=0){
+      const loads3 = (trips3[idx3].fuelLoads||[]).map(l=> l.loadId===loadId ? {...l, driveStatus:'error'} : l);
+      trips3[idx3] = {...trips3[idx3], fuelLoads: loads3};
+      await storeTrips(trips3);
+      refreshRunningFuelList();
+    }
   }
 }
 
@@ -12129,21 +12703,21 @@ function generarDispatcherPDF(){
 
 // ===== SIDEBAR =====
 const ADMIN_SIDEBAR_ITEMS = [
-  {id:'home',      icon:'🏠', label:'Inicio'},
-  {id:'dashboard', icon:'📊', label:'Dashboard'},
-  {id:'new',       icon:'➕', label:'Nuevo viaje'},
-  {id:'entransito', icon:'🚚', label:'En Tránsito'},
-  {id:'log',       icon:'📋', label:'Historial'},
-  {id:'gastos',    icon:'⛽', label:'Gastos'},
-  {id:'mantenimiento', icon:'🔧', label:'Mantenimiento'},
-  {id:'balance', icon:'🧮', label:'Balance General'},
-  {id:'otrosgastos', icon:'🧾', label:'Otros gastos'},
-  {id:'semana',    icon:'📅', label:'Semana'},
-  {id:'summary',   icon:'📊', label:'Resumen'},
-  {id:'business',  icon:'💼', label:'Business'},
-  {id:'reportes',  icon:'📑', label:'Reportes'},
-  {id:'ubicacion', icon:'📍', label:'Ubicación'},
-  {id:'users',     icon:'👥', label:'Usuarios'},
+  {id:'home',      icon:'🏠', label:'Inicio', section:'Overview'},
+  {id:'dashboard', icon:'📊', label:'Dashboard', section:'Overview'},
+  {id:'new',       icon:'➕', label:'Nuevo viaje', section:'Management'},
+  {id:'entransito', icon:'🚚', label:'En Tránsito', section:'Management'},
+  {id:'log',       icon:'📋', label:'Historial', section:'Management'},
+  {id:'ubicacion', icon:'📍', label:'Ubicación', section:'Management'},
+  {id:'gastos',    icon:'⛽', label:'Gastos', section:'Finanzas'},
+  {id:'mantenimiento', icon:'🔧', label:'Mantenimiento', section:'Finanzas'},
+  {id:'balance', icon:'🧮', label:'Balance General', section:'Finanzas'},
+  {id:'otrosgastos', icon:'🧾', label:'Otros gastos', section:'Finanzas'},
+  {id:'semana',    icon:'📅', label:'Semana', section:'Finanzas'},
+  {id:'summary',   icon:'📊', label:'Resumen', section:'Finanzas'},
+  {id:'business',  icon:'💼', label:'Business', section:'Finanzas'},
+  {id:'reportes',  icon:'📑', label:'Reportes', section:'Finanzas'},
+  {id:'users',     icon:'👥', label:'Usuarios', section:'Management'},
 ];
 const DRIVER_SIDEBAR_ITEMS = [
   {id:'home',    icon:'🏠', label:'Inicio'},
@@ -12158,12 +12732,27 @@ const DRIVER_SIDEBAR_ITEMS = [
 function buildSidebar(role){
   const items = role==='admin' ? ADMIN_SIDEBAR_ITEMS : DRIVER_SIDEBAR_ITEMS;
   const nav = document.getElementById('sidebar-nav');
-  nav.innerHTML = items.map(item=>`
+  let lastSection = null;
+  nav.innerHTML = items.map(item=>{
+    let sectionHtml = '';
+    if(item.section && item.section!==lastSection){
+      sectionHtml = `<div class="sidebar-section-label">${item.section.toUpperCase()}</div>`;
+      lastSection = item.section;
+    }
+    return sectionHtml + `
     <button class="sidebar-item${item.id===_currentSidebarId?' active':''}" 
       data-id="${item.id}" onclick="sidebarNav('${item.id}')">
       <span class="sidebar-item-icon">${item.icon}</span>
       <span>${item.label}</span>
-    </button>`).join('');
+    </button>`;
+  }).join('');
+
+  const sidebarEl = document.getElementById('sidebar');
+  const headerEl = document.getElementById('app-header');
+  if(sidebarEl) sidebarEl.classList.toggle('sidebar-dark', role==='admin');
+  if(headerEl) headerEl.classList.toggle('header-with-status', role==='admin');
+  const statusBar = document.getElementById('admin-status-bar');
+  if(statusBar) statusBar.style.display = role==='admin' ? 'flex' : 'none';
 }
 
 function sidebarNav(id){
@@ -12243,6 +12832,9 @@ window.addEventListener('load', function(){
   initGoogleDriveAuth();
   initUsers().then(()=>{
     initTrucks();
+    initExtras();
+    initMaintenance();
+    initCompanyExpenses();
     const session=getSession();
     if(session){
       const fresh=getUsers().find(u=>u.username===session.username);

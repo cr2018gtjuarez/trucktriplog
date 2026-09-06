@@ -959,6 +959,12 @@
             <div class="field"><label>ZIP origen</label><input type="text" id="f-z1-admin" maxlength="5" inputmode="numeric" placeholder="00000" oninput="onZipAdmin(this,'h1a')"/><div class="hint" id="h1a"></div></div>
             <div class="field"><label>ZIP destino</label><input type="text" id="f-z2-admin" maxlength="5" inputmode="numeric" placeholder="00000" oninput="onZipAdmin(this,'h2a')"/><div class="hint" id="h2a"></div></div>
           </div>
+          <!-- DIRECCIONES EXACTAS (opcional, para ruta real y ETA preciso) -->
+          <div class="g2" style="margin-top:10px;">
+            <div class="field"><label>📍 Dirección exacta de Pickup (opcional)</label><input type="text" id="f-addr1-admin" placeholder="Ej. 123 Main St, Houston, TX"/></div>
+            <div class="field"><label>📍 Dirección exacta de Delivery (opcional)</label><input type="text" id="f-addr2-admin" placeholder="Ej. 456 Oak St, Dallas, TX"/></div>
+          </div>
+          <div class="hint" style="margin-top:-4px;">El ETA ya usa ruta real por carretera con solo los ZIP. Si llenas la dirección exacta, la precisión es aún mayor.</div>
           <!-- DRIVER -->
           <div class="field" style="margin-top:10px;">
             <label>👤 Driver asignado</label>
@@ -1093,6 +1099,15 @@
         </div>
       </div>
 
+      <!-- Ruta recorrida hoy + horas manejadas -->
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <div class="card-title" style="margin:0;">🗺️ Ruta recorrida hoy</div>
+          <div style="font-size:12px;color:var(--text2);" id="at-hours-summary">—</div>
+        </div>
+        <div id="at-route-map" style="height:220px;border-radius:10px;overflow:hidden;background:var(--bg3);"></div>
+      </div>
+
       <!-- Fotos del viaje -->
       <div class="card">
         <div class="card-title">📄 Documentos y fotos del viaje</div>
@@ -1108,13 +1123,34 @@
           <div>
             <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;margin-bottom:6px;">BOL (pickup)</div>
             <div id="at-bol-preview" style="background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:14px;text-align:center;font-size:12px;color:var(--text3);">Sin subir</div>
+            <div id="at-bol-actions" style="margin-top:6px;display:none;">
+              <div style="display:flex;gap:6px;">
+                <button class="btn-sm" onclick="approveDoc('bol')" style="flex:1;background:var(--green-bg);border:1px solid #BBF7D0;color:var(--green);font-weight:700;">✅ Ready to Go</button>
+                <button class="btn-sm" onclick="rejectDoc('bol')" style="flex:1;background:var(--red-bg);border:1px solid #f0997b55;color:var(--red);font-weight:700;">❌ Rechazar</button>
+              </div>
+            </div>
           </div>
           <div>
             <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;margin-bottom:6px;">POD (entrega)</div>
             <div id="at-pod-preview" style="background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:14px;text-align:center;font-size:12px;color:var(--text3);">Sin subir</div>
+            <div id="at-pod-actions" style="margin-top:6px;display:none;">
+              <div style="display:flex;gap:6px;">
+                <button class="btn-sm" onclick="approveDoc('pod')" style="flex:1;background:var(--green-bg);border:1px solid #BBF7D0;color:var(--green);font-weight:700;">✅ Ready to Go</button>
+                <button class="btn-sm" onclick="rejectDoc('pod')" style="flex:1;background:var(--red-bg);border:1px solid #f0997b55;color:var(--red);font-weight:700;">❌ Rechazar</button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
+
+      <!-- RC (Rate Confirmation) — lo sube el admin -->
+      <div class="card">
+        <div class="card-title">🔖 RC (Rate Confirmation)</div>
+        <input type="file" id="at-rc-input" accept="image/*,application/pdf" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;" onchange="handleAdminRcUpload(this)"/>
+        <label for="at-rc-input" class="btn-sm" style="display:block;width:100%;box-sizing:border-box;text-align:center;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);cursor:pointer;margin-bottom:8px;">📎 <span id="at-rc-label">Subir documento del RC</span></label>
+        <div id="at-rc-preview" style="font-size:12px;color:var(--text3);"></div>
+      </div>
+
 
       <!-- Cargas de diesel -->
       <div class="card">
@@ -2084,22 +2120,22 @@
           <div style="font-size:11px;font-weight:700;color:var(--text3);letter-spacing:.8px;text-transform:uppercase;margin-bottom:8px;">Documentos y fotos del viaje</div>
           <div class="g2">
             <div>
-              <input type="file" id="mv-loaded-input" accept="image/*" capture="environment" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;" onchange="handleBolUpload('loaded',this)"/>
+              <input type="file" id="mv-loaded-input" accept="image/*" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;" onchange="handleBolUpload('loaded',this)"/>
               <label for="mv-loaded-input" class="btn-sm" style="display:block;width:100%;box-sizing:border-box;text-align:center;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);cursor:pointer;">📦 <span id="mv-loaded-label">Foto de carga (loaded)</span></label>
               <div id="mv-loaded-preview" style="margin-top:6px;"></div>
             </div>
             <div>
-              <input type="file" id="mv-unloaded-input" accept="image/*" capture="environment" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;" onchange="handleBolUpload('unloaded',this)"/>
+              <input type="file" id="mv-unloaded-input" accept="image/*" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;" onchange="handleBolUpload('unloaded',this)"/>
               <label for="mv-unloaded-input" class="btn-sm" style="display:block;width:100%;box-sizing:border-box;text-align:center;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);cursor:pointer;">📭 <span id="mv-unloaded-label">Foto de descarga (unloaded)</span></label>
               <div id="mv-unloaded-preview" style="margin-top:6px;"></div>
             </div>
             <div>
-              <input type="file" id="mv-bol-input" accept="image/*" capture="environment" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;" onchange="handleBolUpload('bol',this)"/>
+              <input type="file" id="mv-bol-input" accept="image/*" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;" onchange="handleBolUpload('bol',this)"/>
               <label for="mv-bol-input" class="btn-sm" style="display:block;width:100%;box-sizing:border-box;text-align:center;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);cursor:pointer;">📄 <span id="mv-bol-label">Subir BOL (pickup)</span></label>
               <div id="mv-bol-preview" style="margin-top:6px;"></div>
             </div>
             <div>
-              <input type="file" id="mv-pod-input" accept="image/*" capture="environment" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;" onchange="handleBolUpload('pod',this)"/>
+              <input type="file" id="mv-pod-input" accept="image/*" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;" onchange="handleBolUpload('pod',this)"/>
               <label for="mv-pod-input" class="btn-sm" style="display:block;width:100%;box-sizing:border-box;text-align:center;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);cursor:pointer;">📄 <span id="mv-pod-label">Subir POD (entrega)</span></label>
               <div id="mv-pod-preview" style="margin-top:6px;"></div>
             </div>
@@ -2473,6 +2509,31 @@
       <div class="modal-actions">
         <button class="btn-modal-cancel" onclick="closeEditMaintModal()">Cancelar</button>
         <button class="btn-modal-save" onclick="saveEditMaint()">💾 Guardar cambios</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Checklist antes de subir BOL/POD -->
+  <div class="modal-overlay" id="doc-checklist-modal">
+    <div class="modal-box" style="max-width:420px;">
+      <div class="modal-title" id="doc-checklist-title">📋 Antes de subir</div>
+      <div style="font-size:13px;color:var(--text2);margin-bottom:14px;">Confirma que la foto muestra claramente lo siguiente antes de subirla:</div>
+      <label style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer;">
+        <input type="checkbox" id="chk-signature" style="width:18px;height:18px;"/>
+        <span style="font-size:14px;color:var(--text);">✍️ Firma visible</span>
+      </label>
+      <label style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer;">
+        <input type="checkbox" id="chk-date" style="width:18px;height:18px;"/>
+        <span style="font-size:14px;color:var(--text);">📅 Fecha visible</span>
+      </label>
+      <label style="display:flex;align-items:center;gap:10px;padding:10px 0;cursor:pointer;">
+        <input type="checkbox" id="chk-name" style="width:18px;height:18px;"/>
+        <span style="font-size:14px;color:var(--text);">🖊️ Nombre visible</span>
+      </label>
+      <div class="msg" id="doc-checklist-msg"></div>
+      <div style="display:flex;gap:10px;margin-top:16px;">
+        <button class="btn-modal-cancel" onclick="cancelDocChecklist()" style="flex:1;">Cancelar</button>
+        <button class="btn-modal-save" onclick="confirmDocChecklist()" style="flex:1;">✔ Confirmar y subir</button>
       </div>
     </div>
   </div>
@@ -4062,6 +4123,38 @@ async function fetchRoadMiles(lat1,lon1,lat2,lon2){
   }catch(e){ return null; }
 }
 
+// Geocodificar una dirección exacta (calle, ciudad, estado) usando Nominatim (OpenStreetMap, gratis)
+async function geocodeAddress(address){
+  if(!address || !address.trim()) return null;
+  try{
+    const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=us&q='+encodeURIComponent(address);
+    const r = await fetch(url);
+    if(!r.ok) return null;
+    const d = await r.json();
+    if(d && d.length){
+      return {lat: parseFloat(d[0].lat), lon: parseFloat(d[0].lon), displayName: d[0].display_name};
+    }
+    return null;
+  }catch(e){ console.warn('geocodeAddress error:', e); return null; }
+}
+
+// Ruta real por carretera entre dos puntos: distancia (mi) y duración (seg)
+async function fetchRoadRoute(lat1,lon1,lat2,lon2){
+  try{
+    const url = `https://router.project-osrm.org/route/v1/driving/${lon1},${lat1};${lon2},${lat2}?overview=false`;
+    const r = await fetch(url);
+    if(!r.ok) return null;
+    const d = await r.json();
+    if(d.routes && d.routes[0]){
+      return {
+        miles: parseFloat((d.routes[0].distance/1609.34).toFixed(1)),
+        durationSec: Math.round(d.routes[0].duration)
+      };
+    }
+    return null;
+  }catch(e){ console.warn('fetchRoadRoute error:', e); return null; }
+}
+
 async function onZipAdmin(el,hid){
   el.value=el.value.replace(/\D/g,'');
   const h=document.getElementById(hid);
@@ -4226,6 +4319,8 @@ async function adminStartTrip(){
   const brokerName = (document.getElementById('f-brokername-admin')?.value||'').trim();
   const factoringFeePct = parseFloat(document.getElementById('f-factoring-admin')?.value);
   const rc = (document.getElementById('f-rc-admin')?.value||'').trim();
+  const pickupAddress = (document.getElementById('f-addr1-admin')?.value||'').trim();
+  const deliveryAddress = (document.getElementById('f-addr2-admin')?.value||'').trim();
   const msg = document.getElementById('f-msg-admin-s1');
 
   function showErr(t){ msg.className='msg err'; msg.textContent=t; msg.style.display='block'; }
@@ -4245,6 +4340,27 @@ async function adminStartTrip(){
     const p2 = ZC[z2] || await fetchZip(z2);
     if(!p1||!p2){ showErr('No se encontró uno o ambos ZIP codes.'); return; }
 
+    // Calcular ruta real por carretera: usa direcciones exactas si se dieron, si no, los centroides del ZIP (siempre disponibles)
+    let routeMiles = null, routeDurationSec = null, origLat = null, origLon = null, destLat = null, destLon = null;
+    if(btn) btn.textContent = '⏳ Calculando ruta real...';
+    if(pickupAddress && deliveryAddress){
+      const [g1, g2] = await Promise.all([geocodeAddress(pickupAddress), geocodeAddress(deliveryAddress)]);
+      if(g1 && g2){
+        origLat = g1.lat; origLon = g1.lon;
+        destLat = g2.lat; destLon = g2.lon;
+        const route = await fetchRoadRoute(g1.lat, g1.lon, g2.lat, g2.lon);
+        if(route){ routeMiles = route.miles; routeDurationSec = route.durationSec; }
+      }
+    }
+    // Si no hay dirección exacta (o falló la geocodificación), usar los ZIP — siempre se ingresan
+    if(routeMiles===null){
+      origLat = p1.lat; origLon = p1.lon;
+      destLat = p2.lat; destLon = p2.lon;
+      const route = await fetchRoadRoute(p1.lat, p1.lon, p2.lat, p2.lon);
+      if(route){ routeMiles = route.miles; routeDurationSec = route.durationSec; }
+      else { origLat = null; origLon = null; destLat = null; destLon = null; } // sin internet/OSRM caído — se usa el estimado viejo
+    }
+
     msg.style.display='none';
 
     // Crear viaje activo — se envía a "En Tránsito"; no bloquea iniciar otros viajes
@@ -4258,6 +4374,8 @@ async function adminStartTrip(){
       brokerName,
       factoringFeePct: isNaN(factoringFeePct)?0:factoringFeePct,
       rc,
+      pickupAddress: pickupAddress||null, deliveryAddress: deliveryAddress||null,
+      routeMiles, routeDurationSec, origLat, origLon, destLat, destLon,
       tripStatus: 'active',
       startTime: new Date().toISOString(),
       fuelLoads:[], totalGal:0, totalCost:0,
@@ -4377,7 +4495,7 @@ async function adminCancelTrip(){
 }
 
 function adminResetForm(){
-  ['f-z1-admin','f-z2-admin','f-mi-start-admin','f-mi-end-admin','f-load','f-rc-admin','f-brokername-admin'].forEach(id=>{
+  ['f-z1-admin','f-z2-admin','f-mi-start-admin','f-mi-end-admin','f-load','f-rc-admin','f-brokername-admin','f-addr1-admin','f-addr2-admin'].forEach(id=>{
     const el=document.getElementById(id); if(el) el.value='';
   });
   document.getElementById('f-date-admin').value = todayStr();
@@ -4436,6 +4554,9 @@ function openTripDetail(tripId){
   document.getElementById('admin-active-info').innerHTML =
     `<b>Driver:</b> ${t.driverName||'—'}<br>
      <b>Ruta:</b> ${t.city1||t.z1||'—'}, ${t.state1||''} → ${t.city2||t.z2||'—'}, ${t.state2||''}<br>
+     ${t.pickupAddress?`<b>📍 Pickup:</b> ${t.pickupAddress}<br>`:''}
+     ${t.deliveryAddress?`<b>📍 Delivery:</b> ${t.deliveryAddress}<br>`:''}
+     ${t.routeMiles?`<b>Ruta real:</b> ${t.routeMiles.toLocaleString()} mi (por carretera)<br>`:''}
      <b>Millas iniciales:</b> ${(t.miStart||0).toLocaleString()}<br>
      <b>% de pago:</b> ${t.payPct||'—'}%<br>
      <b>Dispatcher:</b> ${t.broker||'—'} (${t.brokerFeePct!=null?t.brokerFeePct:13}%)<br>
@@ -4451,37 +4572,187 @@ function openTripDetail(tripId){
 
   // Fotos del viaje
   ['loaded','unloaded','bol','pod'].forEach(function(kind){
-    const img = t[kind+'Image'];
-    const prev = document.getElementById('at-'+kind+'-preview');
+    const driveThumb = t[kind+'DriveThumb'];
     const driveLink = t[kind+'DriveLink'];
-    const driveBadge = driveLink ? '<div style="margin-top:4px;"><a href="'+driveLink+'" target="_blank" style="font-size:10px;color:var(--green);font-weight:700;text-decoration:none;">☁️ Ver en Drive</a></div>' : '';
-    if(prev) prev.innerHTML = (img ? '<img src="'+img+'" style="max-height:110px;border-radius:6px;cursor:pointer;" onclick="openLightbox(\''+img.replace(/'/g,"\\'")+'\')" />' : 'Sin subir') + driveBadge;
+    const prev = document.getElementById('at-'+kind+'-preview');
+    let driveBadge = driveLink ? '<div style="margin-top:4px;"><a href="'+driveLink+'" target="_blank" style="font-size:10px;color:var(--green);font-weight:700;text-decoration:none;">☁️ Ver en Drive</a></div>' : '';
+    if(kind==='bol' || kind==='pod'){
+      if(t[kind+'Approved']) driveBadge += '<div style="font-size:10px;color:var(--green);font-weight:700;margin-top:2px;">✅ Ready to Go</div>';
+      else if(t[kind+'Rejected']) driveBadge += '<div style="font-size:10px;color:var(--red);font-weight:700;margin-top:2px;">❌ Rechazado</div>';
+      const actionsEl = document.getElementById('at-'+kind+'-actions');
+      if(actionsEl) actionsEl.style.display = (driveThumb && !t[kind+'Approved']) ? 'block' : 'none';
+    }
+    if(prev) prev.innerHTML = (driveThumb ? '<img src="'+driveThumb+'" style="max-height:110px;border-radius:6px;cursor:pointer;" onclick="window.open(\''+driveLink+'\',\'_blank\')" />' : 'Sin subir') + driveBadge;
   });
+
+  // RC
+  const rcThumb = t.rcDriveThumb, rcLink = t.rcDriveLink;
+  const rcPrev = document.getElementById('at-rc-preview');
+  const rcLabel = document.getElementById('at-rc-label');
+  if(rcLabel) rcLabel.textContent = rcLink ? '✔ RC subido — cambiar' : 'Subir documento del RC';
+  if(rcPrev) rcPrev.innerHTML = rcLink
+    ? (rcThumb ? '<img src="'+rcThumb+'" style="max-height:110px;border-radius:6px;cursor:pointer;" onclick="window.open(\''+rcLink+'\',\'_blank\')" />' : '')+'<div style="margin-top:4px;"><a href="'+rcLink+'" target="_blank" style="font-size:12px;color:var(--green);font-weight:700;text-decoration:none;">☁️ Ver RC en Drive</a></div>'
+    : 'Sin subir';
 
   // GPS / ETA en tiempo real
   startAdminTripGpsPanel(t);
 }
 
+// ===== RC (Rate Confirmation) — subido por el admin =====
+async function handleAdminRcUpload(input){
+  const file = input.files && input.files[0];
+  if(!file) return;
+  if(!_adminActiveTrip){ alert('No hay un viaje abierto.'); return; }
+  const tripId = _adminActiveTrip.id;
+
+  const rcPrev = document.getElementById('at-rc-preview');
+  if(rcPrev) rcPrev.innerHTML = '☁️ Subiendo a Drive...';
+
+  try{
+    const reader = new FileReader();
+    const dataUrl = await new Promise(function(resolve, reject){
+      reader.onload = function(e){ resolve(e.target.result); };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+    const trips = loadTrips();
+    const idx = trips.findIndex(t=>t.id===tripId);
+    if(idx<0){ alert('No se encontró el viaje.'); return; }
+    const trip = trips[idx];
+
+    const result = await uploadPhotoToDrive(trip, 'rc', dataUrl);
+    const isImage = (file.type||'').startsWith('image/');
+    const rcThumb = isImage ? 'https://drive.google.com/thumbnail?id='+result.id+'&sz=w800' : null;
+
+    const trips2 = loadTrips();
+    const idx2 = trips2.findIndex(t=>t.id===tripId);
+    if(idx2>=0){
+      trips2[idx2] = {...trips2[idx2], rcDriveFileId: result.id, rcDriveLink: result.webViewLink, rcDriveThumb: rcThumb};
+      await storeTrips(trips2);
+      _adminActiveTrip = trips2[idx2];
+      openTripDetail(tripId);
+    }
+  }catch(err){
+    console.error('handleAdminRcUpload error:', err);
+    if(rcPrev) rcPrev.innerHTML = 'Sin subir';
+    alert('No se pudo subir el RC a Google Drive: '+(err && err.message ? err.message : err));
+  }
+  input.value = '';
+}
+
+// ===== Aprobar / rechazar BOL o POD =====
+async function approveDoc(kind){
+  if(!_adminActiveTrip) return;
+  const tripId = _adminActiveTrip.id;
+  const trips = loadTrips();
+  const idx = trips.findIndex(t=>t.id===tripId);
+  if(idx<0) return;
+  trips[idx] = {...trips[idx], [kind+'Approved']: true, [kind+'Rejected']: false, [kind+'RejectionNote']: null};
+  await storeTrips(trips);
+  _adminActiveTrip = trips[idx];
+  openTripDetail(tripId);
+}
+
+async function rejectDoc(kind){
+  if(!_adminActiveTrip) return;
+  const note = prompt('¿Qué le falta a este '+(kind==='bol'?'BOL':'POD')+'? (ej. falta firma, falta fecha, falta nombre)');
+  if(note===null) return; // canceló
+  const tripId = _adminActiveTrip.id;
+  const trips = loadTrips();
+  const idx = trips.findIndex(t=>t.id===tripId);
+  if(idx<0) return;
+  trips[idx] = {...trips[idx], [kind+'Approved']: false, [kind+'Rejected']: true, [kind+'RejectionNote']: note.trim()||'Vuelve a subir la foto', [kind+'DriveStatus']: null, [kind+'DriveLink']: null, [kind+'DriveThumb']: null};
+  await storeTrips(trips);
+  _adminActiveTrip = trips[idx];
+  openTripDetail(tripId);
+}
+
 // ===== Admin: panel de GPS/ETA en tiempo real para un viaje activo =====
+let _atRouteMap = null;
+let _atRouteInterval = null;
+let _atRouteLine = null;
+let _atRouteMarker = null;
+
 function startAdminTripGpsPanel(trip){
   stopAdminTripGpsPanel();
   _atTripStart = trip.startTime ? new Date(trip.startTime) : new Date();
   updateAdminTripGpsPanel(trip);
   _atInterval = setInterval(function(){ updateAdminTripGpsPanel(trip); }, 15000);
+  renderTripRouteMap(trip);
+  _atRouteInterval = setInterval(function(){ renderTripRouteMap(trip); }, 120000);
 }
 
 function stopAdminTripGpsPanel(){
   if(_atInterval){ clearInterval(_atInterval); _atInterval=null; }
+  if(_atRouteInterval){ clearInterval(_atRouteInterval); _atRouteInterval=null; }
+  if(_atRouteMap){ _atRouteMap.remove(); _atRouteMap=null; }
+  _atRouteLine = null;
+  _atRouteMarker = null;
+}
+
+async function renderTripRouteMap(trip){
+  if(!fbReady || !db || !trip.driverUser || !window.L) return;
+  const mapEl = document.getElementById('at-route-map');
+  if(!mapEl) return; // salió de la vista
+
+  let points = [];
+  try{
+    const docId = trip.driverUser+'_'+todayStr();
+    const snap = await db.collection('locationHistory').doc(docId).get();
+    if(snap.exists && snap.data().points) points = snap.data().points;
+  }catch(e){ console.warn('renderTripRouteMap error:', e); }
+
+  // Resumen de horas manejadas hoy
+  const hoursEl = document.getElementById('at-hours-summary');
+  if(hoursEl){
+    let drivingMs = 0;
+    for(let i=1;i<points.length;i++){
+      if(points[i-1].movingStatus==='driving'){
+        const dt = new Date(points[i].time) - new Date(points[i-1].time);
+        if(dt>0 && dt < 15*60000) drivingMs += dt; // ignora huecos largos (app cerrada, etc.)
+      }
+    }
+    const h = Math.floor(drivingMs/3600000);
+    const m = Math.round((drivingMs%3600000)/60000);
+    hoursEl.textContent = '🕐 '+h+'h '+m+'min manejando hoy';
+  }
+
+  if(!points.length){
+    mapEl.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:12px;color:var(--text3);">Sin datos de ruta para hoy todavía.</div>';
+    return;
+  }
+
+  if(!_atRouteMap){
+    mapEl.innerHTML = '';
+    _atRouteMap = L.map('at-route-map', {zoomControl:false});
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:19}).addTo(_atRouteMap);
+  }
+
+  const latlngs = points.map(p=>[p.lat,p.lon]);
+  if(_atRouteLine) _atRouteMap.removeLayer(_atRouteLine);
+  _atRouteLine = L.polyline(latlngs, {color:'#2563EB', weight:4}).addTo(_atRouteMap);
+  _atRouteMap.fitBounds(_atRouteLine.getBounds(), {padding:[16,16]});
+
+  // Marcar el punto más reciente
+  if(_atRouteMarker) _atRouteMap.removeLayer(_atRouteMarker);
+  const last = points[points.length-1];
+  const dotColor = last.movingStatus==='driving' ? '#16A34A' : '#DC2626';
+  _atRouteMarker = L.circleMarker([last.lat,last.lon], {radius:7, color:'#fff', weight:2, fillColor:dotColor, fillOpacity:1}).addTo(_atRouteMap);
 }
 
 async function updateAdminTripGpsPanel(trip){
   if(!fbReady || !db || !trip.driverUser) return;
   let pos = null;
+  let movingStatus = 'unknown';
+  let statusSince = null;
   try{
     const snap = await db.collection('locations').doc(trip.driverUser).get();
     if(snap.exists){
       const d = snap.data();
       if(d && d.active!==false) pos = {lat:d.lat, lon:d.lon};
+      if(d && d.movingStatus) movingStatus = d.movingStatus;
+      if(d && d.statusSince) statusSince = d.statusSince;
     }
   }catch(e){ /* ignore */ }
 
@@ -4489,18 +4760,24 @@ async function updateAdminTripGpsPanel(trip){
   const label = document.getElementById('at-gps-label');
   if(!dot) return; // el usuario salió de la vista de detalle
 
+  const hasRealRoute = trip.routeMiles && trip.routeDurationSec && trip.origLat!=null && trip.destLat!=null;
   const destZip = trip.z2||'', origZip = trip.z1||'';
-  const destPos = ZC[destZip], origPos = ZC[origZip];
+  const destPos = hasRealRoute ? {lat:trip.destLat, lon:trip.destLon} : ZC[destZip];
+  const origPos = hasRealRoute ? {lat:trip.origLat, lon:trip.origLon} : ZC[origZip];
   let totalMiles = 0;
-  if(origPos && destPos){
+  if(hasRealRoute){
+    totalMiles = trip.routeMiles;
+  } else if(origPos && destPos){
     const km = haversineKm(origPos.lat, origPos.lon, destPos.lat, destPos.lon);
     totalMiles = Math.round(km * 0.621371 * 1.20);
   }
 
   let milesDone=0, milesLeft=totalMiles, pct=0;
   if(pos && origPos){
-    dot.style.background = '#16A34A';
-    label.textContent = 'GPS activo';
+    const sinceMin = statusSince ? Math.round((Date.now()-new Date(statusSince).getTime())/60000) : null;
+    if(movingStatus==='driving'){ dot.style.background='#16A34A'; label.textContent='🟢 Manejando'+(sinceMin!==null?' (hace '+sinceMin+' min)':''); }
+    else if(movingStatus==='stopped'){ dot.style.background='#DC2626'; label.textContent='🔴 Detenido'+(sinceMin!==null?' (hace '+sinceMin+' min)':''); }
+    else { dot.style.background = '#16A34A'; label.textContent = 'GPS activo'; }
     const kmDone = haversineKm(origPos.lat, origPos.lon, pos.lat, pos.lon);
     milesDone = Math.min(Math.round(kmDone * 0.621371), totalMiles);
     milesLeft = Math.max(totalMiles - milesDone, 0);
@@ -4514,7 +4791,9 @@ async function updateAdminTripGpsPanel(trip){
     pct = totalMiles>0 ? Math.round((milesDone/totalMiles)*100) : 0;
   }
 
-  const remainMin = (milesLeft / 60) * 60;
+  const remainMin = hasRealRoute && totalMiles>0
+    ? (milesLeft/totalMiles) * (trip.routeDurationSec/60)
+    : (milesLeft / 60) * 60;
   const etaDate = new Date(Date.now() + remainMin * 60000);
   const etaTime = etaDate.toLocaleTimeString('es-US',{hour:'2-digit',minute:'2-digit',hour12:true});
   const etaDateStr = etaDate.toLocaleDateString('es-US',{weekday:'short',month:'short',day:'numeric'});
@@ -4527,7 +4806,7 @@ async function updateAdminTripGpsPanel(trip){
   if(s('at-progress-bar')) s('at-progress-bar').style.width = Math.min(pct,100)+'%';
   if(s('at-eta-time')) s('at-eta-time').textContent = milesLeft>0 ? etaTime : '¡Llegó! 🎉';
   if(s('at-eta-date')) s('at-eta-date').textContent = milesLeft>0 ? etaDateStr : '';
-  if(s('at-eta-note'))  s('at-eta-note').textContent = pos ? 'Basado en su ubicación GPS' : 'Sin señal GPS reciente — estimado por tiempo';
+  if(s('at-eta-note'))  s('at-eta-note').textContent = (pos ? 'Basado en su ubicación GPS' : 'Sin señal GPS reciente — estimado por tiempo') + (hasRealRoute ? ' · ruta real' : '');
 }
 
 function backToEnTransitoList(successMsg){
@@ -6143,10 +6422,11 @@ function renderHome(){
           }
           if(el('dd-active-pct')) el('dd-active-pct').textContent = pctTxt;
           if(el('dd-active-eta')) el('dd-active-eta').textContent = etaTxt;
-          const docsOk = activeTrip.bolImage && activeTrip.podImage && activeTrip.loadedImage && activeTrip.unloadedImage;
+          const docKeys = ['loadedDriveStatus','unloadedDriveStatus','bolDriveStatus','podDriveStatus'];
+          const docsOk = docKeys.every(k=>activeTrip[k]==='done');
           const docsEl = el('dd-active-docs');
           if(docsEl){
-            const n = ['loadedImage','unloadedImage','bolImage','podImage'].filter(k=>activeTrip[k]).length;
+            const n = docKeys.filter(k=>activeTrip[k]==='done').length;
             docsEl.textContent = n+'/4';
             docsEl.style.color = docsOk ? '#16A34A' : '#D97706';
           }
@@ -6556,6 +6836,40 @@ function getDriverLocation(){
 }
 
 // ===== DRIVER: enviar ubicación en tiempo real a Firebase =====
+let _lastGpsPoint = null; // {lat, lon, time} — para calcular velocidad si el GPS no la reporta directo
+let _movingStatusSince = null; // {status, since} — cuánto lleva en el estatus actual
+let _lastHistoryWriteTime = 0;
+let _stoppedLongNotified = false;
+let _speedingNotified = false;
+const SPEEDING_THRESHOLD_MPH = 80;
+const STOPPED_LONG_MINUTES = 45;
+const HISTORY_WRITE_INTERVAL_MS = 120000; // 2 min
+
+async function logLocationHistoryPoint(username, point){
+  if(!fbReady || !db) return;
+  const dateStr = todayStr();
+  const docId = username+'_'+dateStr;
+  try{
+    await db.collection('locationHistory').doc(docId).set({
+      username, date: dateStr,
+      points: firebase.firestore.FieldValue.arrayUnion(point)
+    }, {merge:true});
+  }catch(e){ console.warn('logLocationHistoryPoint error:', e); }
+}
+
+async function fireDriverAlert(type, extra){
+  if(!fbReady || !db) return;
+  try{
+    await db.collection('notifications').add(sanitizeForFirestore({
+      driverName: currentUser.name,
+      type: type,
+      ...extra,
+      ts: new Date().toISOString(),
+      read: false
+    }));
+  }catch(e){ console.warn('fireDriverAlert error:', e); }
+}
+
 function startDriverTracking(){
   if(!navigator.geolocation || !currentUser || currentUser.role!=='driver') return;
   if(_driverWatchId!==null) return; // ya está activo
@@ -6564,11 +6878,35 @@ function startDriverTracking(){
       const lat=parseFloat(pos.coords.latitude.toFixed(6));
       const lon=parseFloat(pos.coords.longitude.toFixed(6));
       const now=new Date().toISOString();
+
+      // Detectar manejando vs detenido
+      const MOVING_THRESHOLD_MPS = 1.34; // ~3 mph — filtra ruido de GPS estacionario
+      let speedMps = (typeof pos.coords.speed === 'number' && pos.coords.speed>=0) ? pos.coords.speed : null;
+      if(speedMps===null && _lastGpsPoint){
+        const dtSec = (new Date(now) - new Date(_lastGpsPoint.time)) / 1000;
+        if(dtSec>0 && dtSec<120){
+          const distKm = haversineKm(_lastGpsPoint.lat, _lastGpsPoint.lon, lat, lon);
+          speedMps = (distKm*1000) / dtSec;
+        }
+      }
+      _lastGpsPoint = {lat, lon, time: now};
+      const movingStatus = speedMps===null ? 'unknown' : (speedMps >= MOVING_THRESHOLD_MPS ? 'driving' : 'stopped');
+      const speedMph = speedMps===null ? null : Math.round(speedMps*2.23694);
+
+      // Cuánto lleva en el estatus actual
+      if(!_movingStatusSince || _movingStatusSince.status!==movingStatus){
+        _movingStatusSince = {status: movingStatus, since: now};
+        _stoppedLongNotified = false; // reinicia el aviso de "detenido mucho tiempo" al cambiar de estatus
+      }
+
       const payload={
         lat, lon, time:now,
         name: currentUser.name,
         username: currentUser.username,
-        active: true
+        active: true,
+        movingStatus,
+        speedMph,
+        statusSince: _movingStatusSince.since
       };
       // Guardar en Firebase
       if(fbReady && db){
@@ -6576,6 +6914,33 @@ function startDriverTracking(){
       }
       // También en localStorage como respaldo
       localStorage.setItem('trucklog_last_location', JSON.stringify({lat,lon,time:now,driver:currentUser.name}));
+
+      // Historial de ubicación (cada 2 min, o al cambiar de estatus)
+      const nowMs = Date.now();
+      const justChangedStatus = _movingStatusSince.since === now;
+      if(nowMs - _lastHistoryWriteTime >= HISTORY_WRITE_INTERVAL_MS || justChangedStatus){
+        _lastHistoryWriteTime = nowMs;
+        logLocationHistoryPoint(currentUser.username, {lat, lon, time: now, movingStatus, speedMph});
+      }
+
+      // Alerta: detenido demasiado tiempo (solo si tiene un viaje activo)
+      if(movingStatus==='stopped' && !_stoppedLongNotified){
+        const stoppedMin = (nowMs - new Date(_movingStatusSince.since).getTime()) / 60000;
+        if(stoppedMin >= STOPPED_LONG_MINUTES){
+          _stoppedLongNotified = true;
+          fireDriverAlert('stopped_long', {minutes: Math.round(stoppedMin)});
+        }
+      }
+
+      // Alerta: exceso de velocidad
+      if(speedMph!==null && speedMph > SPEEDING_THRESHOLD_MPH){
+        if(!_speedingNotified){
+          _speedingNotified = true;
+          fireDriverAlert('speeding', {speedMph});
+        }
+      } else {
+        _speedingNotified = false;
+      }
     },
     err=>{ console.warn('GPS watch error:',err.message); },
     {enableHighAccuracy:true, maximumAge:15000, timeout:20000}
@@ -6778,10 +7143,10 @@ function renderAdminDriversMap(){
 
 function updateDriverMarker(d){
   if(!liveMap || !window.L) return;
-  const {lat,lon,name,username,active}=d;
+  const {lat,lon,name,username,active,movingStatus}=d;
   if(!lat||!lon) return;
 
-  const color = active ? '#16A34A' : '#9CA3AF';
+  const color = !active ? '#9CA3AF' : (movingStatus==='driving' ? '#16A34A' : movingStatus==='stopped' ? '#DC2626' : '#2563EB');
   const icon = L.divIcon({
     className:'',
     html:`<div style="background:${color};color:#fff;border-radius:50% 50% 50% 0;width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.3);transform:rotate(-45deg);">
@@ -6791,7 +7156,8 @@ function updateDriverMarker(d){
   });
 
   const timeStr=d.time?new Date(d.time).toLocaleTimeString('es'):'—';
-  const popupHtml=`<b>&#x1F69A; ${name||username}</b><br>
+  const statusLabel = movingStatus==='driving' ? '🟢 Manejando' : movingStatus==='stopped' ? '🔴 Detenido' : '';
+  const popupHtml=`<b>&#x1F69A; ${name||username}</b>${statusLabel?'<br>'+statusLabel:''}<br>
     <span style="font-size:11px;color:#555;">Lat: ${lat}<br>Lon: ${lon}<br>Actualizado: ${timeStr}</span>
     <br><a href="https://www.google.com/maps?q=${lat},${lon}" target="_blank" style="font-size:11px;color:#2563EB;">Ver en Google Maps</a>`;
 
@@ -6812,6 +7178,10 @@ function renderDriversList(drivers){
   el.innerHTML=drivers.map(d=>{
     const timeStr=d.time?new Date(d.time).toLocaleTimeString('es'):'—';
     const isActive=d.active!==false;
+    let statusText = isActive ? '🟢 Activo' : '⚫ Inactivo';
+    let statusColor = isActive ? 'var(--green)' : 'var(--text3)';
+    if(isActive && d.movingStatus==='driving'){ statusText='🟢 Manejando'; statusColor='var(--green)'; }
+    else if(isActive && d.movingStatus==='stopped'){ statusText='🔴 Detenido'; statusColor='#DC2626'; }
     return `<div style="display:flex;align-items:center;justify-content:space-between;background:${isActive?'var(--green-bg)':'var(--bg3)'};border:1px solid ${isActive?'#bbf7d0':'var(--border)'};border-radius:10px;padding:10px 14px;">
       <div style="display:flex;align-items:center;gap:10px;">
         <div style="width:34px;height:34px;border-radius:50%;background:${isActive?'var(--green)':'var(--text3)'};display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:14px;flex-shrink:0;">
@@ -6823,7 +7193,7 @@ function renderDriversList(drivers){
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:8px;">
-        <span style="font-size:11px;font-weight:600;color:${isActive?'var(--green)':'var(--text3)'};">${isActive?'🟢 Activo':'⚫ Inactivo'}</span>
+        <span style="font-size:11px;font-weight:600;color:${statusColor};">${statusText}</span>
         <button onclick="if(liveMap&&_driverMarkers['${d.username}']){liveMap.setView([${d.lat},${d.lon}],14);_driverMarkers['${d.username}'].openPopup();}"
           style="padding:5px 10px;border-radius:7px;border:1px solid var(--border2);background:var(--bg2);font-size:11px;font-weight:600;cursor:pointer;color:var(--accent);">
           &#x1F50D; Ver
@@ -9371,6 +9741,68 @@ function dataURLtoBlob(dataUrl){
 }
 
 let _driveFolderCreationPromises = {};
+let _masterFolderId = null;
+let _masterFolderCreationPromise = null;
+
+async function getOrCreateMasterFolder(token){
+  if(_masterFolderId) return _masterFolderId;
+  if(_masterFolderCreationPromise) return _masterFolderCreationPromise;
+
+  _masterFolderCreationPromise = (async function(){
+    const MASTER_FOLDER_NAME = 'Truck Trip Log — Fotos';
+
+    // 1. Revisar si ya está guardado en Firestore (para no repetir la búsqueda cada vez)
+    if(fbReady && db){
+      try{
+        const snap = await db.collection('data').doc('driveConfig').get();
+        if(snap.exists && snap.data().masterFolderId){
+          _masterFolderId = snap.data().masterFolderId;
+          return _masterFolderId;
+        }
+      }catch(e){ /* ignore */ }
+    }
+
+    // 2. Buscar si ya existe esa carpeta en Drive
+    let folderId = null;
+    try{
+      const q = encodeURIComponent("name='"+MASTER_FOLDER_NAME+"' and mimeType='application/vnd.google-apps.folder' and trashed=false");
+      const searchRes = await fetch('https://www.googleapis.com/drive/v3/files?q='+q+'&fields=files(id,name)', {
+        headers:{'Authorization':'Bearer '+token}
+      });
+      const searchData = await searchRes.json();
+      if(searchData.files && searchData.files.length) folderId = searchData.files[0].id;
+    }catch(e){ /* ignore */ }
+
+    // 3. Si no existe, crearla
+    if(!folderId){
+      const createRes = await fetch('https://www.googleapis.com/drive/v3/files', {
+        method:'POST',
+        headers:{'Authorization':'Bearer '+token, 'Content-Type':'application/json'},
+        body: JSON.stringify({name: MASTER_FOLDER_NAME, mimeType:'application/vnd.google-apps.folder'})
+      });
+      const createData = await createRes.json();
+      if(!createData.id) throw new Error('No se pudo crear la carpeta madre en Drive: '+(createData.error?.message||'error desconocido'));
+      folderId = createData.id;
+      await fetch('https://www.googleapis.com/drive/v3/files/'+folderId+'/permissions', {
+        method:'POST',
+        headers:{'Authorization':'Bearer '+token, 'Content-Type':'application/json'},
+        body: JSON.stringify({role:'reader', type:'anyone'})
+      }).catch(()=>{});
+    }
+
+    _masterFolderId = folderId;
+    if(fbReady && db){
+      db.collection('data').doc('driveConfig').set({masterFolderId: folderId}, {merge:true}).catch(()=>{});
+    }
+    return folderId;
+  })();
+
+  try{
+    return await _masterFolderCreationPromise;
+  } finally {
+    _masterFolderCreationPromise = null;
+  }
+}
 
 async function getOrCreateTripDriveFolder(trip, token){
   // Revisar el estado más reciente del trip (por si otra subida en paralelo ya creó la carpeta)
@@ -9383,11 +9815,12 @@ async function getOrCreateTripDriveFolder(trip, token){
   const creationPromise = (async function(){
     const driverCode = trip.driverUser || (trip.driverName||'driver').replace(/\s+/g,'').toLowerCase();
     const folderName = driverCode+'_'+(trip.date||'')+'_'+(trip.city1||'')+'-'+(trip.city2||'')+'_'+trip.id;
+    const masterFolderId = await getOrCreateMasterFolder(token);
 
     const res = await fetch('https://www.googleapis.com/drive/v3/files', {
       method:'POST',
       headers:{'Authorization':'Bearer '+token, 'Content-Type':'application/json'},
-      body: JSON.stringify({name: folderName, mimeType:'application/vnd.google-apps.folder'})
+      body: JSON.stringify({name: folderName, mimeType:'application/vnd.google-apps.folder', parents:[masterFolderId]})
     });
     const data = await res.json();
     if(!data.id) throw new Error('No se pudo crear la carpeta en Drive: '+(data.error?.message||'error desconocido'));
@@ -9440,54 +9873,116 @@ function triggerBolUpload(kind){
   if(input) input.click();
 }
 
+let _localPhotoPreviews = {};
+
+let _pendingDocUpload = null;
+
 async function handleBolUpload(kind, input){
   const file = input.files && input.files[0];
   if(!file){ console.warn('handleBolUpload: no se seleccionó ningún archivo'); return; }
   const tripId = parseInt(document.getElementById('mv-trip-id').value);
   if(!tripId){ alert('No se encontró el viaje activo. Recarga la página e intenta de nuevo.'); return; }
 
-  const reader = new FileReader();
-  reader.onerror = function(){
-    console.error('FileReader error al leer la foto');
-    alert('No se pudo leer la foto. Intenta de nuevo.');
-  };
-  reader.onload = async function(e){
-    try{
-      const dataUrl = e.target.result;
-      const trips = loadTrips();
-      const idx = trips.findIndex(t=>t.id===tripId);
-      if(idx<0){ alert('No se encontró el viaje. Recarga la página e intenta de nuevo.'); return; }
-      trips[idx] = {...trips[idx], [kind+'Image']: dataUrl, [kind+'DriveStatus']: 'uploading'};
-      await storeTrips(trips);
+  // BOL y POD requieren confirmar firma/fecha/nombre antes de subir
+  if(kind==='bol' || kind==='pod'){
+    _pendingDocUpload = {kind, file, tripId, input};
+    document.getElementById('chk-signature').checked = false;
+    document.getElementById('chk-date').checked = false;
+    document.getElementById('chk-name').checked = false;
+    document.getElementById('doc-checklist-msg').style.display = 'none';
+    document.getElementById('doc-checklist-title').textContent = kind==='bol' ? '📋 Antes de subir el BOL' : '📋 Antes de subir el POD';
+    document.getElementById('doc-checklist-modal').classList.add('open');
+    return;
+  }
+
+  await proceedWithDocUpload(kind, file, tripId, input);
+}
+
+function cancelDocChecklist(){
+  if(_pendingDocUpload && _pendingDocUpload.input) _pendingDocUpload.input.value = '';
+  _pendingDocUpload = null;
+  document.getElementById('doc-checklist-modal').classList.remove('open');
+}
+
+async function confirmDocChecklist(){
+  if(!_pendingDocUpload) return;
+  const sig = document.getElementById('chk-signature').checked;
+  const date = document.getElementById('chk-date').checked;
+  const name = document.getElementById('chk-name').checked;
+  const msg = document.getElementById('doc-checklist-msg');
+
+  if(!sig || !date || !name){
+    msg.className = 'msg err';
+    msg.textContent = 'Marca los 3 puntos antes de continuar. Si falta alguno en la foto, tómala de nuevo.';
+    msg.style.display = 'block';
+    return;
+  }
+
+  const {kind, file, tripId, input} = _pendingDocUpload;
+  document.getElementById('doc-checklist-modal').classList.remove('open');
+  _pendingDocUpload = null;
+  await proceedWithDocUpload(kind, file, tripId, input, {signature:sig, date, name});
+}
+
+async function proceedWithDocUpload(kind, file, tripId, input, checklist){
+  // Vista previa instantánea local (solo en memoria de esta pantalla — NO se guarda en Firestore)
+  const localPreviewUrl = URL.createObjectURL(file);
+  _localPhotoPreviews[kind] = localPreviewUrl;
+  const preview = document.getElementById('mv-'+kind+'-preview');
+  if(preview) preview.innerHTML = '<img src="'+localPreviewUrl+'" style="max-height:70px;border-radius:6px;border:1px solid var(--border2);" /><div style="font-size:10px;color:var(--text3);margin-top:3px;">☁️ Subiendo a Drive...</div>';
+
+  try{
+    const reader = new FileReader();
+    const dataUrl = await new Promise(function(resolve, reject){
+      reader.onload = function(e){ resolve(e.target.result); };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+    const trips = loadTrips();
+    const idx = trips.findIndex(t=>t.id===tripId);
+    if(idx<0){ alert('No se encontró el viaje. Recarga la página e intenta de nuevo.'); return; }
+    const trip = trips[idx];
+
+    // Subir directo a Google Drive — la foto NUNCA se guarda en Firestore, solo el link
+    const result = await uploadPhotoToDrive(trip, kind, dataUrl);
+    const driveThumb = 'https://drive.google.com/thumbnail?id='+result.id+'&sz=w800';
+
+    const trips2 = loadTrips();
+    const idx2 = trips2.findIndex(t=>t.id===tripId);
+    if(idx2>=0){
+      const update = {...trips2[idx2], [kind+'DriveFileId']: result.id, [kind+'DriveLink']: result.webViewLink, [kind+'DriveThumb']: driveThumb, [kind+'DriveStatus']: 'done'};
+      if(kind==='bol' || kind==='pod'){
+        update[kind+'Checklist'] = checklist||null;
+        update[kind+'Approved'] = false;
+        update[kind+'Rejected'] = false;
+        update[kind+'RejectionNote'] = null;
+      }
+      trips2[idx2] = update;
+      await storeTrips(trips2);
       renderMiViaje();
 
-      // Subir a Google Drive en segundo plano
-      try{
-        const trip = trips[idx];
-        const result = await uploadPhotoToDrive(trip, kind, dataUrl);
-        const trips2 = loadTrips();
-        const idx2 = trips2.findIndex(t=>t.id===tripId);
-        if(idx2>=0){
-          trips2[idx2] = {...trips2[idx2], [kind+'DriveLink']: result.webViewLink, [kind+'DriveStatus']: 'done'};
-          await storeTrips(trips2);
-          renderMiViaje();
-        }
-      }catch(err){
-        console.warn('uploadPhotoToDrive error:', err);
-        const trips3 = loadTrips();
-        const idx3 = trips3.findIndex(t=>t.id===tripId);
-        if(idx3>=0){
-          trips3[idx3] = {...trips3[idx3], [kind+'DriveStatus']: 'error'};
-          await storeTrips(trips3);
-          renderMiViaje();
-        }
+      // Avisar al admin que hay un documento nuevo para revisar
+      if((kind==='bol' || kind==='pod') && fbReady && db){
+        db.collection('notifications').add(sanitizeForFirestore({
+          tripId, driverName: trip.driverName || currentUser.name,
+          type: kind+'_uploaded',
+          city1: trip.city1, city2: trip.city2,
+          ts: new Date().toISOString(), read: false
+        })).catch(()=>{});
       }
-    }catch(fatalErr){
-      console.error('handleBolUpload error fatal:', fatalErr);
-      alert('Ocurrió un error guardando la foto: '+(fatalErr && fatalErr.message ? fatalErr.message : fatalErr));
     }
-  };
-  reader.readAsDataURL(file);
+  }catch(err){
+    console.error('proceedWithDocUpload error:', err);
+    const trips3 = loadTrips();
+    const idx3 = trips3.findIndex(t=>t.id===tripId);
+    if(idx3>=0){
+      trips3[idx3] = {...trips3[idx3], [kind+'DriveStatus']: 'error'};
+      await storeTrips(trips3);
+      renderMiViaje();
+    }
+    alert('No se pudo subir la foto a Google Drive: '+(err && err.message ? err.message : err));
+  }
   input.value = '';
 }
 
@@ -9519,23 +10014,39 @@ function renderMiViaje(){
 
     // BOL / POD preview + labels
     ['loaded','unloaded','bol','pod'].forEach(function(kind){
-      const img = activeTrip[kind+'Image'];
-      const label = document.getElementById('mv-'+kind+'-label');
-      const preview = document.getElementById('mv-'+kind+'-preview');
-      const labels = {
-        loaded:   img ? '✔ Foto de carga subida — cambiar' : 'Foto de carga (loaded)',
-        unloaded: img ? '✔ Foto de descarga subida — cambiar' : 'Foto de descarga (unloaded)',
-        bol:      img ? '✔ BOL subido — cambiar' : 'Subir BOL (pickup)',
-        pod:      img ? '✔ POD subido — cambiar' : 'Subir POD (entrega)'
-      };
-      if(label) label.textContent = labels[kind];
+      const driveThumb = activeTrip[kind+'DriveThumb'];
       const driveStatus = activeTrip[kind+'DriveStatus'];
       const driveLink = activeTrip[kind+'DriveLink'];
+      const localPreview = _localPhotoPreviews[kind];
+      const label = document.getElementById('mv-'+kind+'-label');
+      const preview = document.getElementById('mv-'+kind+'-preview');
+      const done = driveStatus==='done' && driveThumb;
+      const labels = {
+        loaded:   done ? '✔ Foto de carga subida — cambiar' : 'Foto de carga (loaded)',
+        unloaded: done ? '✔ Foto de descarga subida — cambiar' : 'Foto de descarga (unloaded)',
+        bol:      done ? '✔ BOL subido — cambiar' : 'Subir BOL (pickup)',
+        pod:      done ? '✔ POD subido — cambiar' : 'Subir POD (entrega)'
+      };
+      if(label) label.textContent = labels[kind];
+
       let driveBadge = '';
-      if(driveStatus==='uploading') driveBadge = '<div style="font-size:10px;color:var(--text3);margin-top:3px;">☁️ Subiendo a Drive...</div>';
-      else if(driveStatus==='done' && driveLink) driveBadge = '<div style="font-size:10px;margin-top:3px;"><a href="'+driveLink+'" target="_blank" style="color:var(--green);font-weight:700;text-decoration:none;">☁️ En Drive ✓</a></div>';
+      const stillUploading = localPreview && driveStatus!=='done' && driveStatus!=='error';
+      if(stillUploading) driveBadge = '<div style="font-size:10px;color:var(--text3);margin-top:3px;">☁️ Subiendo a Drive...</div>';
+      else if(done) driveBadge = '<div style="font-size:10px;margin-top:3px;"><a href="'+driveLink+'" target="_blank" style="color:var(--green);font-weight:700;text-decoration:none;">☁️ En Drive ✓</a></div>';
       else if(driveStatus==='error') driveBadge = '<div style="font-size:10px;color:var(--red);margin-top:3px;">☁️ No se pudo subir a Drive</div>';
-      if(preview) preview.innerHTML = (img ? '<img src="'+img+'" style="max-height:70px;border-radius:6px;border:1px solid var(--border2);cursor:pointer;" onclick="openLightbox(\''+img.replace(/'/g,"\\'")+'\')" />' : '') + driveBadge;
+
+      // Estatus de aprobación del admin (solo BOL/POD)
+      if(done && (kind==='bol' || kind==='pod')){
+        if(activeTrip[kind+'Approved']) driveBadge += '<div style="font-size:10px;color:var(--green);font-weight:700;margin-top:2px;">✅ Aprobado — Ready to Go</div>';
+        else if(activeTrip[kind+'Rejected']) driveBadge += '<div style="font-size:10px;color:var(--red);font-weight:700;margin-top:2px;">❌ Rechazado: '+(activeTrip[kind+'RejectionNote']||'vuelve a subir')+'</div>';
+        else driveBadge += '<div style="font-size:10px;color:var(--orange);font-weight:600;margin-top:2px;">⏳ Esperando revisión del admin</div>';
+      }
+
+      // Prioridad de imagen a mostrar: foto en Drive (persistente) > vista previa local (solo mientras sube)
+      const imgSrc = done ? driveThumb : localPreview;
+      if(preview && !stillUploading){
+        preview.innerHTML = (imgSrc ? '<img src="'+imgSrc+'" style="max-height:70px;border-radius:6px;border:1px solid var(--border2);cursor:pointer;" onclick="window.open(\''+(driveLink||imgSrc)+'\',\'_blank\')" />' : '') + driveBadge;
+      }
     });
 
     // Start realtime tracker
@@ -10163,6 +10674,10 @@ function notifLabel(n){
   if(n.type==='start') return {icon:'🟢', title:'Inició viaje', text: n.driverName+' arrancó: '+route};
   if(n.type==='near')  return {icon:'🟡', title:'Cerca del destino', text: n.driverName+' — faltan '+(n.milesLeft||'—')+' mi a '+ (n.city2||'destino') + (n.etaTime?(' · ETA '+n.etaTime):'')};
   if(n.type==='arrival') return {icon:'🔵', title:'Llegó al destino', text: n.driverName+' llegó a '+(n.city2||'destino')};
+  if(n.type==='stopped_long') return {icon:'🔴', title:'Detenido mucho tiempo', text: n.driverName+' lleva '+(n.minutes||'—')+' min detenido'};
+  if(n.type==='speeding') return {icon:'⚠️', title:'Exceso de velocidad', text: n.driverName+' — '+(n.speedMph||'—')+' mph'};
+  if(n.type==='bol_uploaded') return {icon:'📄', title:'BOL para revisar', text: n.driverName+' subió el BOL — revisa y dale Ready to Go'};
+  if(n.type==='pod_uploaded') return {icon:'📄', title:'POD para revisar', text: n.driverName+' subió el POD — revisa y dale Ready to Go'};
   return {icon:'📍', title:'Aviso', text: n.driverName+' — '+route};
 }
 
@@ -10280,18 +10795,21 @@ function updateRealtimePanel(){
   })();
   if(!t) return;
 
-  const avgSpeed = 60; // mph
+  const avgSpeed = 60; // mph — solo se usa si no hay ruta real calculada
   const u = getUsers().find(x=>x.username===currentUser?.username)||{};
 
-  // Get destination coords from ZC cache
+  // Preferir la ruta real por carretera (si se calculó con direcciones exactas), si no, usar el estimado por ZIP
+  const hasRealRoute = t.routeMiles && t.routeDurationSec && t.origLat!=null && t.destLat!=null;
   const destZip = t.z2||'';
-  const destPos = ZC[destZip];
+  const destPos = hasRealRoute ? {lat:t.destLat, lon:t.destLon} : ZC[destZip];
   const origZip = t.z1||'';
-  const origPos = ZC[origZip];
+  const origPos = hasRealRoute ? {lat:t.origLat, lon:t.origLon} : ZC[origZip];
 
-  // Total trip miles (estimated)
+  // Total trip miles
   let totalMiles = 0;
-  if(origPos && destPos){
+  if(hasRealRoute){
+    totalMiles = t.routeMiles;
+  } else if(origPos && destPos){
     const km = haversineKm(origPos.lat, origPos.lon, destPos.lat, destPos.lon);
     totalMiles = Math.round(km * 0.621371 * 1.20);
   }
@@ -10322,8 +10840,10 @@ function updateRealtimePanel(){
   const elM = Math.round(elapsedMin%60);
   const elapsedLabel = `${elH}h ${String(elM).padStart(2,'0')}min`;
 
-  // Remaining time (based on miles left at avg speed)
-  const remainMin = (milesLeft / avgSpeed) * 60;
+  // Tiempo restante: si hay ruta real, prorratear la duración real de OSRM; si no, usar 60 mph fijo
+  const remainMin = hasRealRoute && totalMiles>0
+    ? (milesLeft/totalMiles) * (t.routeDurationSec/60)
+    : (milesLeft / avgSpeed) * 60;
   const remH = Math.floor(remainMin/60);
   const remM = Math.round(remainMin%60);
   const remainLabel = milesLeft>0 ? `${remH}h ${String(remM).padStart(2,'0')}min` : '¡Llegaste! 🎉';

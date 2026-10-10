@@ -4155,7 +4155,8 @@ function sanitizeForFirestore(obj){
 
 async function storeTrips(trips){
   _cachedTrips = trips;
-  localStorage.setItem(TRIPS_KEY, JSON.stringify(trips));
+  try{ localStorage.setItem(TRIPS_KEY, JSON.stringify(trips)); }
+  catch(e){ console.warn('localStorage lleno, se guarda solo en la nube', e); try{ localStorage.removeItem(TRIPS_KEY); }catch(_){} }
   if(fbReady){
     try{
       // ── Separar imágenes antes de guardar en Firestore ──
@@ -4178,6 +4179,9 @@ async function storeTrips(trips){
 
       // Limpiar undefined antes de enviar a Firestore
       const tripsPayload = sanitizeForFirestore({ trips: tripsClean, updatedAt: new Date().toISOString() });
+      // Firestore acepta máximo 1 MB por documento: avisar antes de llegar al límite
+      try{ const kb=new Blob([JSON.stringify(tripsPayload)]).size/1024; window._tripsDocKB=Math.round(kb);
+        if(kb>850 && !window._tripsSizeWarned){ window._tripsSizeWarned=true; showSyncBanner('Aviso: los viajes ya ocupan '+Math.round(kb)+' KB de 1,024 KB en la nube','err'); } }catch(_){}
       await db.collection('data').doc('trips').set(tripsPayload);
 
       // Guardar imágenes en documento separado (si hay)
@@ -5140,7 +5144,7 @@ async function adminFinishTrip(){
   const factoringFeePct = (_adminActiveTrip.factoringFeePct!=null && !isNaN(_adminActiveTrip.factoringFeePct)) ? _adminActiveTrip.factoringFeePct : 0;
   const factoringFee = loadVal ? parseFloat((loadVal * factoringFeePct/100).toFixed(2)) : 0;
   const driver = payPct && loadVal ? parseFloat((loadVal * payPct / 100).toFixed(2)) : 0;
-  const net = parseFloat((loadVal - fee - factoringFee - driver - totalCost).toFixed(2));
+  const net = parseFloat((loadVal - fee - factoringFee - driver - totalCost - (_adminActiveTrip.extrasTotal||0)).toFixed(2));
 
   // Actualizar el viaje existente
   const trips = loadTrips();
@@ -5400,7 +5404,7 @@ async function rejectDoc(kind){
   const trips = loadTrips();
   const idx = trips.findIndex(t=>t.id===tripId);
   if(idx<0) return;
-  trips[idx] = {...trips[idx], [kind+'Approved']: false, [kind+'Rejected']: true, [kind+'RejectionNote']: note.trim()||'Vuelve a subir la foto', [kind+'DriveStatus']: null, [kind+'DriveLink']: null, [kind+'DriveThumb']: null};
+  trips[idx] = {...trips[idx], [kind+'Approved']: false, [kind+'Rejected']: true, [kind+'RejectionNote']: note.trim()||'Vuelve a subir la foto', [kind+'DriveStatus']: null, [kind+'DriveLink']: null, [kind+'DriveThumb']: null, [kind+'DriveFileId']: null, [kind+'Image']: null};
   await storeTrips(trips);
   _adminActiveTrip = trips[idx];
   openTripDetail(tripId);
@@ -6419,6 +6423,51 @@ function tripEmailHTML(t, dh){
   <div style="font-size:11px;color:#888;padding:10px 10px 0;">Enviado automáticamente por Truck Trip Log · ${new Date().toLocaleString('es-US')}</div>
   </div></div>`;
 }
+
+// Correo para el chofer (sin ganancia de la empresa): datos del viaje y su pago
+function tripDriverEmailHTML(t, dh){
+  const co=loadCompany()||{};
+  const M=v=>'$'+(parseFloat(v)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const N=v=>Math.round(v||0).toLocaleString('en-US');
+  const loaded=tripDistance(t).mi||0, dead=dh&&!dh.fail?dh.mi:0;
+  const tr=(typeof tripTruck==='function')?tripTruck(t).truck:null;
+  const pay=parseFloat(t.driver)||((parseFloat(t.loadVal)||0)*(parseFloat(t.payPct)||0)/100);
+  const fl=(t.fuelLoads||[]).filter(f=>{ const ty=f.type||f.tipo||'diesel'; return ty!=='otro'; });
+  const row=(k,v,b)=>`<tr><td style="padding:6px 10px;border-bottom:1px solid #eee;color:#555;">${k}</td><td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:right;${b?'font-weight:700;':''}">${v}</td></tr>`;
+  const sec=x=>`<tr><td colspan="2" style="padding:12px 10px 4px;font-size:12px;font-weight:800;color:#1E3A8A;text-transform:uppercase;letter-spacing:.5px;">${x}</td></tr>`;
+  const paid=(t.driverPayStatus||'unpaid')==='paid';
+  return `<div style="font-family:Arial,Helvetica,sans-serif;max-width:620px;margin:0 auto;color:#0F172A;">
+  <div style="background:#0E1B3D;color:#fff;padding:16px 18px;border-radius:8px 8px 0 0;">
+    <div style="font-size:12px;letter-spacing:1px;opacity:.8;">${(co.name||'YENAVI FREIGHT LLC').toUpperCase()}</div>
+    <div style="font-size:20px;font-weight:800;margin-top:2px;">Tu viaje terminó${t.rc?' · RC #'+t.rc:''}</div>
+    <div style="font-size:14px;margin-top:4px;">${t.city1||t.z1||'—'}, ${t.state1||''} → ${t.city2||t.z2||'—'}, ${t.state2||''}</div>
+  </div>
+  <div style="border:1px solid #e3e6ec;border-top:0;border-radius:0 0 8px 8px;padding:6px 8px 12px;">
+  <table style="width:100%;border-collapse:collapse;font-size:14px;">
+    <tr><td colspan="2" style="padding:12px 10px;"><div style="font-size:12px;color:#555;">TU PAGO POR ESTE VIAJE</div><div style="font-size:26px;font-weight:800;color:#067647;">${pay?M(pay):'Pendiente de calcular'}</div><div style="font-size:12px;color:#555;">${t.payPct?t.payPct+'% del load · ':''}${paid?'Pagado':'Pendiente de pago'}</div></td></tr>
+    ${sec('Viaje')}
+    ${row('Chofer',t.driverName||'—',true)}
+    ${tr?row('Camión',tr.name+(tr.plate?' · '+tr.plate:'')):''}
+    ${row('Pick up',(t.city1||'')+', '+(t.state1||'')+(t.date?' · '+fmtDate(t.date):''))}
+    ${row('Delivery',(t.city2||'')+', '+(t.state2||'')+' · '+fmtDate(repTripDate(t)))}
+    ${t.tripDurationFmt&&t.tripDurationFmt!=='—'?row('Duración',t.tripDurationFmt):''}
+    ${sec('Millas')}
+    ${row('Millas cargadas',N(loaded)+' mi')}
+    ${row('Millas vacías para llegar al pick up',dh?(dh.fail?'—':N(dead)+' mi'):'—')}
+    ${row('Millas totales',N(loaded+dead)+' mi',true)}
+    ${fl.length?sec('Cargas de combustible')+fl.map((f,i)=>row(((f.type||f.tipo)==='def'?'DEF':'Diésel')+(f.station?' · '+f.station:''),(parseFloat(f.gal)||0)+' gal · '+M(f.cost))).join(''):''}
+    ${sec('Documentos')}
+    ${row('BOL',t.bolDriveLink?'<a href="'+t.bolDriveLink+'">Ver</a>':'No subido')}
+    ${row('POD',t.podDriveLink?'<a href="'+t.podDriveLink+'">Ver</a>':'No subido')}
+  </table>
+  <div style="font-size:11px;color:#888;padding:10px 10px 0;">Si algún dato no está bien, avisa a la oficina. · Enviado automáticamente por Truck Trip Log</div>
+  </div></div>`;
+}
+async function postEmail(to,subject,html){
+  const co=loadCompany()||{}; const url=co.emailUrl||TRIP_EMAIL_URL_DEFAULT; if(!url||!to) return false;
+  try{ await fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({key:TRIP_EMAIL_KEY,to,subject,html})}); return true; }catch(e){ console.warn('email',e); return false; }
+}
+
 async function sendTripEmail(t, opts){
   opts=opts||{};
   const co=loadCompany()||{};
@@ -6434,8 +6483,14 @@ async function sendTripEmail(t, opts){
   try{
     await fetch(emailUrl,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({key:TRIP_EMAIL_KEY,to:co.emailTo||'operations@yenavifreight.com',subject,html:tripEmailHTML(t,dh)})});
   }catch(e){ console.warn('email',e); return false; }
+  // Copia para el chofer al correo del camión (sin la ganancia de la empresa)
+  try{ const tk=(typeof tripTruck==='function')?tripTruck(t).truck:null;
+    if(tk&&tk.email && !(t.driverEmailSentAt && !opts.manual)){
+      await postEmail(tk.email,`Tu viaje terminó${t.rc?' · RC #'+t.rc:''} · ${t.city1||''}, ${t.state1||''} → ${t.city2||''}, ${t.state2||''}`,tripDriverEmailHTML(t,dh));
+      t._driverMailed=true;
+    } }catch(e){}
   // Marcar como enviado
-  try{ const trips=loadTrips(); const i=trips.findIndex(x=>String(x.id)===String(t.id)); if(i>=0){ trips[i]={...trips[i],emailSentAt:new Date().toISOString()}; await storeTrips(trips); } }catch(e){}
+  try{ const trips=loadTrips(); const i=trips.findIndex(x=>String(x.id)===String(t.id)); if(i>=0){ trips[i]={...trips[i],emailSentAt:new Date().toISOString(),...(t._driverMailed?{driverEmailSentAt:new Date().toISOString()}:{})}; await storeTrips(trips); } }catch(e){}
   return true;
 }
 // Revisa viajes terminados que todavía no mandan correo (por ejemplo si el driver estaba sin señal)
@@ -6784,13 +6839,14 @@ function exportDispatcherPayCSV(){
 
 
 // FILTER (historial)
-function todayStr(){return new Date().toISOString().slice(0,10);}
+function isoLocal(d){d=new Date(d);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function todayStr(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function addDays(d,n){const dt=new Date(d);dt.setDate(dt.getDate()+n);return dt.toISOString().slice(0,10);}
 function quickFilter(type,el){
   document.querySelectorAll('.qf-btn').forEach(b=>b.classList.remove('active'));el.classList.add('active');
   const today=todayStr();const now=new Date();let from,to;
   if(type==='today'){from=today;to=today;}
-  else if(type==='week'){const day=now.getDay();const mon=new Date(now);mon.setDate(now.getDate()-(day===0?6:day-1));from=mon.toISOString().slice(0,10);to=today;}
+  else if(type==='week'){const day=now.getDay();const mon=new Date(now);mon.setDate(now.getDate()-(day===0?6:day-1));from=isoLocal(mon);to=today;}
   else if(type==='month'){from=today.slice(0,7)+'-01';to=today;}
   else if(type==='last30'){from=addDays(today,-30);to=today;}
   else if(type==='year'){from=today.slice(0,4)+'-01-01';to=today;}
@@ -7343,7 +7399,7 @@ async function saveAddDiesel(){
   const t = trips[idx];
   let net = t.net;
   if(t.profitSet && t.loadVal){
-    net = parseFloat((t.loadVal - (t.fee||0) - (t.driver||0) - totalCost).toFixed(2));
+    net = parseFloat((t.loadVal - (t.fee||0) - (t.factoringFee||0) - (t.driver||0) - totalCost - (t.extrasTotal||0)).toFixed(2));
   }
 
   trips[idx] = {...trips[idx], fuelLoads, totalGal, totalCost, net};
@@ -7371,7 +7427,7 @@ async function deleteDieselFromTrip(tripId, fuelIdx){
   const t = trips[idx];
   let net = t.net;
   if(t.profitSet && t.loadVal){
-    net = parseFloat((t.loadVal - (t.fee||0) - (t.driver||0) - totalCost).toFixed(2));
+    net = parseFloat((t.loadVal - (t.fee||0) - (t.factoringFee||0) - (t.driver||0) - totalCost - (t.extrasTotal||0)).toFixed(2));
   }
 
   trips[idx] = {...trips[idx], fuelLoads, totalGal, totalCost, net};
@@ -7475,7 +7531,7 @@ function hwQuick(type,el){
   if(el)el.classList.add('active');
   const today=todayStr();const now=new Date();let from,to;
   if(type==='today'){from=today;to=today;}
-  else if(type==='week'){const day=now.getDay();const mon=new Date(now);mon.setDate(now.getDate()-(day===0?6:day-1));from=mon.toISOString().slice(0,10);to=today;}
+  else if(type==='week'){const day=now.getDay();const mon=new Date(now);mon.setDate(now.getDate()-(day===0?6:day-1));from=isoLocal(mon);to=today;}
   else if(type==='month'){from=today.slice(0,7)+'-01';to=today;}
   else if(type==='last30'){from=addDays(today,-30);to=today;}
   document.getElementById('hw-from').value=from;
@@ -7888,7 +7944,7 @@ function renderHome(){
 
         // Ganancias de la semana
         const wkAnchorDate = new Date(); wkAnchorDate.setDate(wkAnchorDate.getDate()-wkAnchorDate.getDay());
-        const wkFromStr = wkAnchorDate.toISOString().slice(0,10);
+        const wkFromStr = isoLocal(wkAnchorDate);
         const weekTrips = myTrips.filter(t=>t.date && t.date>=wkFromStr);
         const weekTotal = weekTrips.filter(t=>t.profitSet).reduce((a,t)=>a+(t.driver||0),0);
         const weekPending = weekTrips.filter(t=>t.profitSet && (t.driverPayStatus||'paid')!=='paid').reduce((a,t)=>a+(t.driver||0),0);
@@ -8555,15 +8611,15 @@ function renderUbiBalance(){
   let from, to, label;
   if(_ubiBalPeriod==='week'){
     const d = new Date(now); d.setDate(d.getDate()-6);
-    from = d.toISOString().slice(0,10); to = now.toISOString().slice(0,10);
+    from = isoLocal(d); to = isoLocal(now);
     label = 'Últimos 7 días';
   } else if(_ubiBalPeriod==='month'){
     from = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
-    to = now.toISOString().slice(0,10);
+    to = isoLocal(now);
     label = 'Este mes';
   } else {
     from = `${now.getFullYear()}-01-01`;
-    to = now.toISOString().slice(0,10);
+    to = isoLocal(now);
     label = 'Este año';
   }
 
@@ -9175,7 +9231,7 @@ function dashMondayOf(dateStr){
   return d;
 }
 function dashAddDays(d,n){const r=new Date(d);r.setDate(r.getDate()+n);return r;}
-function dashISO(d){return d.toISOString().slice(0,10);}
+function dashISO(d){return isoLocal(d);}
 
 function dashSetMode(mode,el){
   dashMode=mode;
@@ -10023,7 +10079,7 @@ function renderInspectionHistory(){
   el.innerHTML = mine.slice(0,10).map(function(r){
     const badge = r.overallStatus==='ok'
       ? '<span style="background:var(--green-bg);color:var(--green);border:1px solid #BBF7D0;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;">✓ Sin fallas</span>'
-      : '<span style="background:var(--orange-bg);color:var(--orange);border:1px solid #FDE68A;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;">⚠ '+r.items.filter(i=>i.status==='fail').length+' falla(s)</span>';
+      : '<span style="background:var(--orange-bg);color:var(--orange);border:1px solid #FDE68A;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;">⚠ '+(Array.isArray(r.items)?r.items:[]).filter(i=>i.status==='fail').length+' falla(s)</span>';
     return '<div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px;">'+
       '<div style="display:flex;justify-content:space-between;align-items:center;">'+
         '<div><div style="font-size:13px;font-weight:700;color:var(--text);">'+fmtDate(r.date)+'</div><div style="font-size:11px;color:var(--text3);">'+r.truckName+'</div></div>'+
@@ -10244,7 +10300,7 @@ function renderMantenimiento(){
         return key;
       };
       inspEl.innerHTML = insp.slice(0,15).map(function(r){
-        const fails = r.items.filter(i=>i.status==='fail');
+        const fails = (Array.isArray(r.items)?r.items:[]).filter(i=>i.status==='fail');
         const badge = r.overallStatus==='ok'
           ? '<span style="background:var(--green-bg);color:var(--green);border:1px solid #BBF7D0;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;white-space:nowrap;">✓ Sin fallas</span>'
           : '<span style="background:var(--orange-bg);color:var(--orange);border:1px solid #FDE68A;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;white-space:nowrap;">⚠ '+fails.length+' falla(s)</span>';
@@ -10311,6 +10367,7 @@ function renderMantenimiento(){
       <div style="margin-bottom:10px;">${oilBadge}</div>
       <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px;">
         <div><label style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;">Placa</label><input type="text" value="${t.plate||''}" placeholder="Placa" onchange="updateTruckField(${t.id},'plate',this.value)"/></div>
+        <div><label style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;">Correo del camión (reportes al chofer)</label><input type="email" value="${t.email||''}" placeholder="camion1@yenavifreight.com" onchange="updateTruckField(${t.id},'email',this.value.trim().toLowerCase())"/></div>
         <div><label style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;">Año / Modelo</label><input type="text" value="${t.makeModel||''}" placeholder="Ej. 2019 Freightliner Cascadia" onchange="updateTruckField(${t.id},'makeModel',this.value)"/></div>
         <div><label style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;">Millaje actual</label><input type="number" value="${t.mileage||0}" onchange="updateTruckField(${t.id},'mileage',this.value)"/></div>
         <div><label style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;">Millaje del último cambio de aceite</label><input type="number" value="${t.lastOilChangeMileage||0}" onchange="updateTruckField(${t.id},'lastOilChangeMileage',this.value)"/></div>
@@ -10759,7 +10816,7 @@ function renderSemana(){
     const diff=d.getDate()-day+(day===0?-6:1);
     const mon=new Date(d); mon.setDate(diff);
     const sun=new Date(mon); sun.setDate(mon.getDate()+6);
-    const key=mon.toISOString().slice(0,10);
+    const key=isoLocal(mon);
     if(!weekMap[key]) weekMap[key]={start:new Date(mon),end:new Date(sun),trips:[]};
     weekMap[key].trips.push(t);
   });
@@ -10821,7 +10878,7 @@ function guardarSemana(){
     const diff=d.getDate()-day+(day===0?-6:1);
     const mon=new Date(d); mon.setDate(diff);
     const sun=new Date(mon); sun.setDate(mon.getDate()+6);
-    const key=mon.toISOString().slice(0,10);
+    const key=isoLocal(mon);
     if(!weekMap[key]) weekMap[key]={start:new Date(mon),end:new Date(sun),trips:[]};
     weekMap[key].trips.push(t);
   });
@@ -13238,7 +13295,7 @@ function exportarDatos(){
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'trucktriplog_backup_' + new Date().toISOString().slice(0,10) + '.json';
+  a.download = 'trucktriplog_backup_' + todayStr() + '.json';
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -13297,15 +13354,15 @@ function importarDatos(input){
 // ===== MIS GANANCIAS (driver) =====
 function mgQuick(period){
   const now = new Date();
-  let from='', to=now.toISOString().slice(0,10);
+  let from='', to=isoLocal(now);
   if(period==='week'){
     const d=new Date(now); d.setDate(d.getDate()-d.getDay());
-    from=d.toISOString().slice(0,10);
+    from=isoLocal(d);
   } else if(period==='month'){
     from=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
   } else if(period==='last30'){
     const d=new Date(now); d.setDate(d.getDate()-30);
-    from=d.toISOString().slice(0,10);
+    from=isoLocal(d);
   } else if(period==='all'){
     from=''; to='';
   }
@@ -13532,7 +13589,7 @@ function generarPDF(){
   const initials    = driverFullName.split(' ').map(w=>w[0]||'').join('').toUpperCase().slice(0,2);
   const periodoEN   = fromF||toF ? `${fromF?fmtDate(fromF):'—'} to ${toF?fmtDate(toF):'—'}` : 'All records';
   const periodoES   = fromF||toF ? `${fromF?fmtDate(fromF):'—'} al ${toF?fmtDate(toF):'—'}` : 'Todos los registros';
-  const today       = fmtDate(new Date().toISOString().slice(0,10));
+  const today       = fmtDate(todayStr());
   const todayFull   = new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
 
   // ── Rows para página 2 (reporte de viajes) ──
@@ -13879,7 +13936,7 @@ function generarDispatcherPDF(){
   const initials     = dispatcherName.split(' ').map(w=>w[0]||'').join('').toUpperCase().slice(0,2);
   const periodoEN   = fromF||toF ? `${fromF?fmtDate(fromF):'—'} to ${toF?fmtDate(toF):'—'}` : 'All records';
   const periodoES   = fromF||toF ? `${fromF?fmtDate(fromF):'—'} al ${toF?fmtDate(toF):'—'}` : 'Todos los registros';
-  const today       = fmtDate(new Date().toISOString().slice(0,10));
+  const today       = fmtDate(todayStr());
   const todayFull   = new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
 
   // ── Rows para página 2 (reporte de viajes) ──

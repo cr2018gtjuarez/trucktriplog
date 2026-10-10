@@ -848,6 +848,29 @@
     @media(max-width:600px){ .wd-tabs button{padding:10px 4px;} .wd-tabs button b{font-size:12.5px;} .wd-tabs button span{font-size:10px;} }
 
     #wd{font-variant-numeric:tabular-nums;}
+    .wd-mode{display:inline-flex;background:#E9EDF4;border-radius:8px;padding:3px;margin-bottom:8px;gap:2px;}
+    .wd-mode button{border:0;background:transparent;padding:7px 16px;border-radius:6px;font-family:inherit;font-size:13px;font-weight:700;color:#475467;cursor:pointer;}
+    .wd-mode button.on{background:#fff;color:#0E1B3D;box-shadow:0 1px 2px rgba(15,23,42,.15);}
+    .wd-pick a{cursor:pointer;padding:0 6px;font-size:17px;}
+    .wd-mks{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;margin-bottom:10px;}
+    .wd-mk{background:#fff;border:1px solid #E3E6EC;border-radius:8px;padding:9px 11px;min-width:0;}
+    .wd-mk span{display:block;font-size:10.5px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#667085;}
+    .wd-mk b{display:block;font-size:19px;font-weight:900;color:#0F172A;margin:2px 0;}
+    .wd-mk small{font-size:11px;color:#667085;} .wd-mk small i{font-style:normal;}
+    .wd-d{font-weight:800;font-size:11px;} .wd-d.up{color:#067647;} .wd-d.dn{color:#B42318;} .wd-d.n{color:#8A94A6;}
+    .wd-sec.navy{border:2px solid #0E1B3D;} .wd-sec.navy .wd-sh{background:#0E1B3D;} .wd-sec.navy .ic{color:#0E1B3D;}
+    .wd-sh small{font-size:11px;font-weight:500;letter-spacing:0;opacity:.75;margin-left:auto;}
+    .wd-sec.navy .wd-t tr.tt td{background:#0E1B3D;border-color:#0E1B3D;} .wd-sec.navy .wd-t tr.tt td.g{background:#08542D;} .wd-sec.navy .wd-t tr.tt td.g.prov{background:#FCE77A;color:#3A2A00;}
+    .wd-t.wd-mt{min-width:900px;} .wd-mt td.l small{color:#667085;}
+    .wd-badge{display:inline-block;font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;background:#E04F5F;color:#fff;border-radius:4px;padding:1px 5px;vertical-align:1px;} .wd-badge.f{background:#CBD5E1;color:#334155;}
+    .wd-cmpwrap{display:grid;grid-template-columns:1fr;gap:10px;padding:10px;}
+    .wd-chart{border:1px solid #E3E6EC;border-radius:6px;padding:8px 10px;}
+    .wd-leg{display:flex;gap:14px;font-size:11.5px;color:#344054;margin-bottom:4px;} .wd-leg i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px;}
+    .wd-t.wd-ht{min-width:760px;} .wd-ht tr.sel td{background:#EEF2FF;font-weight:700;} .wd-ht tr.sel td.g{background:#08542D;}
+    .wd-grid2{grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);}
+    .wd-note{font-size:11px;color:#667085;padding-top:8px;margin-top:8px;border-top:1px solid #CDEBD7;line-height:1.4;}
+    @media(max-width:900px){ .wd-mks{grid-template-columns:repeat(3,minmax(0,1fr));} .wd-grid2{grid-template-columns:1fr;} }
+    @media(max-width:520px){ .wd-mks{grid-template-columns:repeat(2,minmax(0,1fr));} .wd-mode{display:flex;} .wd-mode button{flex:1;} }
     .wd-hdr{display:grid;grid-template-columns:auto 1fr auto auto;gap:16px;align-items:center;background:#0E1B3D;background-image:linear-gradient(90deg,#0E1B3D 0%,#13285A 60%,#1d3a78 100%);color:#fff;border-radius:10px;padding:14px 18px;margin-bottom:10px;}
     .wd-brand{display:flex;align-items:center;gap:10px;} .wd-brand img{width:54px;height:54px;border-radius:6px;background:#fff;object-fit:contain;}
     .wd-co{font-size:20px;font-weight:900;letter-spacing:1px;line-height:1;} .wd-co2{font-size:11px;color:#C9D1E6;margin-top:3px;letter-spacing:.5px;}
@@ -6514,7 +6537,144 @@ async function sendTestTripEmail(){
 }
 
 // ===== DASHBOARD: RESUMEN DE LA SEMANA =====
-let wdAnchor=null;
+let wdAnchor=null, wdMode='week', wdMonth=null, wdMonthChart=null;
+function wdModeBar(){ return `<div class="wd-mode"><button class="${wdMode==='week'?'on':''}" onclick="wdSetMode('week')">Por semana</button><button class="${wdMode==='month'?'on':''}" onclick="wdSetMode('month')">Por mes</button></div>`; }
+function wdSetMode(m){ wdMode=m; if(m==='week') wdAnchor=new Date(); renderWeekDash(); }
+function wdOpenWeek(iso){ wdMode='week'; wdAnchor=rpParse(iso); renderWeekDash(); window.scrollTo({top:0,behavior:'smooth'}); }
+function wdMonthJump(n){ const d=new Date(); wdMonth=new Date(d.getFullYear(),d.getMonth()+n,1); renderWeekDash(); }
+function wdMonthShift(n){ const d=wdMonth||new Date(); wdMonth=new Date(d.getFullYear(),d.getMonth()+n,1); renderWeekDash(); }
+// Semanas (sáb–vie) de un mes: cuentan las semanas cuyo VIERNES cae en ese mes
+function wdMonthWeeks(y,m){
+  const f=new Date(y,m,1); while(f.getDay()!==5) f.setDate(f.getDate()+1);
+  const w=[]; while(f.getMonth()===m){ const st=new Date(f); st.setDate(st.getDate()-6); w.push({st,en:new Date(f)}); f.setDate(f.getDate()+7); }
+  return w;
+}
+function wdMonthKey(d){ return d.getFullYear()*12+d.getMonth(); }
+function renderMonthDash(){
+  const box=document.getElementById('wd'); if(!box) return;
+  if(!wdMonth){ const n=new Date(); wdMonth=new Date(n.getFullYear(),n.getMonth(),1); }
+  const Y=wdMonth.getFullYear(), Mo=wdMonth.getMonth();
+  const offM=wdMonthKey(wdMonth)-wdMonthKey(new Date());
+  const mName=d=>{ const s=d.toLocaleDateString('es-US',{month:'long',year:'numeric'}).replace(' de ',' '); return s.charAt(0).toUpperCase()+s.slice(1); };
+  const mShort=d=>{ const s=d.toLocaleDateString('es-US',{month:'short'}).replace('.',''); return s.charAt(0).toUpperCase()+s.slice(1)+' '+String(d.getFullYear()).slice(2); };
+  const fs=d=>d.toLocaleDateString('es-US',{day:'numeric',month:'short'});
+  const M=v=>(v<0?'-$':'$')+Math.abs(v||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const M0=v=>(v<0?'-$':'$')+Math.abs(Math.round(v||0)).toLocaleString('en-US');
+  const N=v=>Math.round(v||0).toLocaleString('en-US');
+  const first=n=>(n||'—').trim().split(' ')[0].replace(/^./,c=>c.toUpperCase()).replace(/^(.)(.*)$/,(m,a,b)=>a+b.toLowerCase());
+  const sum=(arr,f)=>arr.reduce((a,x)=>a+(f(x)||0),0);
+  const all=loadTrips();
+  const ml=mlRange('1900-01-01','2999-12-31','all'); const rowOf={}; ml.rows.forEach(x=>rowOf[String(x.t.id)]=x);
+  if(ml.missing.length) mlResolveMissing(ml.missing,()=>{ if(_currentSidebarId==='dashboard') renderWeekDash(); });
+  const calcCache={};
+  const inRange=(from,to)=>all.filter(t=>(t.tripStatus==='completed'||t.tripStatus==='active')&&repTripDate(t)>=from&&repTripDate(t)<=to)
+    .map(t=>calcCache[t.id]||(calcCache[t.id]={t,c:wdTripCalc(t,rowOf[String(t.id)])}));
+  const agg=X=>{ const G=sum(X,x=>x.c.lv), LM=sum(X,x=>x.c.loaded), DM=sum(X,x=>x.c.dead), TM=LM+DM, NET=sum(X,x=>x.c.net);
+    return {n:X.length, act:X.filter(x=>x.t.tripStatus==='active').length, G, LM, DM, TM, P:sum(X,x=>x.c.driverPay), F:sum(X,x=>x.c.fact), DP:sum(X,x=>x.c.disp), DI:sum(X,x=>x.c.diesel), NET,
+      rpm:TM&&G?G/TM:null, dhp:TM?DM/TM*100:null, mar:G?NET/G*100:null}; };
+  const monthData=(y,m)=>{ const wk=wdMonthWeeks(y,m); const from=rpLocalISO(wk[0].st), to=rpLocalISO(wk[wk.length-1].en);
+    return {y,m,wk,from,to,X:inRange(from,to)}; };
+  const cur=monthData(Y,Mo); const A=agg(cur.X);
+  const prevD=new Date(Y,Mo-1,1); const prev=monthData(prevD.getFullYear(),prevD.getMonth()); const PA=agg(prev.X);
+  // Semanas del mes
+  const curWkStart=rpLocalISO(rpMonday(new Date()));
+  const weeks=cur.wk.map(w=>{ const from=rpLocalISO(w.st), to=rpLocalISO(w.en); return {w,from,to,a:agg(inRange(from,to)),now:from===curWkStart,fut:from>curWkStart}; });
+  const pct=v=>v==null?'—':v.toFixed(1)+'%';
+  const dhCls=v=>v==null?'':v<=15?'ok':v<=25?'mid':'bad';
+  const wkRows=weeks.map((x,i)=>`<tr onclick="wdOpenWeek('${x.from}')" title="Ver el resumen de esta semana">
+    <td class="l"><b>Semana ${i+1}</b>${x.now?' <span class="wd-badge">actual</span>':x.fut?' <span class="wd-badge f">por venir</span>':''}<small>${fs(x.w.st)} – ${fs(x.w.en)}</small></td>
+    <td>${x.a.n}${x.a.act?`<small>${x.a.act} en ruta</small>`:''}</td><td>${x.a.G?M(x.a.G):'—'}</td><td>${N(x.a.LM)}</td><td>${N(x.a.DM)}</td>
+    <td>${x.a.dhp==null?'—':`<span class="ml-pct ${dhCls(x.a.dhp)}">${pct(x.a.dhp)}</span>`}</td><td>${N(x.a.TM)}</td><td><b>${x.a.rpm!=null?M(x.a.rpm):'—'}</b></td>
+    <td>${x.a.n?M(x.a.P):'—'}</td><td>${x.a.n?M(x.a.DI):'—'}</td>${x.a.n?`<td class="g${x.a.act?' prov':''}">${M(x.a.NET)}</td>`:'<td>—</td>'}<td>${pct(x.a.mar)}</td></tr>`).join('');
+  const wkHead=`<tr><th class="l">Semana<small>(sáb – vie)</small></th><th>Cargas</th><th>Gross</th><th>Millas<small>cargadas</small></th><th>Millas<small>muertas</small></th><th>%<small>muertas</small></th><th>Millas<small>totales</small></th><th>RPM<small>all-in</small></th><th>Pago chofer</th><th>Diésel / otros</th><th class="g">Ganancia<small>YENAVI</small></th><th>Margen</th></tr>`;
+  const wkTot=`<tr class="tt"><td class="r">TOTAL DEL MES</td><td>${A.n}</td><td>${M(A.G)}</td><td>${N(A.LM)}</td><td>${N(A.DM)}</td><td>${pct(A.dhp)}</td><td>${N(A.TM)}</td><td>${A.rpm!=null?M(A.rpm):'—'}</td><td>${M(A.P)}</td><td>${M(A.DI)}</td><td class="g${A.act?' prov':''}">${M(A.NET)}</td><td>${pct(A.mar)}</td></tr>`;
+  // Comparación de los últimos 6 meses (terminando en el mes elegido)
+  const hist=[]; for(let i=5;i>=0;i--){ const d=new Date(Y,Mo-i,1); const md=monthData(d.getFullYear(),d.getMonth()); hist.push({d,a:agg(md.X)}); }
+  const chg=(a,b,inv)=>{ if(b==null||a==null||!b) return '<span class="wd-d n">—</span>'; const v=(a-b)/Math.abs(b)*100; const good=inv?v<0:v>0; return `<span class="wd-d ${Math.abs(v)<0.5?'n':good?'up':'dn'}">${v>0?'▲':v<0?'▼':''} ${Math.abs(v).toFixed(0)}%</span>`; };
+  const chgPts=(a,b,inv)=>{ if(a==null||b==null) return '<span class="wd-d n">—</span>'; const v=a-b; const good=inv?v<0:v>0; return `<span class="wd-d ${Math.abs(v)<0.05?'n':good?'up':'dn'}">${v>0?'▲':v<0?'▼':''} ${Math.abs(v).toFixed(1)} pts</span>`; };
+  const histRows=hist.map((h,i)=>{ const p=i?hist[i-1].a:null; const sel=wdMonthKey(h.d)===wdMonthKey(wdMonth);
+    return `<tr class="${sel?'sel':''}" onclick="wdMonth=new Date(${h.d.getFullYear()},${h.d.getMonth()},1);renderWeekDash();"><td class="l"><b>${mName(h.d)}</b></td><td>${h.a.n}</td><td>${h.a.G?M0(h.a.G):'—'}</td><td>${N(h.a.TM)}</td><td>${pct(h.a.dhp)}</td><td>${h.a.rpm!=null?M(h.a.rpm):'—'}</td><td>${M0(h.a.P)}</td><td>${M0(h.a.DI)}</td><td class="g">${M0(h.a.NET)}</td><td>${pct(h.a.mar)}</td><td>${p?chg(h.a.NET,p.NET):'<span class="wd-d n">—</span>'}</td></tr>`; }).join('');
+  // Por chofer en el mes
+  const drv={}; cur.X.forEach(x=>{ const k=first(x.t.driverName); (drv[k]=drv[k]||[]).push(x); });
+  const dk=Object.keys(drv).sort();
+  const dRow=(lbl,f,fmt,bold)=>`<tr><td>${lbl}</td>${dk.map(k=>`<td${bold?' class="b"':''}>${fmt(f(agg(drv[k])))}</td>`).join('')}</tr>`;
+  const kc=(lbl,val,cmp)=>`<div class="wd-mk"><span>${lbl}</span><b>${val}</b><small>${cmp} <i>vs ${mShort(prevD)}</i></small></div>`;
+  const tabs=[[-1,'Mes anterior'],[0,'Mes actual']].map(([n,l])=>{ const d=new Date(new Date().getFullYear(),new Date().getMonth()+n,1); return `<button class="${offM===n?'on':''}" onclick="wdMonthJump(${n})"><b>${l}</b><span>${mName(d)}</span></button>`; }).join('')
+    + `<button class="${offM!==0&&offM!==-1?'on':''} wd-pick"><b><a onclick="event.stopPropagation();wdMonthShift(-1)">‹</a> ${offM!==0&&offM!==-1?mName(wdMonth):'Otro mes'} <a onclick="event.stopPropagation();wdMonthShift(1)">›</a></b><span>usa las flechas</span></button>`;
+  const now=new Date(); const co=(typeof loadCompany==='function'?loadCompany():{})||{}; const logo=document.querySelector('.login-logo img')?.src||'';
+  const conc=[];
+  if(A.G) conc.push(`Ganancia del mes: ${M(A.NET)} (${pct(A.mar)} de margen)${PA.NET?', '+(A.NET>=PA.NET?'arriba':'abajo')+' '+M(Math.abs(A.NET-PA.NET))+' vs '+mName(prevD):''}.`);
+  if(A.TM) conc.push(`Millas muertas: ${N(A.DM)} de ${N(A.TM)} (${pct(A.dhp)})${PA.dhp!=null?'; el mes pasado fue '+pct(PA.dhp):''}.`);
+  const bestW=weeks.filter(w=>w.a.n).sort((a,b)=>b.a.NET-a.a.NET)[0], worstW=weeks.filter(w=>w.a.n&&!w.fut).sort((a,b)=>a.a.NET-b.a.NET)[0];
+  if(bestW&&worstW&&bestW!==worstW) conc.push(`Mejor semana: ${fs(bestW.w.st)} – ${fs(bestW.w.en)} con ${M(bestW.a.NET)}; la más baja: ${fs(worstW.w.st)} – ${fs(worstW.w.en)} con ${M(worstW.a.NET)}.`);
+  if(A.act) conc.push('Hay viajes en ruta: la ganancia del mes es provisional hasta que se finalicen.');
+  if(offM===0) conc.push('El mes todavía no termina: la comparación contra '+mName(prevD)+' es parcial.');
+  box.innerHTML=`
+  ${wdModeBar()}
+  <div class="wd-tabs">${tabs}</div>
+  <div class="wd-hdr">
+    <div class="wd-brand">${logo?`<img src="${logo}" alt="">`:''}<div><div class="wd-co">${rpEsc((co.name||'YENAVI FREIGHT LLC').toUpperCase())}</div><div class="wd-co2">${co.dot?'USDOT '+rpEsc(co.dot):''}</div></div></div>
+    <div class="wd-title"><div class="wd-h1">RESUMEN DEL MES</div><div class="wd-h2">Semanas del mes y comparación mensual</div>
+      <div class="wd-nav"><button onclick="wdMonthShift(-1)" aria-label="Mes anterior">‹</button><span>${mName(wdMonth).toUpperCase()} · ${cur.wk.length} SEMANAS (${fs(cur.wk[0].st)} – ${fs(cur.wk[cur.wk.length-1].en)})</span><button onclick="wdMonthShift(1)" aria-label="Mes siguiente">›</button></div></div>
+    <div class="wd-kpi"><div class="a">${A.n} CARGA${A.n!==1?'S':''}</div><div class="b">TOTAL GROSS</div><div class="c">${M(A.G)}</div></div>
+    <div class="wd-upd"><div>ÚLTIMA ACTUALIZACIÓN</div><b>${now.toLocaleDateString('es-US',{day:'numeric',month:'short',year:'numeric'}).toUpperCase()} • ${now.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})} CT</b></div>
+  </div>
+
+  <div class="wd-mks">
+    ${kc('Gross',M0(A.G),chg(A.G,PA.G))}
+    ${kc('Ganancia YENAVI',M0(A.NET),chg(A.NET,PA.NET))}
+    ${kc('Margen',pct(A.mar),chgPts(A.mar,PA.mar))}
+    ${kc('Millas totales',N(A.TM),chg(A.TM,PA.TM))}
+    ${kc('RPM all-in',A.rpm!=null?M(A.rpm):'—',chg(A.rpm,PA.rpm))}
+    ${kc('% millas muertas',pct(A.dhp),chgPts(A.dhp,PA.dhp,true))}
+  </div>
+
+  <div class="wd-sec navy"><div class="wd-sh"><span class="ic">▦</span>SEMANAS DEL MES <small>toca una semana para ver su detalle</small></div>
+    ${A.n||weeks.length?`<div class="wd-scroll"><table class="wd-t wd-mt">${wkHead}${wkRows}${wkTot}</table></div>`:'<div class="wd-empty">Sin cargas en este mes.</div>'}</div>
+
+  <div class="wd-tot">
+    <div class="t0"><div class="bars"><i></i><i></i><i></i></div><div><b>TOTALES DEL MES</b><span>${A.n} CARGA${A.n!==1?'S':''}</span></div></div>
+    <div class="t1"><span>GROSS TOTAL</span><b>${M(A.G)}</b></div>
+    <div class="t2"><span>PAGO CHOFERES</span><b>${M(A.P)}</b></div>
+    <div class="t3"><span>FACTORING${A.DP?' + DISPATCHER':''}</span><b>${M(A.F+A.DP)}</b></div>
+    <div class="t4"><span>DIÉSEL / OTROS</span><b>${M(A.DI)}</b></div>
+    <div class="t5"><span>GANANCIA YENAVI</span><b>${M(A.NET)}</b><small>${A.act?'(provisional)':'(final)'}</small></div>
+  </div>
+
+  <div class="wd-an">
+    <div class="wd-ah">COMPARACIÓN MENSUAL · ÚLTIMOS 6 MESES</div>
+    <div class="wd-cmpwrap">
+      <div class="wd-chart"><div class="wd-leg"><span><i style="background:#3B5BDB"></i>Gross</span><span><i style="background:#0B6B3A"></i>Ganancia YENAVI</span></div><div style="position:relative;height:220px;"><canvas id="wd-month-chart" role="img" aria-label="Gross y ganancia por mes, últimos 6 meses"></canvas></div></div>
+      <div class="wd-scroll"><table class="wd-t wd-ht"><tr><th class="l">Mes</th><th>Cargas</th><th>Gross</th><th>Millas<small>totales</small></th><th>%<small>muertas</small></th><th>RPM<small>all-in</small></th><th>Pago chofer</th><th>Diésel / otros</th><th class="g">Ganancia</th><th>Margen</th><th>Ganancia<small>vs mes anterior</small></th></tr>${histRows}</table></div>
+    </div>
+    <div class="wd-grid wd-grid2 wd-foot">
+      <div class="wd-c c3"><div class="ch">COMPARATIVO POR CHOFER · ${mName(wdMonth).toUpperCase()}</div>${dk.length?`<table class="cmp"><tr><th>Métrica</th>${dk.map(k=>`<th>${rpEsc(k)}</th>`).join('')}</tr>
+        ${dRow('Cargas',a=>a.n,v=>v)}
+        ${dRow('Gross',a=>a.G,M)}
+        ${dRow('Millas totales',a=>a.TM,N)}
+        ${dRow('% millas muertas',a=>a.dhp,pct)}
+        ${dRow('RPM all-in',a=>a.rpm,v=>v==null?'—':M(v))}
+        ${dRow('Pago chofer',a=>a.P,M,true)}
+        ${dRow('Diésel asignado',a=>a.DI,M,true)}
+        ${dRow('Ganancia YENAVI',a=>a.NET,M,true)}</table>`:'<div class="wd-empty">Sin cargas.</div>'}</div>
+      <div class="wd-con"><div class="fh"><span class="ic ok">✓</span>CONCLUSIÓN DEL MES</div><ul>${(conc.length?conc:['Sin cargas en este mes.']).map(o=>`<li>${rpEsc(o)}</li>`).join('')}</ul>
+        <div class="wd-note">El mes incluye las semanas (sáb – vie) cuyo viernes cae en ese mes; así ninguna semana se parte en dos meses. Los viajes cuentan por fecha de delivery.</div></div>
+    </div>
+  </div>`;
+  // Gráfica
+  try{
+    if(wdMonthChart){ wdMonthChart.destroy(); wdMonthChart=null; }
+    const cv=document.getElementById('wd-month-chart');
+    if(cv&&typeof Chart!=='undefined'){
+      wdMonthChart=new Chart(cv,{type:'bar',data:{labels:hist.map(h=>mShort(h.d)),datasets:[
+        {label:'Gross',data:hist.map(h=>Math.round(h.a.G)),backgroundColor:'#3B5BDB',borderRadius:4,borderSkipped:'bottom',maxBarThickness:28},
+        {label:'Ganancia YENAVI',data:hist.map(h=>Math.round(h.a.NET)),backgroundColor:'#0B6B3A',borderRadius:4,borderSkipped:'bottom',maxBarThickness:28}]},
+        options:{responsive:true,maintainAspectRatio:false,animation:false,interaction:{mode:'index',intersect:false},
+          plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.dataset.label+': '+M0(c.parsed.y)}}},
+          scales:{x:{grid:{display:false},ticks:{color:'#475467',font:{size:11}}},y:{beginAtZero:true,grid:{color:'#EEF0F4'},border:{display:false},ticks:{color:'#8A94A6',font:{size:11},callback:v=>'$'+(Math.abs(v)>=1000?(v/1000).toFixed(0)+'k':v)}}}}});
+    }
+  }catch(e){ console.warn('chart',e); }
+}
 function wdJump(n){ wdAnchor=new Date(); wdAnchor.setDate(wdAnchor.getDate()+7*n); renderWeekDash(); }
 function wdShift(d){ wdAnchor=new Date(wdAnchor||new Date()); wdAnchor.setDate(wdAnchor.getDate()+7*d); renderWeekDash(); }
 function wdTripCalc(t,row){
@@ -6537,7 +6697,7 @@ function wdTripCalc(t,row){
 function renderWeekDash(){
   const box=document.getElementById('wd'); if(!box) return;
   if(!wdAnchor) wdAnchor=new Date();
-  { const o=Math.round((rpMonday(wdAnchor)-rpMonday(new Date()))/(7*86400000)); if(o<-1||o>1) wdAnchor=new Date(); }
+  if(wdMode==='month') return renderMonthDash();
   const st=rpMonday(wdAnchor), en=new Date(st); en.setDate(en.getDate()+6);
   const from=rpLocalISO(st), to=rpLocalISO(en);
   const off=Math.round((st-rpMonday(new Date()))/(7*86400000));
@@ -6593,6 +6753,7 @@ function renderWeekDash(){
   const tabW=n=>{ const a=rpMonday(new Date()); a.setDate(a.getDate()+7*n); const b=new Date(a); b.setDate(b.getDate()+6); return fs(a)+' – '+fs(b); };
   const tabs=[[-1,'Semana anterior'],[0,'Semana actual'],[1,'Semana siguiente']].map(([n,l])=>`<button class="${off===n?'on':''}" onclick="wdJump(${n})"><b>${l}</b><span>${tabW(n)} · sáb – vie</span></button>`).join('');
   box.innerHTML=`
+  ${wdModeBar()}
   <div class="wd-tabs">${tabs}</div>
   <div class="wd-hdr">
     <div class="wd-brand">${logo?`<img src="${logo}" alt="">`:''}<div><div class="wd-co">${rpEsc((co.name||'YENAVI FREIGHT LLC').toUpperCase())}</div><div class="wd-co2">${co.dot?'USDOT '+rpEsc(co.dot):''}</div></div></div>

@@ -1847,6 +1847,11 @@
         <input type="file" id="import-file" accept=".json" onchange="importarDatos(this)"/>
       </div>
       <div id="import-msg" style="display:none;font-size:12px;padding:9px 13px;border-radius:9px;font-weight:500;"></div>
+      <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:10px;">
+        <div style="display:flex;align-items:center;gap:8px;"><b style="font-size:13px;flex:1;">Respaldos automáticos (uno por día)</b>
+        <button onclick="openBackupsList()" style="padding:7px 12px;background:#EEF2F9;color:#1E3A8A;border:1.5px solid #CBD5E8;border-radius:8px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit;">Ver respaldos</button></div>
+        <div id="backup-list"></div>
+      </div>
     </div>
 
     <div class="card" style="border-color:#fde0e0;"><div class="card-title" style="color:#c0392b;">Zona de peligro</div><button class="btn-save" onclick="clearAll()" style="background:#fff0f0;color:#c0392b;border:1px solid #fde0e0;">Borrar todos los registros</button></div>
@@ -4176,11 +4181,27 @@ function sanitizeForFirestore(obj){
   return obj;
 }
 
+// Viajes que se pueden quitar de la nube a propósito (borrado manual de un viaje)
+const _tripDelOK=new Set();
 async function storeTrips(trips){
   _cachedTrips = trips;
   try{ localStorage.setItem(TRIPS_KEY, JSON.stringify(trips)); }
   catch(e){ console.warn('localStorage lleno, se guarda solo en la nube', e); try{ localStorage.removeItem(TRIPS_KEY); }catch(_){} }
   if(fbReady){
+    // ── Candado: si la nube tiene viajes que esta lista no trae (por ejemplo un celular con la lista vacía
+    //    o desactualizada), se conservan en lugar de borrarlos ──
+    try{
+      const csnap = await db.collection('data').doc('trips').get();
+      const cloud = (csnap.exists && csnap.data().trips) || [];
+      const have = new Set(trips.map(t=>String(t.id)));
+      const lost = cloud.filter(t=>!have.has(String(t.id)) && !_tripDelOK.has(String(t.id)));
+      if(lost.length){
+        console.warn('Candado de viajes: se conservan '+lost.length+' viajes que esta lista no traía');
+        trips = trips.concat(lost.map(t=>injectTripImages(t, _imagesCache||{})));
+        _cachedTrips = trips;
+        try{ localStorage.setItem(TRIPS_KEY, JSON.stringify(trips)); }catch(_){}
+      }
+    }catch(e){ console.warn('No se pudo verificar la nube antes de guardar', e); }
     try{
       // ── Separar imágenes antes de guardar en Firestore ──
       const images = {};
@@ -4210,7 +4231,7 @@ async function storeTrips(trips){
       // Guardar imágenes en documento separado (si hay)
       if(Object.keys(images).length > 0){
         const imagesPayload = sanitizeForFirestore({ images, updatedAt: new Date().toISOString() });
-        await db.collection('data').doc('images').set(imagesPayload);
+        await db.collection('data').doc('images').set(imagesPayload, {merge:true});
       }
 
       showSyncBanner('Datos guardados en la nube ☁️', 'ok');
@@ -4277,6 +4298,7 @@ function startRealtimeSync(){
       // Reinyectar imágenes del cache antes de actualizar
       _cachedTrips = data.trips.map(t => injectTripImages(t, _imagesCache));
       localStorage.setItem(TRIPS_KEY, JSON.stringify(_cachedTrips));
+      setTimeout(autoBackupTrips, 4000);
       // Usar _currentSidebarId en lugar de .tab.active (bug fix)
       const id = _currentSidebarId;
       if(id==='home') renderHome();
@@ -7596,9 +7618,11 @@ async function deleteDieselFromTrip(tripId, fuelIdx){
   renderLog();
 }
 
-function delTrip(id){if(!confirm('¿Eliminar este viaje?'))return;storeTrips(loadTrips().filter(t=>t.id!==id));renderLog();}
-function clearAll(){
-  if(!confirm('¿Borrar TODOS los registros?'))return;
+function delTrip(id){if(!confirm('¿Eliminar este viaje?'))return;_tripDelOK.add(String(id));storeTrips(loadTrips().filter(t=>t.id!==id));renderLog();}
+async function clearAll(){
+  const ans=prompt('Esto borra TODOS los viajes de la nube y de todos los celulares.\nAntes se guarda un respaldo automático.\n\nPara confirmar escribe: BORRAR');
+  if((ans||'').trim().toUpperCase()!=='BORRAR'){ alert('No se borró nada.'); return; }
+  try{ await saveTripsBackup('manual_antes_de_borrar_'+Date.now(), true); }catch(e){ alert('No se pudo guardar el respaldo, no se borró nada.'); return; }
   _cachedTrips=[];
   localStorage.removeItem(TRIPS_KEY);
   if(fbReady) db.collection('data').doc('trips').set({trips:[], updatedAt: new Date().toISOString()}).catch(()=>{});
@@ -13447,6 +13471,84 @@ function endTutorial(){
   sidebarNav('home');
 }
 
+// ===== RESPALDOS AUTOMÁTICOS + RESTAURAR SIN BORRAR =====
+function tripNoImages(t){
+  const o={...t, fuelLoads:(t.fuelLoads||[]).map(f=>f&&f.image?{...f,image:null}:f)};
+  ['bolImage','podImage','loadedImage','unloadedImage'].forEach(k=>{ if(o[k]) o[k]=null; });
+  return o;
+}
+async function saveTripsBackup(id, force){
+  if(!fbReady||!db) return;
+  const trips=(loadTrips()||[]).map(tripNoImages);
+  if(!trips.length && !force) return;
+  const ref=db.collection('backups').doc(id);
+  if(!force){ const s=await ref.get(); if(s.exists && (s.data().count||0)>=trips.length) return; }
+  await ref.set(sanitizeForFirestore({trips, count:trips.length, createdAt:new Date().toISOString(), by:(currentUser&&currentUser.username)||''}));
+}
+let _autoBackupDone=false;
+async function autoBackupTrips(){
+  if(_autoBackupDone||!fbReady||!currentUser||currentUser.role!=='admin') return;
+  if(!_cachedTrips||!_cachedTrips.length) return;
+  _autoBackupDone=true;
+  try{
+    await saveTripsBackup('trips_'+todayStr());
+    const all=await db.collection('backups').get();
+    const ids=all.docs.map(d=>d.id).filter(x=>x.startsWith('trips_')).sort();
+    ids.slice(0,Math.max(0,ids.length-30)).forEach(x=>db.collection('backups').doc(x).delete().catch(()=>{}));
+  }catch(e){ console.warn('Respaldo automático:', e); }
+}
+function matchTripUser(name){
+  const n=(name||'').trim().toLowerCase(); if(!n) return null;
+  const us=getUsers().filter(u=>u.role!=='admin');
+  const full=u=>((u.firstName&&u.lastName)?(u.firstName+' '+u.lastName):(u.name||'')).trim();
+  return us.find(u=>(u.username||'').toLowerCase()===n || full(u).toLowerCase()===n || (u.name||'').toLowerCase()===n)
+      || us.find(u=>{ const f=n.split(' ')[0]; return f.length>2 && (full(u).toLowerCase().split(' ')[0]===f || (u.username||'').toLowerCase()===f); })
+      || null;
+}
+// Agrega viajes de un respaldo SIN borrar los que ya están en la nube
+async function mergeTripsIn(incoming){
+  let cur=loadTrips()||[];
+  if(fbReady&&db){ try{ const s=await db.collection('data').doc('trips').get(); if(s.exists&&s.data().trips) cur=s.data().trips.map(t=>injectTripImages(t,_imagesCache||{})); }catch(e){} }
+  const sig=t=>[t.date,(t.driverName||'').trim().toLowerCase().split(' ')[0],String(t.z1||''),String(t.z2||''),Math.round(parseFloat(t.loadVal)||0)].join('|');
+  const ids=new Set(cur.map(t=>String(t.id))), sigs=new Set(cur.map(sig));
+  const trucks=loadTrucks();
+  const findTruck=(num,plate)=>trucks.find(t=>(t.plate||'').toUpperCase()===plate)||trucks.find(t=>new RegExp('cami[oó]n\\s*'+num+'\\b','i').test(t.name||''));
+  const t1=findTruck(1,'WTN2143'), t2=findTruck(2,'XWD2230');
+  let added=0;
+  (incoming||[]).forEach(src=>{
+    if(!src) return;
+    if(ids.has(String(src.id))||sigs.has(sig(src))) return;
+    const t={...src};
+    if(!t.driverUser){ const u=matchTripUser(t.driverName); if(u){ t.driverUser=u.username; t.driverName=(u.firstName&&u.lastName)?(u.firstName+' '+u.lastName):(u.name||t.driverName); } }
+    if(t.truckId==null){ const nm=(t.driverName||'').trim(); if(/^walter/i.test(nm)&&t1) t.truckId=t1.id; else if(/^jairo/i.test(nm)&&t2) t.truckId=t2.id; }
+    cur.push(t); ids.add(String(t.id)); sigs.add(sig(t)); added++;
+  });
+  cur.sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
+  if(added) await storeTrips(cur);
+  return {added, skipped:(incoming||[]).length-added, total:cur.length};
+}
+async function openBackupsList(){
+  const box=document.getElementById('backup-list'); if(!box) return;
+  if(!fbReady||!db){ box.innerHTML='<div style="font-size:12px;color:var(--red);">Sin conexión con la nube.</div>'; return; }
+  box.innerHTML='<div style="font-size:12px;color:var(--text3);">Cargando respaldos…</div>';
+  try{
+    const all=await db.collection('backups').get();
+    const rows=all.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt)));
+    box.innerHTML=rows.length?rows.map(r=>`<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;">
+      <div style="flex:1;"><b>${new Date(r.createdAt).toLocaleString('es-US',{day:'numeric',month:'short',year:'numeric',hour:'numeric',minute:'2-digit'})}</b><br><span style="color:var(--text3);font-size:12px;">${r.count||0} viajes${r.id.startsWith('manual')?' · antes de borrar todo':''}</span></div>
+      <button onclick="restoreBackup('${r.id}')" style="padding:7px 12px;border:1px solid #BBF7D0;background:#F0FDF4;color:#16A34A;border-radius:8px;font-weight:700;cursor:pointer;font-family:inherit;">Recuperar</button></div>`).join(''):'<div style="font-size:12px;color:var(--text3);">Todavía no hay respaldos. Se crea uno cada día que entras como administrador.</div>';
+  }catch(e){ box.innerHTML='<div style="font-size:12px;color:var(--red);">No se pudieron leer los respaldos.</div>'; }
+}
+async function restoreBackup(id){
+  if(!confirm('Se van a agregar los viajes de este respaldo que falten. No se borra ningún viaje actual. ¿Continuar?')) return;
+  try{
+    const s=await db.collection('backups').doc(id).get(); if(!s.exists){ alert('Ese respaldo ya no existe.'); return; }
+    const r=await mergeTripsIn(s.data().trips||[]);
+    alert('Listo: se recuperaron '+r.added+' viajes ('+r.skipped+' ya estaban). Total: '+r.total+' viajes.');
+    renderHome&&renderHome();
+  }catch(e){ alert('Error al recuperar: '+e.message); }
+}
+
 // ===== EXPORTAR / IMPORTAR =====
 function exportarDatos(){
   const trips = loadTrips();
@@ -13477,31 +13579,23 @@ function importarDatos(input){
         return;
       }
 
-      if(data.trips && data.trips.length){
-        localStorage.setItem('trucklog_v6', JSON.stringify(data.trips));
-        _cachedTrips = data.trips;
-        if(fbReady && db){
-          db.collection('data').doc('trips').set({trips: data.trips}).catch(()=>{});
+      msg.style.cssText='display:block;font-size:12px;padding:9px 13px;border-radius:9px;font-weight:500;background:#EEF2F9;color:#1E3A8A;border:1px solid #CBD5E8;';
+      msg.textContent='Recuperando viajes…';
+      (async()=>{
+        let addedUsers=0;
+        if(data.users && data.users.length){
+          // Solo agrega usuarios que no existan; nunca reemplaza los actuales
+          const currentUsers = getUsers();
+          const have=new Set(currentUsers.map(u=>String(u.username||'').toLowerCase()));
+          const extra=data.users.filter(u=>u.role!=='admin' && u.username && !have.has(String(u.username).toLowerCase()));
+          if(extra.length){ addedUsers=extra.length; await saveUsers(currentUsers.concat(extra)); }
         }
-      }
-
-      if(data.users && data.users.length){
-        // Keep existing admin, merge imported users
-        const currentUsers = getUsers();
-        const adminUser = currentUsers.find(u=>u.role==='admin');
-        const importedNonAdmin = data.users.filter(u=>u.role!=='admin');
-        const merged = adminUser ? [adminUser, ...importedNonAdmin] : data.users;
-        localStorage.setItem('trucklog_users', JSON.stringify(merged));
-        _cachedUsers = merged;
-        if(fbReady && db){
-          db.collection('data').doc('users').set({users: merged}).catch(()=>{});
-        }
-      }
-
-      msg.style.cssText='display:block;font-size:12px;padding:9px 13px;border-radius:9px;font-weight:500;background:#F0FDF4;color:#16A34A;border:1px solid #14532d44;';
-      msg.textContent=`✅ Importados ${data.trips?data.trips.length:0} viajes y ${data.users?data.users.length:0} usuarios correctamente.`;
-      input.value='';
-      setTimeout(()=>{ renderHome(); renderSummary(); }, 500);
+        const r = (data.trips && data.trips.length) ? await mergeTripsIn(data.trips) : {added:0,skipped:0,total:loadTrips().length};
+        msg.style.cssText='display:block;font-size:12px;padding:9px 13px;border-radius:9px;font-weight:500;background:#F0FDF4;color:#16A34A;border:1px solid #14532d44;';
+        msg.textContent=`✅ Se recuperaron ${r.added} viajes (${r.skipped} ya estaban)${addedUsers?' y '+addedUsers+' usuarios':''}. Total en la app: ${r.total} viajes. No se borró nada.`;
+        input.value='';
+        setTimeout(()=>{ try{ renderHome(); renderSummary(); }catch(e){} }, 500);
+      })().catch(err=>{ msg.style.cssText='display:block;font-size:12px;padding:9px 13px;border-radius:9px;font-weight:500;background:#FEF2F2;color:#DC2626;'; msg.textContent='❌ Error al recuperar: '+err.message; });
 
     }catch(err){
       const msg = document.getElementById('import-msg');

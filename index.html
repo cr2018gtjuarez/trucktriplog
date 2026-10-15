@@ -1852,6 +1852,11 @@
         <button onclick="openBackupsList()" style="padding:7px 12px;background:#EEF2F9;color:#1E3A8A;border:1.5px solid #CBD5E8;border-radius:8px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit;">Ver respaldos</button></div>
         <div id="backup-list"></div>
       </div>
+      <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:10px;">
+        <div style="display:flex;align-items:center;gap:8px;"><div style="flex:1;"><b style="font-size:13px;">Registro en Google Sheets</b><div style="font-size:11.5px;color:var(--text3);">Cada viaje, carga de diésel y gasto se copia solo a tu hoja de Google, con su foto en Drive.</div></div>
+        <button onclick="logSendAll()" style="padding:7px 12px;background:#EEF2F9;color:#1E3A8A;border:1.5px solid #CBD5E8;border-radius:8px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit;">Enviar todo a la hoja</button></div>
+        <div id="log-msg" style="display:none;font-size:12px;color:#16A34A;margin-top:6px;"></div>
+      </div>
     </div>
 
     <div class="card" style="border-color:#fde0e0;"><div class="card-title" style="color:#c0392b;">Zona de peligro</div><button class="btn-save" onclick="clearAll()" style="background:#fff0f0;color:#c0392b;border:1px solid #fde0e0;">Borrar todos los registros</button></div>
@@ -4187,12 +4192,14 @@ async function storeTrips(trips){
   _cachedTrips = trips;
   try{ localStorage.setItem(TRIPS_KEY, JSON.stringify(trips)); }
   catch(e){ console.warn('localStorage lleno, se guarda solo en la nube', e); try{ localStorage.removeItem(TRIPS_KEY); }catch(_){} }
+  let _logBaseline=null;
   if(fbReady){
     // ── Candado: si la nube tiene viajes que esta lista no trae (por ejemplo un celular con la lista vacía
     //    o desactualizada), se conservan en lugar de borrarlos ──
     try{
       const csnap = await db.collection('data').doc('trips').get();
       const cloud = (csnap.exists && csnap.data().trips) || [];
+      if(csnap.exists) _logBaseline = cloud;
       const have = new Set(trips.map(t=>String(t.id)));
       const lost = cloud.filter(t=>!have.has(String(t.id)) && !_tripDelOK.has(String(t.id)));
       if(lost.length){
@@ -4202,6 +4209,9 @@ async function storeTrips(trips){
         try{ localStorage.setItem(TRIPS_KEY, JSON.stringify(trips)); }catch(_){}
       }
     }catch(e){ console.warn('No se pudo verificar la nube antes de guardar', e); }
+  }
+  try{ logTripsDiff(_logBaseline, trips); }catch(e){ console.warn('registro', e); }
+  if(fbReady){
     try{
       // ── Separar imágenes antes de guardar en Firestore ──
       const images = {};
@@ -4231,7 +4241,7 @@ async function storeTrips(trips){
       // Guardar imágenes en documento separado (si hay)
       if(Object.keys(images).length > 0){
         const imagesPayload = sanitizeForFirestore({ images, updatedAt: new Date().toISOString() });
-        await db.collection('data').doc('images').set(imagesPayload, {merge:true});
+        await db.collection('data').doc('images').set(imagesPayload);
       }
 
       showSyncBanner('Datos guardados en la nube ☁️', 'ok');
@@ -4298,7 +4308,9 @@ function startRealtimeSync(){
       // Reinyectar imágenes del cache antes de actualizar
       _cachedTrips = data.trips.map(t => injectTripImages(t, _imagesCache));
       localStorage.setItem(TRIPS_KEY, JSON.stringify(_cachedTrips));
+      try{ logSetBase(data.trips); }catch(e){}
       setTimeout(autoBackupTrips, 4000);
+      setTimeout(()=>{ fixRestoredTrips().catch(()=>{}); }, 6000);
       // Usar _currentSidebarId en lugar de .tab.active (bug fix)
       const id = _currentSidebarId;
       if(id==='home') renderHome();
@@ -7787,7 +7799,7 @@ async function backfillBrokerData(){
   const trips = loadTrips();
   let changed = false;
   trips.forEach(t=>{
-    if(t.broker===undefined){
+    if(t.broker===undefined && !t.restoredFrom){
       t.broker = 'LA TI SERVICES LLC';
       t.brokerFeePct = t.brokerFeePct!=null ? t.brokerFeePct : 13;
       changed = true;
@@ -9254,6 +9266,7 @@ let bizFilterMonth=null;
 
 function loadExtras(){try{return JSON.parse(localStorage.getItem(EXTRAS_KEY))||[];}catch(e){return[];}}
 function saveExtras(e){
+  try{ logListDiff('gasto', JSON.parse(localStorage.getItem(EXTRAS_KEY)||'[]'), e); }catch(_e){}
   localStorage.setItem(EXTRAS_KEY,JSON.stringify(e));
   if(fbReady && db) db.collection('data').doc('extras').set({extras:e, updatedAt:new Date().toISOString()}).catch(()=>{});
 }
@@ -10033,6 +10046,7 @@ function saveTrucks(t){
 }
 function loadMaintenance(){try{return JSON.parse(localStorage.getItem(MAINT_KEY))||[];}catch(e){return[];}}
 function saveMaintenance(m){
+  try{ logListDiff('mant', JSON.parse(localStorage.getItem(MAINT_KEY)||'[]'), m); }catch(_e){}
   localStorage.setItem(MAINT_KEY,JSON.stringify(m));
   if(fbReady && db) db.collection('data').doc('maintenance').set({records:m, updatedAt:new Date().toISOString()}).catch(()=>{});
 }
@@ -10639,6 +10653,7 @@ function renderMantenimiento(){
 const COMPANY_EXP_KEY='trucklog_company_expenses';
 function loadCompanyExpenses(){try{return JSON.parse(localStorage.getItem(COMPANY_EXP_KEY))||[];}catch(e){return[];}}
 function saveCompanyExpenses(e){
+  try{ logListDiff('empresa', JSON.parse(localStorage.getItem(COMPANY_EXP_KEY)||'[]'), e); }catch(_e){}
   localStorage.setItem(COMPANY_EXP_KEY,JSON.stringify(e));
   if(fbReady && db) db.collection('data').doc('companyExpenses').set({expenses:e, updatedAt:new Date().toISOString()}).catch(()=>{});
 }
@@ -13471,9 +13486,135 @@ function endTutorial(){
   sidebarNav('home');
 }
 
+// ===== REGISTRO EN HOJA DE GOOGLE: cada dato guardado se copia como fila nueva (nunca se reemplaza) =====
+const LOGQ_KEY='trucklog_logq', LOGPH_KEY='trucklog_logphotos';
+let _logMute=false, _logBase=null, _logQ=null, _logSending=false, _logTimer=null;
+function logEnabled(){ const co=(typeof loadCompany==='function'?loadCompany():{})||{}; return co.logOn!==false && !!(co.emailUrl||TRIP_EMAIL_URL_DEFAULT); }
+function logUrl(){ const co=loadCompany()||{}; return co.emailUrl||TRIP_EMAIL_URL_DEFAULT; }
+function logUser(){ return currentUser?(currentUser.username||currentUser.name||''):''; }
+function logStrip(t){ const o=tripNoImages(t); ['emailSentAt','driverEmailSentAt','lastSaved','_driverMailed','roadMiles','notifFlags','restoredFixed','driveFolderId','driveFolderLink'].forEach(k=>delete o[k]); (o.fuelLoads||[]).forEach(f=>{ if(f){ delete f.driveStatus; delete f.driveThumb; delete f.driveFileId; } }); return o; }
+function logSetBase(list){ _logBase=new Map((list||[]).map(t=>[String(t.id),JSON.stringify(logStrip(t))])); }
+function logQLoad(){ if(_logQ) return _logQ; try{ _logQ=JSON.parse(localStorage.getItem(LOGQ_KEY)||'[]'); }catch(e){ _logQ=[]; } return _logQ; }
+function logQSave(){ try{ localStorage.setItem(LOGQ_KEY, JSON.stringify(_logQ)); }catch(e){
+  // sin espacio: se guardan sin foto las que esperan (la foto sigue en la app)
+  try{ localStorage.setItem(LOGQ_KEY, JSON.stringify(_logQ.map(x=>x.image?{...x,image:null,row:{...x.row,'Foto':'(pendiente: sin espacio en el celular)'}}:x))); }catch(_){} } }
+function logPush(items){
+  if(!items||!items.length||!logEnabled()) return;
+  const ts=Date.now(), user=logUser();
+  logQLoad(); items.forEach(it=>_logQ.push({ts,user,...it})); logQSave();
+  clearTimeout(_logTimer); _logTimer=setTimeout(logFlush, 800);
+}
+async function logFlush(){
+  if(_logSending||!logEnabled()) return; logQLoad(); if(!_logQ.length) return;
+  _logSending=true;
+  try{
+    while(_logQ.length){
+      // Fotos de una en una; filas sin foto en grupos de 20
+      const batch = _logQ[0].image ? [_logQ[0]] : _logQ.slice(0, _logQ.findIndex(x=>x.image)<0?20:Math.min(20,_logQ.findIndex(x=>x.image)));
+      await fetch(logUrl(),{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({key:TRIP_EMAIL_KEY,action:'log',items:batch})});
+      _logQ.splice(0,batch.length); logQSave();
+    }
+  }catch(e){ console.warn('Registro sin conexión; se reintenta', e); setTimeout(logFlush, 60000); }
+  finally{ _logSending=false; }
+}
+window.addEventListener('online', ()=>setTimeout(logFlush,2000));
+function logTruckName(t){ try{ const r=tripTruck(t); return r&&r.truck?r.truck.name:''; }catch(e){ return ''; } }
+function logRoute(t){ return `${t.city1||t.z1||''}, ${t.state1||''} → ${t.city2||t.z2||''}, ${t.state2||''}`; }
+function logTripRow(t){
+  let mi=''; try{ mi=tripDistance(t).mi||''; }catch(e){}
+  return {'ID viaje':String(t.id),'Fecha':t.date||'','Delivery':t.deliveryDate||'','Chofer':t.driverName||'','Camión':logTruckName(t),'RC':t.rc||'',
+    'Broker':t.brokerName||t.broker||'','Origen':`${t.city1||''}, ${t.state1||''} ${t.z1||''}`,'Destino':`${t.city2||''}, ${t.state2||''} ${t.z2||''}`,
+    'Millas':mi,'Load value':t.loadVal||0,'Pago chofer':t.driver||0,'Factoring':t.factoringFee||0,'Dispatcher':t.fee||0,
+    'Diésel total':t.totalCost||0,'Galones':t.totalGal||0,'Ganancia':t.net||0,'Estado':t.tripStatus||'','Estado pago':t.payStatus||'','Notas':t.payNotes||''};
+}
+function logFuelKey(f){ return [f.loadId||'',f.tipo||f.type||'diesel',f.station||f.desc||'',parseFloat(f.gal)||0,parseFloat(f.cost)||0].join('|'); }
+function logFuelItems(t, f, i, op){
+  const tipo=f.tipo||f.type||'diesel', gal=parseFloat(f.gal)||0, cost=parseFloat(f.cost)||0;
+  const row={'ID viaje':String(t.id),'Fecha viaje':t.date||'','Chofer':t.driverName||'','Camión':logTruckName(t),'RC':t.rc||'','Ruta':logRoute(t),
+    'Tipo':tipo,'Gasolinera':f.station||f.desc||'','Galones':gal,'Precio/gal':parseFloat(f.price)||(gal?+(cost/gal).toFixed(3):''),'Total':cost,'Carga #':i+1};
+  if(f.driveLink) row['Foto']=f.driveLink;
+  const img=(op!=='borrado'&&typeof f.image==='string'&&f.image.startsWith('data:'))?f.image:null;
+  return {kind:'diesel',op,row,image:img,imageName:`${t.date||''}_${logTruckName(t)||t.driverName||''}_${t.rc?'RC'+t.rc:'viaje'+t.id}_${tipo}_${i+1}`};
+}
+function logPhotoItems(t){
+  // Fotos del viaje (BOL, POD, cargado, descargado, RC): se mandan una sola vez cada una
+  let sent={}; try{ sent=JSON.parse(localStorage.getItem(LOGPH_KEY)||'{}'); }catch(e){}
+  const out=[]; let ch=false;
+  ['bol','pod','loaded','unloaded','rc'].forEach(k=>{
+    const img=t[k+'Image'], link=t[k+'DriveLink'];
+    const val=(typeof img==='string'&&img.startsWith('data:'))?img:null;
+    if(!val&&!link) return;
+    const sig=String(t.id)+'_'+k+'_'+(val?val.length+':'+val.slice(-24):link);
+    if(sent[sig]) return; sent[sig]=1; ch=true;
+    out.push({kind:'foto',op:'nuevo',row:{'ID viaje':String(t.id),'Fecha':t.date||'','Chofer':t.driverName||'','Camión':logTruckName(t),'RC':t.rc||'','Tipo':k.toUpperCase(),'Foto':val?'':link},
+      image:val,imageName:`${t.date||''}_${logTruckName(t)||''}_${t.rc?'RC'+t.rc:'viaje'+t.id}_${k.toUpperCase()}`});
+  });
+  if(ch) try{ localStorage.setItem(LOGPH_KEY, JSON.stringify(sent)); }catch(e){}
+  return out;
+}
+function logTripsDiff(baseline, trips){
+  if(!logEnabled()) return;
+  if(_logMute){ logSetBase(trips); return; }
+  const base = baseline ? new Map(baseline.map(t=>[String(t.id),JSON.stringify(logStrip(t))])) : _logBase;
+  if(!base){ logSetBase(trips); return; }
+  const items=[]; const now=new Set();
+  trips.forEach(t=>{
+    const id=String(t.id); now.add(id);
+    const cur=logStrip(t), curS=JSON.stringify(cur), prevS=base.get(id);
+    if(prevS===undefined){
+      items.push({kind:'viaje',op:'nuevo',row:{...logTripRow(t),'Cambios':'','Datos completos':curS}});
+      (t.fuelLoads||[]).forEach((f,i)=>items.push(logFuelItems(t,f,i,'nuevo')));
+    } else if(prevS!==curS){
+      const prev=JSON.parse(prevS);
+      const changed=Object.keys({...prev,...cur}).filter(k=>JSON.stringify(prev[k])!==JSON.stringify(cur[k]));
+      const desc=changed.filter(k=>k!=='fuelLoads').map(k=>`${k}: ${JSON.stringify(prev[k]??'')} → ${JSON.stringify(cur[k]??'')}`).join(' | ').slice(0,3000);
+      items.push({kind:'viaje',op:'editado',row:{...logTripRow(t),'Cambios':desc||(changed.includes('fuelLoads')?'cargas de diésel':''),'Datos completos':curS}});
+      // cargas de diésel nuevas o quitadas
+      const pk={}; (prev.fuelLoads||[]).forEach(f=>{ const k=logFuelKey(f); pk[k]=(pk[k]||0)+1; });
+      const ck={}; (t.fuelLoads||[]).forEach((f,i)=>{ const k=logFuelKey(f); ck[k]=(ck[k]||0)+1; if(ck[k]>(pk[k]||0)) items.push(logFuelItems(t,f,i,'nuevo')); });
+      const seen={}; (prev.fuelLoads||[]).forEach((f,i)=>{ const k=logFuelKey(f); seen[k]=(seen[k]||0)+1; if(seen[k]>(ck[k]||0)) items.push(logFuelItems(prev,f,i,'borrado')); });
+    }
+    logPhotoItems(t).forEach(x=>items.push(x));
+  });
+  base.forEach((s,id)=>{ if(!now.has(id)){ const t=JSON.parse(s); items.push({kind:'viaje',op:'borrado',row:{...logTripRow(t),'Cambios':'viaje borrado','Datos completos':s}}); } });
+  logSetBase(trips);
+  logPush(items);
+}
+function logListRow(kind, r){
+  const tr=r.truckId!=null?(loadTrucks().find(x=>String(x.id)===String(r.truckId))||{}).name||'':'';
+  if(kind==='mant') return {'ID':String(r.id),'Fecha':r.date||'','Camión':tr,'Categoría':r.category||'','Descripción':r.description||'','Millaje':r.mileage||'','Costo':r.cost||0,'Proveedor':r.vendor||'','Recibo':r.receiptDriveLink||''};
+  if(kind==='empresa') return {'ID':String(r.id),'Fecha':r.date||'','Categoría':r.category||'','Camión':tr,'Monto':r.amount||0,'Descripción':r.description||'','Recibo':r.receiptDriveLink||''};
+  return {'ID':String(r.id),'Fecha':r.date||'','Categoría':r.cat||r.category||'','Descripción':r.desc||r.description||'','Monto':r.amount||0,'Recibo':r.receiptDriveLink||''};
+}
+function logListDiff(kind, prev, next){
+  if(!logEnabled()) return;
+  const strip=r=>{ const o={}; Object.keys(r||{}).forEach(k=>{ const v=r[k]; o[k]=(typeof v==='string'&&v.startsWith('data:'))?'(foto)':v; }); return o; };
+  const imgOf=r=>{ const k=Object.keys(r||{}).find(k=>typeof r[k]==='string'&&r[k].startsWith('data:')); return k?r[k]:null; };
+  const pm=new Map((prev||[]).map(r=>[String(r.id),r])); const items=[]; const ids=new Set();
+  (next||[]).forEach(r=>{ const id=String(r.id); ids.add(id); const p=pm.get(id);
+    if(!p) items.push({kind,op:'nuevo',row:{...logListRow(kind,r),'Datos completos':JSON.stringify(strip(r))},image:imgOf(r),imageName:`${r.date||''}_${kind}_${id}`});
+    else if(JSON.stringify(strip(p))!==JSON.stringify(strip(r))) items.push({kind,op:'editado',row:{...logListRow(kind,r),'Datos completos':JSON.stringify(strip(r))}}); });
+  pm.forEach((r,id)=>{ if(!ids.has(id)) items.push({kind,op:'borrado',row:{...logListRow(kind,r),'Datos completos':JSON.stringify(strip(r))}}); });
+  logPush(items);
+}
+// Manda TODO lo que hay hoy en la app a la hoja (para empezar el registro completo)
+function logSendAll(){
+  if(!logEnabled()){ alert('Falta configurar el servicio de correo.'); return; }
+  if(!confirm('Se van a copiar a la hoja de Google todos los viajes, cargas de diésel, gastos y mantenimientos que hay hoy en la app. Hazlo solo una vez. ¿Continuar?')) return;
+  const items=[];
+  loadTrips().forEach(t=>{ items.push({kind:'viaje',op:'inicial',row:{...logTripRow(t),'Cambios':'','Datos completos':JSON.stringify(logStrip(t))}});
+    (t.fuelLoads||[]).forEach((f,i)=>items.push(logFuelItems(t,f,i,'inicial'))); logPhotoItems(t).forEach(x=>items.push(x)); });
+  loadExtras().forEach(r=>items.push({kind:'gasto',op:'inicial',row:logListRow('gasto',r)}));
+  loadMaintenance().forEach(r=>items.push({kind:'mant',op:'inicial',row:logListRow('mant',r)}));
+  loadCompanyExpenses().forEach(r=>items.push({kind:'empresa',op:'inicial',row:logListRow('empresa',r)}));
+  logPush(items);
+  const m=document.getElementById('log-msg'); if(m){ m.style.display='block'; m.textContent='Enviando '+items.length+' registros a la hoja… puedes seguir usando la app.'; }
+}
+setTimeout(()=>{ try{ logFlush(); }catch(e){} }, 6000);
+
 // ===== RESPALDOS AUTOMÁTICOS + RESTAURAR SIN BORRAR =====
 function tripNoImages(t){
-  const o={...t, fuelLoads:(t.fuelLoads||[]).map(f=>f&&f.image?{...f,image:null}:f)};
+  const o={...t, fuelLoads:(t.fuelLoads||[]).map(f=>f&&typeof f==='object'?{...f,image:null}:f)};
   ['bolImage','podImage','loadedImage','unloadedImage'].forEach(k=>{ if(o[k]) o[k]=null; });
   return o;
 }
@@ -13485,6 +13626,21 @@ async function saveTripsBackup(id, force){
   if(!force){ const s=await ref.get(); if(s.exists && (s.data().count||0)>=trips.length) return; }
   await ref.set(sanitizeForFirestore({trips, count:trips.length, createdAt:new Date().toISOString(), by:(currentUser&&currentUser.username)||''}));
 }
+// Corrige una sola vez los viajes recuperados del CSV: % real del dispatcher, sin dispatcher si no hubo fee,
+// y el pago al dispatcher como pagado cuando el viaje ya estaba pagado.
+async function fixRestoredTrips(){
+  if(!currentUser||currentUser.role!=='admin') return;
+  const trips=loadTrips(); let n=0;
+  trips.forEach(t=>{
+    if(!t.restoredFrom||t.restoredFixed) return;
+    const lv=parseFloat(t.loadVal)||0, fee=parseFloat(t.fee)||0;
+    if(fee>0){ t.brokerFeePct=lv?Math.round(fee/lv*1000)/10:0; if(!t.broker) t.broker='LA TI SERVICES LLC'; }
+    else { t.broker=''; t.brokerFeePct=0; }
+    if(t.payStatus==='paid' && (t.dispatchPayStatus||'pending')==='pending'){ t.dispatchPayStatus='paid'; t.dispatchPayNotes=(t.dispatchPayNotes||'')||'Recuperado del CSV: marcado pagado'; }
+    t.restoredFixed=true; n++;
+  });
+  if(n){ _logMute=true; try{ await storeTrips(trips); }finally{ _logMute=false; } console.log('Viajes recuperados corregidos: '+n); }
+}
 let _autoBackupDone=false;
 async function autoBackupTrips(){
   if(_autoBackupDone||!fbReady||!currentUser||currentUser.role!=='admin') return;
@@ -13492,9 +13648,8 @@ async function autoBackupTrips(){
   _autoBackupDone=true;
   try{
     await saveTripsBackup('trips_'+todayStr());
-    const all=await db.collection('backups').get();
-    const ids=all.docs.map(d=>d.id).filter(x=>x.startsWith('trips_')).sort();
-    ids.slice(0,Math.max(0,ids.length-30)).forEach(x=>db.collection('backups').doc(x).delete().catch(()=>{}));
+    // Borrar respaldos de hace 31 a 45 días (sin descargar todos)
+    for(let k=31;k<=45;k++){ const d=new Date(); d.setDate(d.getDate()-k); db.collection('backups').doc('trips_'+isoLocal(d)).delete().catch(()=>{}); }
   }catch(e){ console.warn('Respaldo automático:', e); }
 }
 function matchTripUser(name){

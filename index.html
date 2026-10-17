@@ -1857,6 +1857,11 @@
         <button onclick="logSendAll()" style="padding:7px 12px;background:#EEF2F9;color:#1E3A8A;border:1.5px solid #CBD5E8;border-radius:8px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit;">Enviar todo a la hoja</button></div>
         <div id="log-msg" style="display:none;font-size:12px;color:#16A34A;margin-top:6px;"></div>
       </div>
+      <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:10px;">
+        <div style="display:flex;align-items:center;gap:8px;"><div style="flex:1;"><b style="font-size:13px;">Espacio en la nube</b><div style="font-size:11.5px;color:var(--text3);">Firebase acepta máximo 1,024 KB por documento.</div></div>
+        <button onclick="showStorageStatus()" style="padding:7px 12px;background:#EEF2F9;color:#1E3A8A;border:1.5px solid #CBD5E8;border-radius:8px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit;">Revisar</button></div>
+        <div id="storage-status"></div>
+      </div>
     </div>
 
     <div class="card" style="border-color:#fde0e0;"><div class="card-title" style="color:#c0392b;">Zona de peligro</div><button class="btn-save" onclick="clearAll()" style="background:#fff0f0;color:#c0392b;border:1px solid #fde0e0;">Borrar todos los registros</button></div>
@@ -2175,8 +2180,8 @@
       <div class="card" style="cursor:pointer;display:flex;align-items:center;gap:14px;transition:all .2s;" onclick="sidebarNav('reporte')">
         <div style="width:48px;height:48px;border-radius:8px;background:var(--accent-bg);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6"/></svg></div>
         <div style="flex:1;">
-          <div style="font-size:14px;font-weight:700;color:var(--text);">Reporte Driver</div>
-          <div style="font-size:12px;color:var(--text3);margin-top:2px;">Pago por viaje de cada driver, con descarga en PDF</div>
+          <div style="font-size:14px;font-weight:700;color:var(--text);">Liquidación del driver</div>
+          <div style="font-size:12px;color:var(--text3);margin-top:2px;">Pago bruto por cargas, anticipos, reembolsos y pago neto, con PDF</div>
         </div>
         <div style="font-size:20px;color:var(--text3);">›</div>
       </div>
@@ -3411,7 +3416,7 @@
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
         <div style="width:36px;height:36px;border-radius:11px;background:var(--accent-bg);display:flex;align-items:center;justify-content:center;font-size:18px;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6"/></svg></div>
         <div>
-          <div style="font-size:15px;font-weight:700;color:var(--text);">Reporte de Pago para Driver</div>
+          <div style="font-size:15px;font-weight:700;color:var(--text);">Liquidación del driver</div>
           <div style="font-size:12px;color:var(--text3);">Selecciona driver y rango de fechas · semana de sábado a viernes, por fecha de delivery</div>
         </div>
       </div>
@@ -3487,6 +3492,27 @@
     </div>
 
     <div id="rep-empty" style="display:none;" class="empty">No hay viajes para los filtros seleccionados.</div>
+
+    <!-- Ajustes al pago del driver -->
+    <div class="card" id="rep-adj-card">
+      <div class="card-title">💵 Ajustes a la liquidación</div>
+      <div style="font-size:12px;color:var(--text3);margin:-6px 0 12px;">Anticipos, reembolsos de combustible (cuando el driver pagó porque la tarjeta fue rechazada), bonos y deducciones. Se aplican a la liquidación de la semana que corresponde a su fecha.</div>
+      <div id="rep-adj-list"></div>
+      <div class="g2" style="margin-top:12px;">
+        <div class="field"><label>Driver</label><select id="rep-adj-driver"></select></div>
+        <div class="field"><label>Fecha</label><input type="date" id="rep-adj-date"/></div>
+        <div class="field"><label>Tipo</label><select id="rep-adj-type">
+          <option value="adelanto">Anticipo (se descuenta)</option>
+          <option value="diesel">Reembolso de combustible (se suma)</option>
+          <option value="bono">Bono (se suma)</option>
+          <option value="descuento">Deducción (se descuenta)</option>
+        </select></div>
+        <div class="field"><label>Monto ($)</label><input type="number" id="rep-adj-amount" placeholder="0.00" min="0" step="0.01"/></div>
+        <div class="field" style="grid-column:1/-1;"><label>Nota</label><input type="text" id="rep-adj-note" placeholder="Ej. Anticipo en efectivo · Love's Amarillo, tarjeta de combustible rechazada"/></div>
+      </div>
+      <div class="msg" id="rep-adj-msg"></div>
+      <button class="btn-save" onclick="addDriverAdj()" style="margin-top:10px;">+ Agregar ajuste</button>
+    </div>
   </div>
 
   <!-- ANÁLISIS DE MERCADO (zonas, lanes, brokers) -->
@@ -3597,6 +3623,7 @@
       <input type="hidden" id="add-diesel-type" value="diesel"/>
     </div>
 
+    <div class="field" style="margin-bottom:12px;"><label>📅 Fecha de compra</label><input type="date" id="add-diesel-date"/></div>
     <div class="field" style="margin-bottom:12px;">
       <label>⛽ Nombre de la gasolinera</label>
       <input type="text" id="add-diesel-station" placeholder="Ej. Shell, Loves, Pilot..."/>
@@ -3955,6 +3982,7 @@
     </div>
 
     <!-- CAMPOS DIESEL / DEF -->
+    <div class="field" style="margin-bottom:12px;"><label>📅 Fecha de compra</label><input type="date" id="gasto-date"/></div>
     <div id="gasto-fields-galones">
       <!-- Nombre gasolinera (solo visible en diesel/def) -->
       <div class="field" style="margin-bottom:12px;" id="gasto-station-field">
@@ -4020,6 +4048,146 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+/* ══════════ ENGLISH VERSION (ES/EN button) ══════════ */
+(function(){
+  let lang='es'; try{ lang=localStorage.getItem('trucklog_lang')||'es'; }catch(e){}
+  window.TL_LANG=lang;
+  if(lang!=='en') return;
+  const PAIRS={"viaje": "trip", "viajes": "trips", "Viaje": "Trip", "Viajes": "Trips", "carga": "load", "cargas": "loads", "completado": "completed", "completados": "completed", "completada": "completed", "completadas": "completed", "terminado": "completed", "terminados": "completed", "recorridas": "driven", "Recorridas": "Driven", "Faltan": "Remaining", "faltan": "remaining", "millas": "miles", "milla": "mile", "semana": "week", "semanas": "weeks", "en": "in", "Semana": "Week", "mes": "month", "meses": "months", "Mes": "Month", "día": "day", "días": "days", "hoy": "today", "ayer": "yesterday", "ganancia": "profit", "Ganancia": "Profit", "ganancias": "profits", "gastos": "expenses", "gasto": "expense", "Gasto": "Expense", "pago": "pay", "Pago": "Pay", "pagado": "paid", "Pagado": "Paid", "pendiente": "pending", "Pendiente": "Pending", "pendientes": "pending", "Pendientes": "Pending", "cobrado": "collected", "Cobrado": "Collected", "cobro": "collection", "Cobro": "Collection", "fecha": "date", "Fecha": "Date", "camión": "truck", "Camión": "Truck", "camiones": "trucks", "chofer": "driver", "choferes": "drivers", "Chofer": "Driver", "diésel": "diesel", "Diésel": "Diesel", "galones": "gallons", "galón": "gallon", "precio": "price", "promedio": "average", "Promedio": "Average", "total": "total", "Totales": "Totals", "totales": "totals", "ruta": "route", "rutas": "routes", "Ruta": "Route", "origen": "origin", "destino": "destination", "Origen": "Origin", "Destino": "Destination", "recibo": "receipt", "recibos": "receipts", "foto": "photo", "fotos": "photos", "Fotos": "Photos", "estado": "state", "estados": "states", "zona": "region", "Zona": "Region", "zonas": "regions", "pocos datos": "little data", "Mejor": "Best", "mejor": "best", "Peor": "Worst", "peor": "worst", "Actual": "Current", "actual": "current", "anterior": "previous", "siguiente": "next", "Anterior": "Previous", "Siguiente": "Next", "Rango": "Range", "Todo": "All", "todos": "all", "todas": "all", "Sin": "No", "sin": "without", "con": "with", "por": "by", "para": "for", "del": "of the", "de": "of", "y": "and", "o": "or", "al": "to the", "la": "the", "el": "the", "los": "the", "las": "the", "un": "a", "una": "a", "que": "that", "es": "is", "no": "no", "sí": "yes", "Sí": "Yes", "aquí": "here", "Ver": "View", "ver": "view", "Calculando": "Calculating", "calculando": "calculating", "calculando…": "calculating…", "Calculando...": "Calculating...", "Buscando...": "Searching...", "Subiendo": "Uploading", "subiendo": "uploading", "Subiendo a Drive…": "Uploading to Drive…", "Revisando…": "Checking…", "Listo": "Done", "Listo:": "Done:", "Enviado.": "Sent.", "Revisa": "Check", "revisa": "check", "Revisar": "Check", "Eliminar": "Delete", "Editar": "Edit", "Guardar": "Save", "Cerrar": "Close", "Abrir": "Open", "Volver": "Back", "Agregar": "Add", "Recuperar": "Recover", "Exportar": "Export", "Importar": "Import", "Exportar CSV": "Export CSV", "Exportar datos": "Export data", "Importar datos": "Import data", "Descargar PDF": "Download PDF", "Entrar": "Sign in", "Entrando...": "Signing in...", "Salir": "Log out", "Saltar": "Skip", "Siguiente →": "Next →", "Nombre": "First name", "Apellido": "Last name", "Nombre mostrado": "Display name", "Rol": "Role", "Admin": "Admin", "Administrador": "Administrator", "Usuario": "Username", "usuario": "user", "Iniciando...": "Starting...", "Iniciar": "Start", "Finalizar": "Finish", "Cancelar": "Cancel", "Confirmar": "Confirm", "Quitar": "Remove", "Cambiar": "Change", "cambiar": "change", "Subir": "Upload", "subir": "upload", "Tipo": "Type", "Descripción": "Description", "Monto": "Amount", "Nota": "Note", "Categoría": "Category", "Proveedor": "Vendor", "Servicio": "Service", "Costo": "Cost", "costo": "cost", "Costo ($)": "Cost ($)", "Placa": "Plate", "Modelo": "Model", "Millaje": "Mileage", "Aceite": "Oil", "aceite": "oil", "vencido": "overdue", "Vencido": "Overdue", "OK": "OK", "Al día": "Up to date", "mi para cambio de aceite": "mi until oil change", "Manejando": "Driving", "MANEJANDO": "DRIVING", "Detenido": "Stopped", "DETENIDO": "STOPPED", "ACTIVO": "ACTIVE", "INACTIVO": "INACTIVE", "activo": "active", "inactivo": "inactive", "Manejando:": "Driving:", "Detenido:": "Stopped:", "Detenido mucho tiempo": "Stopped for a long time", "lleva": "has been", "min detenido": "min stopped", "Inició viaje": "Trip started", "Llegó al destino": "Arrived at destination", "Aviso": "Notice", "Actividad": "Activity", "semana actual": "current week", "En": "In", "Semana anterior": "Previous week", "Semana siguiente": "Next week", "Semana actual": "Current week", "Hace 2 semanas": "2 weeks ago", "viene": "comes", "Viene de": "Coming from", "muertas": "deadhead", "cargadas": "loaded", "Cargadas": "Loaded", "Muertas": "Deadhead", "Margen": "Margin", "margen": "margin", "Rate": "Rate", "rate": "rate", "por milla cargada": "per loaded mile", "pago ÷ todas las millas": "pay ÷ all miles", "contando millas muertas": "including deadhead miles", "del total": "of total", "en ajustes": "in adjustments", "pago bruto": "gross pay", "Pago bruto": "Gross pay", "Liquidado": "Settled", "Por liquidar": "Unsettled", "liquidación": "settlement", "Liquidación": "Settlement", "ajustes": "adjustments", "ajuste": "adjustment", "Ajustes": "Adjustments", "Driver": "Driver", "driver": "driver", "drivers": "drivers", "Drivers": "Drivers", "broker": "broker", "brokers": "brokers", "Broker": "Broker", "Brokers": "Brokers", "Dispatcher": "Dispatcher", "dispatcher": "dispatcher", "Factoring": "Factoring", "Cargas": "Loads", "Carga": "Load", "Cargas de diésel": "Diesel loads", "Pick up": "Pick up", "Delivery": "Delivery", "Atrasado": "Late", "atrasado": "late", "Sin cobrar": "Not collected", "En tránsito": "In transit", "en tránsito": "in transit", "Millas": "Miles", "Estado": "Status", "Abrir todos": "Expand all", "Cerrar todos": "Collapse all", "Filtrar": "Filter", "Limpiar": "Clear", "Desde": "From", "Hasta": "To", "Hoy": "Today", "Esta semana": "This week", "Este mes": "This month", "Este año": "This year", "Lunes": "Monday", "Martes": "Tuesday", "Miércoles": "Wednesday", "Jueves": "Thursday", "Viernes": "Friday", "Sábado": "Saturday", "Domingo": "Sunday", "Enero": "January", "Febrero": "February", "Marzo": "March", "Abril": "April", "Mayo": "May", "Junio": "June", "Julio": "July", "Agosto": "August", "Septiembre": "September", "Octubre": "October", "Noviembre": "November", "Diciembre": "December", "Ene": "Jan", "Abr": "Apr", "Ago": "Aug", "Dic": "Dec", "Comida": "Food", "Hotel": "Hotel", "Tollways": "Tolls", "Seguro": "Insurance", "Mantenimiento": "Maintenance", "Llanta": "Tire", "Reparación": "Repair", "Permiso": "Permit", "Oficina": "Office", "Herramientas": "Tools", "Otros": "Other", "Filtros": "Filters", "Llantas / Neumáticos": "Tires", "Transmisión": "Transmission", "Suspensión": "Suspension", "Batería": "Battery", "Sistema eléctrico": "Electrical system", "Refrigerante / Radiador": "Coolant / Radiator", "Alineación / Balanceo": "Alignment / Balancing", "Inspección DOT": "DOT inspection", "Cambio de aceite": "Oil change", "Comprobante": "Receipt", "Ingresos": "Revenue", "Ingresos vs Gastos": "Revenue vs Expenses", "Ganancia real": "Real profit", "Gastos totales": "Total expenses", "Ganancia neta": "Net profit", "dólares": "dollars", "combustible": "fuel", "pagados": "paid", "pagadas": "paid", "viajes completados": "completed trips", "viaje completado": "completed trip", "en curso": "in progress", "Paso": "Step", "Esperando": "Waiting", "Aprobado": "Approved", "Rechazado": "Rejected", "Rechazar": "Reject", "Aprobado — Ready to Go": "Approved — Ready to Go", "Esperando revisión del admin": "Waiting for admin review", "vuelve a subir": "upload again", "Firma visible": "Signature visible", "Nombre visible": "Name visible", "Fecha visible": "Date visible", "Ver RC en Drive": "View RC in Drive", "Ver en Drive": "View in Drive", "En Drive": "In Drive", "RC subido — cambiar": "RC uploaded — change", "BOL subido — cambiar": "BOL uploaded — change", "POD subido — cambiar": "POD uploaded — change", "Subir BOL (pickup)": "Upload BOL (pickup)", "Subir POD (entrega)": "Upload POD (delivery)", "Carga (loaded)": "Loaded", "Descarga (unloaded)": "Unloaded", "BOL (pickup)": "BOL (pickup)", "Rate Confirmation": "Rate Confirmation", "Load Value": "Load Value", "Fee": "Fee", "Neto": "Net", "neto": "net", "Bruto": "Gross", "bruto": "gross", "Ganado": "Earned", "Millas totales": "Total miles", "Rendimiento": "Fuel efficiency", "Rendimiento (MPG)": "Fuel efficiency (MPG)", "MPG real": "Real MPG", "odómetro": "odometer", "odóm.": "odom.", "iniciales": "starting", "finales": "ending", "Mi. iniciales": "Starting mi.", "Mi. finales": "Ending mi.", "Mi. Iniciales": "Starting Mi.", "Mi. Finales": "Ending Mi.", "Total galones": "Total gallons", "Costo diesel": "Diesel cost", "Gastos extras": "Extra expenses", "Reparaciones": "Repairs", "Peajes": "Tolls", "Multas": "Fines", "Llegada": "Arrival", "llegada": "arrival", "Salida": "Departure", "Tiempo": "Time", "tiempo": "time", "Tiempo conducido": "Time driven", "Tiempo restante": "Time remaining", "Descansos": "Breaks", "Descanso": "Break", "descansos": "breaks", "Conducción": "Driving", "Llegada estimada": "Estimated arrival", "ETA actualizado": "Updated ETA", "Progreso": "Progress", "Docs": "Docs", "Basado en GPS": "Based on GPS", "GPS activo": "GPS active", "GPS activado": "GPS enabled", "GPS bloqueado": "GPS blocked", "GPS no activado": "GPS not enabled", "GPS requerido": "GPS required", "GPS no disponible": "GPS not available", "Activar GPS": "Enable GPS", "Actualizar GPS": "Update GPS", "Detectando...": "Detecting...", "Latitud": "Latitude", "Longitud": "Longitude", "Google Maps": "Google Maps", "Ubicación": "Location", "Correo": "Email", "correo": "email", "Teléfono": "Phone", "Dirección": "Address", "Logotipo": "Logo", "Quitar logo": "Remove logo", "Datos actuales": "Current information", "Usuarios": "Users", "Registrados": "Registered", "Configuración": "Settings", "Tutorial": "Tutorial", "Ver tutorial": "View tutorial", "Cerrar sesión": "Log out", "GENERAL": "GENERAL", "General": "General", "Operaciones": "Operations", "OPERACIONES": "OPERATIONS", "Finanzas": "Finance", "FINANZAS": "FINANCE", "Administración": "Administration", "ADMINISTRACIÓN": "ADMINISTRATION", "Dashboard": "Dashboard", "Business": "Business", "Balance General": "Balance Sheet", "Otros gastos": "Other expenses", "Resumen": "Summary", "Reportes": "Reports", "Análisis de mercado": "Market analysis", "Mis Ganancias": "My Earnings", "Inspección": "Inspection", "Gasolineras": "Fuel Stations", "Mi Viaje": "My Trip", "Nuevo viaje": "New trip", "Historial": "History", "Inicio": "Home", "Gastos": "Expenses", "Por semana": "By week", "Por mes": "By month", "Otro mes": "Other month", "Mes actual": "Current month", "Mes anterior": "Previous month", "Exterior": "Exterior", "Sin datos": "No data", "Pagos": "Payments", "Por Cobrar": "To Collect", "Total viajes": "Total trips", "Load total": "Total load", "Todos los estados": "All statuses", "Notas": "Notes", "Ganancia por milla": "Profit per mile", "Gan. / milla": "Profit / mile", "Costo / milla": "Cost / mile", "Load / milla": "Load / mile", "Dist. real": "Real dist.", "diesel / mi": "diesel / mi", "ingreso / mi": "revenue / mi", "millas carretera": "road miles", "Excelente": "Excellent", "Aceptable": "Acceptable", "Bajo": "Low", "Calculando distancia real...": "Calculating real distance...", "Calculando distancia real entre ZIP codes...": "Calculating real distance between ZIP codes...", "Fecha de pick up": "Pick up date", "Fecha de delivery": "Delivery date", "Pago a driver": "Driver pay", "Ya pagado": "Already paid", "Total a pagar": "Total to pay", "Pago neto": "Net pay", "Generar reporte": "Generate report", "Últimos 30 días": "Last 30 days", "Selecciona": "Select", "Actualizado": "Updated", "Cambios": "Changes", "Cargando": "Loading", "Cheque": "Check", "Ciudad": "City", "Copiar": "Copy", "Cuadre": "Balance", "Cuadre semanal": "Weekly balance", "DIARIO": "DAILY", "Datos": "Data", "Detalle": "Detail", "EJECUTIVO": "EXECUTIVE", "Ejecutivo": "Executive", "Dashboard Ejecutivo": "Executive Dashboard", "Entregado": "Delivered", "Fechas": "Dates", "Ingreso": "Revenue", "MENSUAL": "MONTHLY", "ANUAL": "ANNUAL", "SEMANAL": "WEEKLY", "SEMANAS": "WEEKS", "Mis": "My", "Moneda": "Currency", "Mover": "Move", "Mover fotos a Google Drive": "Move photos to Google Drive", "OTRO": "OTHER", "Obteniendo": "Getting", "PERIODO": "PERIOD", "PERSONALIZADO": "CUSTOM", "PERIODO PERSONALIZADO": "CUSTOM PERIOD", "PROGRAMADO": "SCHEDULED", "Programado": "Scheduled", "programado": "scheduled", "REALIZADO": "COMPLETED", "RENTABILIDAD": "PROFITABILITY", "RENTABILIDAD GENERAL": "OVERALL PROFITABILITY", "Recuperado": "Recovered", "Reintentar": "Retry", "Respaldo": "Backup", "Saliendo": "Leaving", "Saliendo ahora": "Leaving now", "Solicitando...": "Requesting...", "Tamaño": "Size", "Verificando GPS...": "Checking GPS...", "acumulados": "accumulated", "Totales acumulados": "Accumulated totals", "ahora": "now", "anteriores": "previous", "antes": "before", "aplica": "applies", "archivo": "file", "aseguranza": "insurance", "asignado": "assigned", "automático": "automatic", "cargada": "loaded", "cargado": "loaded", "completo": "complete", "completos": "complete", "conectado": "connected", "coordenadas": "coordinates", "corregidos": "corrected", "desconocido": "unknown", "disponible": "available", "documento": "document", "duplicado": "duplicate", "posiblemente duplicado": "possibly duplicate", "posiblemente duplicados": "possibly duplicate", "Posible duplicado": "Possible duplicate", "encontrado": "found", "estimado": "estimated", "guardado": "saved", "guardados": "saved", "guardadas": "saved", "inspecciones": "inspections", "marcado": "marked", "mensual": "monthly", "mismo": "same", "mismo ZIP": "same ZIP", "nube": "cloud", "opcional": "optional", "pantalla": "screen", "parcial": "partial", "periodo": "period", "personalizado": "custom", "primero": "first", "principal": "main", "proyectado": "projected", "reales": "real", "recomendado": "recommended", "registradas": "recorded", "registrado": "recorded", "registrados": "recorded", "respaldo": "backup", "respaldos": "backups", "restantes": "remaining", "mi restantes": "mi remaining", "seleccionado": "selected", "semanal": "weekly", "usando": "using", "carretera": "road", "Vel. prom": "Avg. speed", "Vel. prom: 60 mph": "Avg. speed: 60 mph", "% de pago:": "Pay %:", "Brokers y zonas": "Brokers & regions", "Zonas y rutas": "Regions & lanes", "Peajes y extras": "Tolls & extras", "Se recuperaron": "Recovered", "se recuperaron": "recovered", "ya estaban)": "were already there)", "No se pudo enviar:": "Could not send:", "Error al recuperar:": "Error recovering:", "No se pudo revisar:": "Could not check:", "Ese respaldo ya no existe.": "That backup no longer exists.", "No hay drivers registrados.": "No drivers registered.", "No hay camiones registrados.": "No trucks registered.", "No hay ubicaciones registradas.": "No locations recorded.", "Esta es tu pantalla principal": "This is your main screen", "No se pudo entrar a Google Drive.": "Could not sign in to Google Drive.", "viajes posiblemente duplicados": "trips possibly duplicated", "terminado sin diésel": "completed without diesel", "terminados sin diésel": "completed without diesel", "sin diésel": "no diesel", "con millas de odómetro raras": "with odd odometer miles", "pagos a driver pendientes": "driver payments pending", "pago a driver pendiente": "driver payment pending", "fee de dispatcher": "dispatcher fee", "fees de dispatcher": "dispatcher fees", "carga sin cobrar": "load not collected", "cargas sin cobrar": "loads not collected", "viaje en tránsito": "trip in transit", "viajes en tránsito": "trips in transit", "Inspección vencida": "Inspection overdue", "cambio de aceite": "oil change", "Primer viaje registrado": "First recorded trip", "no se pudo calcular": "could not calculate", "sin viaje anterior": "no previous trip", "sin ZIP para calcular": "no ZIP to calculate", "mi muertas": "mi deadhead", "mi cargadas": "mi loaded", "carga con pago": "load with pay", "cargas con pago": "loads with pay", "en Historial": "in History", "Revisa en Historial": "Check in History", "millas muertas": "deadhead miles", "millas cargadas": "loaded miles", "millas totales": "total miles", "Millas muertas = de donde entregó el viaje anterior a donde recoge este": "Deadhead miles = from where the previous trip delivered to where this one picks up", "pago ÷ millas": "pay ÷ miles", "Rate = pago ÷ millas.": "Rate = pay ÷ miles.", "Toca un viaje para ver el detalle, subir documentos o finalizarlo.": "Tap a trip to see details, upload documents or finish it.", "Cargas de diesel (hasta 5)": "Diesel loads (up to 5)", "PRUEBA": "TEST", "Solicitando": "Requesting", "conservan": "are kept", "debe": "must", "deben": "must", "entre": "between", "estar": "be", "guarda": "saves", "lleno": "full", "ningún": "no", "pagar": "pay", "por pagar": "to pay", "parecen": "look like", "pudo": "could", "recuperados": "recovered", "seleccionó": "selected", "solo": "only", "verificar": "verify", "Ej.": "e.g.", "Sin cargas en este periodo.": "No loads in this period.", "en este periodo": "in this period", "Solo cuenta viajes terminados con pago capturado. Rate / milla = total pagado ÷ total de millas del grupo (millas de carretera ZIP a ZIP). Grupos con 1–2 cargas se marcan como \"pocos datos\".": "Only counts completed trips with pay entered. Rate / mile = total paid ÷ total group miles (road miles ZIP to ZIP). Groups with 1–2 loads are marked as \"little data\".", "Solo cuenta": "Only counts", "Flota": "Fleet", "millas por galón": "miles per gallon", "galones de diesel de los recibos": "gallons of diesel from receipts", "galones de diésel de los recibos": "gallons of diesel from receipts", "¿Estás seguro?": "Are you sure?", "¿Seguro?": "Are you sure?", "Año": "Year", "Día": "Day", "Foto": "Photo", "CARGA": "LOAD", "Ruta:": "Route:", "Todas": "All", "Todos": "All", "Ver →": "View →", "a las": "at", "Precio": "Price", "Recibo": "Receipt", "Taller": "Shop", "/semana": "/week", "30 días": "30 days", "90 días": "90 days", "Carga #": "Load #", "Driver:": "Driver:", "EN VIVO": "LIVE", "Galones": "Gallons", "Gasto #": "Expense #", "Inicio:": "Start:", "Sin GPS": "No GPS", "cargas)": "loads)", "de — mi": "of — mi", "en ruta": "en route", "llegó a": "arrived at", "viajes.": "trips.", "Total": "Total", "(+1 día)": "(+1 day)", "0 gastos": "0 expenses", "0 viajes": "0 trips", "5 millas": "5 miles", "8 millas": "8 miles", "10 millas": "10 miles", "15 millas": "15 miles", "Camión 1": "Truck 1", "Camión 2": "Truck 2", "Camión 3": "Truck 3", "En curso": "In progress", "ID viaje": "Trip ID", "Por zona": "By region", "SOLO HOY": "TODAY ONLY", "Trámites": "Paperwork", "arrancó:": "started:", "cargas ·": "loads ·", "comisión": "commission", "completó": "completed", "en Drive": "in Drive", "en total": "in total", "viajes (": "trips (", "· Diésel": "· Diesel", "+ Agregar": "+ Add", "Deducción": "Deduction", "Monto ($)": "Amount ($)", "Sin fecha": "No date", "Sin subir": "Not uploaded", "Ver todos": "View all", "por milla": "per mile", "¡Llegó!": "Arrived!", "Contraseña": "Password", "Ej. García": "e.g. Garcia", "En Drive ✓": "In Drive ✓", "Ganancia ·": "Profit ·", "Otro gasto": "Other expense", "Por camión": "By truck", "Por cobrar": "To collect", "Por driver": "By driver", "Precio/gal": "Price/gal", "Se envía a": "Send to", "Sin broker": "No broker", "Sin cargas": "No loads", "Ver todo →": "View all →", "ZIP Origen": "Origin ZIP", "ZIP origen": "Origin ZIP", "de margen)": "margin)", "de pick up": "pick up", "inspección": "inspection", "mi · Carga": "mi · Load", "sin cobrar": "not collected", "¡Llegaste!": "You arrived!", "· Gastos $": "· Expenses $", "− Driver $": "− Driver $", "− Gastos $": "− Expenses $", "✓ Viaje de": "✓ Trip for", "Galería": "Gallery", "Cámara": "Camera", "% del total": "% of total", "% ya pagado": "% already paid", "(sáb – vie)": "(Sat – Fri)", "Buenos días": "Good morning", "Buenas tardes": "Good afternoon", "Buenas noches": "Good evening", "En Tránsito": "In Transit", "Estado Pago": "Payment Status", "Estado pago": "Payment status", "Facturación": "Billing", "Fecha viaje": "Trip date", "Galones DEF": "DEF gallons", "Pago chofer": "Driver pay", "Pago driver": "Driver pay", "Quitar foto": "Remove photo", "Saliendo el": "Leaving on", "Sin cargas.": "No loads.", "ZIP Destino": "Destination ZIP", "ZIP destino": "Destination ZIP", "de delivery": "delivery", "pago driver": "driver pay", "por carga ·": "per load ·", "por iniciar": "not started", "¡Empezar!": "Let's go!", "· ruta real": "· real route", "· sáb – vie": "· Sat – Fri", "(sin camión)": "(no truck)", "Año / Modelo": "Year / Model", "Buscar RC...": "Search RC...", "Costo diésel": "Diesel cost", "Diésel total": "Total diesel", "Fecha compra": "Purchase date", "Mejor carga:": "Best load:", "Mes completo": "Full month", "Millas viaje": "Trip miles", "Otros Gastos": "Other Expenses", "Pago Driver:": "Driver Pay:", "Todo al día.": "All caught up.", "Total Gastos": "Total Expenses", "Total diesel": "Total diesel", "Total ganado": "Total earned", "Total gastos": "Total expenses", "Total pagado": "Total paid", "foto a Drive": "photo to Drive", "mes anterior": "previous month", "ordenado por": "sorted by", "total pagado": "total paid", "· Ganancia $": "· Profit $", "Sin fallas": "No issues", "Subir logo": "Upload logo", "Mis Viajes": "My Trips", "% de margen).": "% margin).", "Driver / ruta": "Driver / route", "Estado Origen": "Origin State", "Guardar gasto": "Save expense", "Guardar viaje": "Save trip", "Iniciar viaje": "Start trip", "Los galones (": "The gallons (", "Mejor semana:": "Best week:", "Mes siguiente": "Next month", "PAGO CHOFERES": "DRIVER PAY", "POD (entrega)": "POD (delivery)", "Precio/gal: $": "Price/gal: $", "Precio/gal: —": "Price/gal: —", "Ruta / driver": "Route / driver", "SOLO ESTE AÑO": "THIS YEAR ONLY", "SOLO ESTE MES": "THIS MONTH ONLY", "Sin descansos": "No breaks", "Sin ubicación": "No location", "Subiendo foto": "Uploading photo", "TOTAL DEL MES": "MONTH TOTAL", "Tipo de carga": "Load type", "Tipo de gasto": "Expense type", "Total Galones": "Total Gallons", "Total cobrado": "Total collected", "Ver detalle →": "View details →", "Ver respaldos": "View backups", "a las 8:00 AM": "at 8:00 AM", "de dispatcher": "dispatcher", "sin ubicación": "no location", "viaje borrado": "trip deleted", "viajes aquí ·": "trips here ·", "· Pago driver": "· Driver pay", "↺ Nuevo viaje": "↺ New trip", "Más filtros": "More filters", "Ver en mapa": "View on map", "Driver aquí": "Driver here", "(dónde estaba)": "(where it was)", "Cargas en ruta": "Loads en route", "DIÉSEL / OTROS": "DIESEL / OTHER", "Diésel / otros": "Diesel / other", "Estado Destino": "Destination State", "Estado de pago": "Payment status", "Fecha estimada": "Estimated date", "Ganancia prom.": "Avg. profit", "KB de 1,024 KB": "KB of 1,024 KB", "Limpiar extras": "Clear extras", "Menú principal": "Main menu", "Millaje actual": "Current mileage", "Millas finales": "Ending miles", "Millas muertas": "Deadhead miles", "Pago a drivers": "Driver pay", "Pago al driver": "Driver pay", "Pago de camión": "Truck payment", "Promedio/viaje": "Average/trip", "Rate por milla": "Rate per mile", "Reporte Broker": "Broker Report", "Sin actividad:": "No activity:", "Total ingresos": "Total revenue", "VIAJE EN CURSO": "TRIP IN PROGRESS", "VIAJES EN RUTA": "TRIPS EN ROUTE", "Viaje en curso": "Trip in progress", "ganancia prom.": "avg. profit", "millas (aprox.": "miles (approx.", "recibo a Drive": "receipt to Drive", "Últimos 7 días": "Last 7 days", "Últimos viajes": "Recent trips", "— Sin camión —": "— No truck —", "% Driver Pay": "% Driver Pay", "+ Agregar carga": "+ Add load", "+ Agregar gasto": "+ Add expense", "Agregar nota...": "Add note...", "Agregar usuario": "Add user", "Camión asignado": "Assigned truck", "Diésel (viajes)": "Diesel (trips)", "Diésel asignado": "Assigned diesel", "Driver Report —": "Driver Report —", "Editar ganancia": "Edit profit", "Ej. Juan García": "e.g. Juan Garcia", "Finalizar viaje": "Finish trip", "GANANCIA YENAVI": "YENAVI PROFIT", "Galones totales": "Total gallons", "Ganancia YENAVI": "YENAVI profit", "Mapa por estado": "Map by state", "Millas cargadas": "Loaded miles", "Millas muertas:": "Deadhead miles:", "Nivel de aceite": "Oil level", "Odómetro actual": "Current odometer", "Pago Dispatcher": "Dispatcher Pay", "RESUMEN DEL MES": "MONTHLY SUMMARY", "Rango de fechas": "Date range", "SEMANAS DEL MES": "WEEKS OF THE MONTH", "Sin viajes aún.": "No trips yet.", "TOTAL REALIZADO": "TOTAL COMPLETED", "TOTALES DEL MES": "MONTH TOTALS", "Total extras: $": "Total extras: $", "Total invertido": "Total invested", "Usuario (login)": "Username (login)", "Viaje por viaje": "Trip by trip", "Viaje terminado": "Trip completed", "Zona de peligro": "Danger zone", "estado a estado": "state to state", "semana anterior": "previous week", "todos los tipos": "all types", "usa las flechas": "use the arrows", "vs mes anterior": "vs previous month", "Último servicio": "Last service", "— Sin asignar —": "— Unassigned —", "Agregar carga": "Add load", "Editar viaje": "Edit trip", "Agregar Gasto": "Add Expense", "Guardar carga": "Save load", "Ciudad Origen": "Origin City", "% millas muertas": "% deadhead miles", "+ Agregar ajuste": "+ Add adjustment", "+ Agregar camión": "+ Add truck", "Agregar ganancia": "Add profit", "BOL para revisar": "BOL to review", "Cargas de diesel": "Diesel loads", "Ganancia Neta($)": "Net Profit($)", "Guardar servicio": "Save service", "Iniciar el viaje": "Start the trip", "Millas del viaje": "Trip miles", "Millas iniciales": "Starting miles", "Millas totales (": "Total miles (", "Número de cargas": "Number of loads", "POD para revisar": "POD to review", "Pago Dispatcher:": "Dispatcher Pay:", "Pago de camiones": "Truck payments", "Precio/galón ($)": "Price/gallon ($)", "SOLO ESTA SEMANA": "THIS WEEK ONLY", "Sin GPS reciente": "No recent GPS", "Sin viaje activo": "No active trip", "TOTAL PROGRAMADO": "TOTAL SCHEDULED", "Tipo de servicio": "Service type", "Todas las fechas": "All dates", "Todos los viajes": "All trips", "Todos sus viajes": "All their trips", "Total de ajustes": "Total adjustments", "Tu ubicación GPS": "Your GPS location", "Tu viaje terminó": "Your trip is complete", "Viajes recientes": "Recent trips", "cargas con pago)": "loads with pay)", "cargas de diésel": "diesel loads", "número de cargas": "number of loads", "Últimos 5 viajes": "Last 5 trips", "Pendiente pago": "Payment pending", "Cancelar viaje": "Cancel trip", "Ciudad Destino": "Destination City", "Antes de subir": "Before uploading", "En tiempo real": "Real time", "Galones diesel": "Diesel gallons", "Camión (opcional)": "Truck (optional)", "Camión asignado a": "Truck assigned to", "Carpeta del viaje": "Trip folder", "Cerca del destino": "Near destination", "DETALLE DEL VIAJE": "TRIP DETAILS", "Detalle de viajes": "Trip details", "Diésel Proyectado": "Projected Diesel", "Diésel Registrado": "Recorded Diesel", "Diésel registrado": "Recorded diesel", "Facturación total": "Total billing", "Ganancia del mes:": "Month profit:", "Ganancia promedio": "Average profit", "Ganancia viajes $": "Trip profit $", "Gastos de Oficina": "Office Expenses", "Millas iniciales:": "Starting miles:", "No se borró nada.": "Nothing was deleted.", "RESUMEN OPERATIVO": "OPERATIONS SUMMARY", "Radio de búsqueda": "Search radius", "Sin viaje activo.": "No active trip.", "TOTAL EN TRÁNSITO": "TOTAL IN TRANSIT", "Toca para ampliar": "Tap to enlarge", "Todo el historial": "All history", "Todos los brokers": "All brokers", "Todos los drivers": "All drivers", "Total de millas (": "Total miles (", "ganancia promedio": "average profit", "min manejando hoy": "min driving today", "todo el historial": "all history", "todos los brokers": "all brokers", "viajes anteriores": "previous trips", "Editar usuario": "Edit user", "✓ Gasto guardado!": "✓ Expense saved!", "✓ Semana guardada": "✓ Week saved", "✓ Usuario creado!": "✓ User created!", "✓ Viaje cancelado": "✓ Trip canceled", "Driver asignado": "Assigned driver", "Guardar cambios": "Save changes", "Fecha de compra": "Purchase date", "Menú → Mi Viaje": "Menu → My Trip", "Otro gasto fijo": "Other fixed expense", "Foto del recibo": "Receipt photo", "(origen → destino)": "(origin → destination)", ". Total en la app:": ". Total in the app:", "CONCLUSIÓN DEL MES": "MONTH CONCLUSION", "Cambio de aceite (": "Oil change (", "Camión no asignado": "No truck assigned", "Cargas completadas": "Completed loads", "Cargas de diesel (": "Diesel loads (", "Centro de Reportes": "Reports Center", "Configurar empresa": "Company settings", "Costo total diesel": "Total diesel cost", "Espacio en la nube": "Cloud storage", "Estimado del viaje": "Trip estimate", "Fecha del servicio": "Service date", "Finalizar el viaje": "Finish the trip", "Ganancia de viajes": "Trip profit", "Ganancia del viaje": "Trip profit", "Ganancia neta real": "Real net profit", "Gastos registrados": "Recorded expenses", "Guardando viaje...": "Saving trip...", "Margen de ganancia": "Profit margin", "Millaje / Odómetro": "Mileage / Odometer", "Pantalla de inicio": "Home screen", "Promedio por carga": "Average per load", "Reporte Dispatcher": "Dispatcher Report", "Resumen por Broker": "Summary by Broker", "SEMÁFORO DE CARGAS": "LOAD SCORECARD", "Sin actividad aún.": "No activity yet.", "Sin recibo adjunto": "No receipt attached", "TOTAL OTROS GASTOS": "TOTAL OTHER EXPENSES", "Taller / Proveedor": "Shop / Vendor", "Todos los camiones": "All trucks", "Todos los viajes (": "All trips (", "Total comprometido": "Total committed", "VIAJES FINALIZADOS": "COMPLETED TRIPS", "Viajes del periodo": "Trips in period", "a driver pendiente": "to driver pending", "promedio por carga": "average per load", "Última ubicación ·": "Last location ·", "✓ Empresa guardada": "✓ Company saved", "✔ Viaje registrado": "✔ Trip registered", "Viaje finalizado": "Trip completed", "Load Value total": "Total Load Value", "Filtrar Business": "Filter Business", "Viaje programado": "Scheduled trip", "Invoice / Recibo": "Invoice / Receipt", "Nueva inspección": "New inspection", "% de millas muertas": "% deadhead miles", "Diésel Proyectado (": "Projected Diesel (", "Exceso de velocidad": "Speeding", "Ganancia neta total": "Total net profit", "Guardar gasto extra": "Save extra expense", "Ingresos por cargas": "Load revenue", "Montañas y Suroeste": "Mountain & Southwest", "Noreste y Atlántico": "Northeast & Atlantic", "Texas y Sur Central": "Texas & South Central", "Sureste": "Southeast", "Medio Oeste": "Midwest", "Costa Oeste": "West Coast", "Otro": "Other", "Odómetro del camión": "Truck odometer", "Ordenar brokers por": "Sort brokers by", "Posición del driver": "Driver position", "Próximo descanso en": "Next break in", "Recuperando viajes…": "Recovering trips…", "Sin filtro de fecha": "No date filter", "Todos los registros": "All records", "Zona con más cargas": "Region with most loads", "Zona que paga mejor": "Best paying region", "activos en el rango": "active in range", "mi · último cambio:": "mi · last change:", "sin galones válidos": "no valid gallons", "ya estaban). Total:": "were already there). Total:", "← Volver a Reportes": "← Back to Reports", "← Volver a la lista": "← Back to list", "Pendiente de pago": "Payment pending", "✓ Gasto actualizado": "✓ Expense updated", "✓ Viaje actualizado": "✓ Trip updated", "✓ Viaje finalizado!": "✓ Trip completed!", "✔ Confirmar y subir": "✔ Confirm and upload", "Filtrar por fecha": "Filter by date", "Salud del negocio": "Business health", "Historial semanal": "Weekly history", "Detalle por viaje": "Detail by trip", "Tabla de camiones": "Trucks table", "Viajes con gastos": "Trips with expenses", "Últimos 10 viajes": "Last 10 trips", "% de pago del driver": "Driver pay %", "Abrir en Google Maps": "Open in Google Maps", "Análisis del periodo": "Period analysis", "Detalle del gasto...": "Expense details...", "EFICIENCIA DE CARGAS": "LOAD EFFICIENCY", "Ej. Cambio de aceite": "e.g. Oil change", "Ej. Taller El Rápido": "e.g. Joe's Truck Repair", "Estado de resultados": "Income statement", "Inspección vencida (": "Inspection overdue (", "Nombre de la empresa": "Company name", "Por origen (pick up)": "By origin (pick up)", "Por tipo de servicio": "By service type", "RESUMEN DE LA SEMANA": "WEEKLY SUMMARY", "Rate millas cargadas": "Loaded mile rate", "Rutas más frecuentes": "Most frequent lanes", "Selecciona la fecha.": "Select the date.", "TOTALES DE LA SEMANA": "WEEK TOTALS", "Usuarios registrados": "Registered users", "Viaje no encontrado.": "Trip not found.", "¿Qué le falta a este": "What is missing on this", "ÚLTIMA ACTUALIZACIÓN": "LAST UPDATE", "Última actualización": "Last update", "Viajes completados": "Completed trips", "Editar gasto fijo": "Edit fixed expense", "✓ Última inspección:": "✓ Last inspection:", "✔ Guardar inspección": "✔ Save inspection", "Análisis por milla": "Per-mile analysis", "GPS en tiempo real": "Real-time GPS", "Gastos de oficina": "Office expenses", "Camión 1 (mensual)": "Truck 1 (monthly)", "Camión 2 (mensual)": "Truck 2 (monthly)", "ANÁLISIS DE LA SEMANA": "WEEKLY ANALYSIS", "Agregar nuevo usuario": "Add new user", "Broker que paga mejor": "Best paying broker", "Buena carga (repetir)": "Good load (repeat)", "Aceptable (mejorar)": "Acceptable (improve)", "Baja rentabilidad (no ideal)": "Low profitability (not ideal)", "Cinturón de seguridad": "Seat belt", "Descripción del gasto": "Expense description", "Diésel proyectado ($)": "Projected diesel ($)", "Enviar todo a la hoja": "Send everything to the sheet", "Facturación realizada": "Completed billing", "Información del viaje": "Trip information", "Mis viajes anteriores": "My previous trips", "Nivel de refrigerante": "Coolant level", "Precio diésel ($/gal)": "Diesel price ($/gal)", "Ruta origen → destino": "Route origin → destination", "Selecciona el driver.": "Select the driver.", "Selecciona un camión.": "Select a truck.", "Selecciona un driver.": "Select a driver.", "Selecciona una fecha.": "Select a date.", "Sin GPS — usando hora": "No GPS — using time", "Todos los dispatchers": "All dispatchers", "Ver análisis completo": "View full analysis", "enviado a En Tránsito": "sent to In Transit", "¡Listo para comenzar!": "Ready to start!", "¿Eliminar este gasto?": "Delete this expense?", "¿Eliminar este viaje?": "Delete this trip?", "☁️ Recibo adjuntado ✓": "☁️ Receipt attached ✓", "Editar información": "Edit information", "✓ Usuario actualizado": "✓ User updated", "Agregar gasto extra": "Add extra expense", "Datos de la Empresa": "Company Information", "Balance de ganancia": "Profit balance", "Resumen del periodo": "Period summary", "Ruta recorrida hoy": "Route driven today", "Agregar gastos en ruta": "Add expenses on the road", "COMPARATIVO POR CHOFER": "DRIVER COMPARISON", "COMPARATIVO POR CHOFER ·": "DRIVER COMPARISON ·", "Ej. LA TI SERVICES LLC": "e.g. LA TI SERVICES LLC", "El precio por galón ($": "The price per gallon ($", "Ese usuario ya existe.": "That username already exists.", "Foto de carga (loaded)": "Loaded photo", "Gastos fijos mensuales": "Monthly fixed expenses", "Ingresa una categoría.": "Enter a category.", "Liquidación del driver": "Driver settlement", "Millas muertas (total)": "Deadhead miles (total)", "Millas por galón (MPG)": "Miles per gallon (MPG)", "Panel de administrador": "Admin panel", "Pendiente o por cobrar": "Pending or to collect", "Por destino (delivery)": "By destination (delivery)", "Resumen de facturación": "Billing summary", "Resumen por Dispatcher": "Summary by Dispatcher", "Sin viajes anteriores.": "No previous trips.", "Sin viajes completados": "No completed trips", "Subir documento del RC": "Upload RC document", "Subir foto del invoice": "Upload invoice photo", "TU PAGO POR ESTE VIAJE": "YOUR PAY FOR THIS TRIP", "Vuelve a subir la foto": "Upload the photo again", "días, se mueven solos)": "days, moved automatically)", "tiempo en este estatus": "time in this status", "¿Eliminar este ajuste?": "Delete this adjustment?", "Gasolineras cercanas": "Nearby fuel stations", "% Fee del Dispatcher": "Dispatcher Fee %", "Actualizar ubicación": "Update location", "Actividad de drivers": "Driver activity", "Pago de Dispatcher": "Dispatcher Pay", "Registrar otro gasto": "Record other expense", "). Revisa en Historial.": "). Check History.", "+ Registrar nuevo viaje": "+ Register new trip", "CONCLUSIÓN DE LA SEMANA": "WEEK CONCLUSION", "Describe el problema...": "Describe the problem...", "Detalle del servicio...": "Service details...", "Detectando ubicación...": "Detecting location...", "Ej. García Trucking LLC": "e.g. Garcia Trucking LLC", "Enviar correo de prueba": "Send test email", "Estimado de combustible": "Fuel estimate", "Ganancia neta del viaje": "Trip net profit", "Gastos extras de viajes": "Trip extra expenses", "Ingresa un rate válido.": "Enter a valid rate.", "Millas cargadas (total)": "Loaded miles (total)", "Millas y millas muertas": "Miles & deadhead", "Obteniendo ubicación...": "Getting location...", "Origen (Ciudad, Estado)": "Origin (City, State)", "Rate real (con muertas)": "Real rate (with deadhead)", "Sin cargas en este mes.": "No loads this month.", "Sin gastos registrados.": "No expenses recorded.", "Triángulos de seguridad": "Safety triangles", "Utilización de camiones": "Truck utilization", "gasolineras encontradas": "fuel stations found", "¿Eliminar este usuario?": "Delete this user?", "Pendiente de ganancia": "Profit pending", "Precio diesel ($/gal)": "Diesel price ($/gal)", "Facturación Terminada": "Completed Billing", "Resumen por categoría": "Summary by category", "Antes de subir el BOL": "Before uploading the BOL", "Antes de subir el POD": "Before uploading the POD", "Deducción (se descuenta)": "Deduction (subtracted)", "Destino (Ciudad, Estado)": "Destination (City, State)", "Fecha de delivery (cita)": "Delivery date (appointment)", "Ganancia neta proyectada": "Projected net profit", "Ingresa un costo válido.": "Enter a valid cost.", "Ingresa un monto válido.": "Enter a valid amount.", "Ingresa una descripción.": "Enter a description.", "No hay un viaje abierto.": "There is no open trip.", "No se encontró el viaje.": "Trip not found.", "Precio promedio del área": "Average price in the area", "Reembolso de combustible": "Fuel reimbursement", "Registra tus viajes aquí": "Log your trips here", "Registrar un nuevo viaje": "Register a new trip", "Sin dirección registrada": "No address on file", "facturación + programado": "billing + scheduled", "¿Eliminar este registro?": "Delete this record?", "— Selecciona el camión —": "— Select the truck —", "— Selecciona un camión —": "— Select a truck —", "— Selecciona un driver —": "— Select a driver —", "Paso 2 — Iniciar viaje": "Step 2 — Start trip", "% de pago (Load Value)": "Pay % (Load Value)", "Viaje(s) programado(s)": "Scheduled trip(s)", "Facturación por driver": "Billing by driver", "+ Agregar carga de diesel": "+ Add diesel load", "Brokers que mejor pagaron": "Best paying brokers", "Brokers: quién paga mejor": "Brokers: who pays best", "Déjalo vacío si no aplica": "Leave empty if not applicable", "Enviar reporte por correo": "Email report", "GANANCIA REAL DEL PERIODO": "REAL PROFIT FOR THE PERIOD", "Gasolineras encontradas (": "Fuel stations found (", "Ingresa origen y destino.": "Enter origin and destination.", "KB de 1,024 KB en la nube": "KB of 1,024 KB in the cloud", "Luces traseras y de freno": "Tail and brake lights", "Luces delanteras y direccionales": "Headlights and turn signals", "Llantas y rines": "Tires and rims", "Espejos": "Mirrors", "Fugas visibles (aceite / refrigerante)": "Visible leaks (oil / coolant)", "Frenos": "Brakes", "Claxon": "Horn", "Limpiaparabrisas": "Windshield wipers", "Correas y mangueras": "Belts and hoses", "Extintor": "Fire extinguisher", "Registro y seguro vigentes": "Registration and insurance current", "Cabina y manejo": "Cab and driving", "Motor": "Engine", "Seguridad": "Safety", "Documentos": "Documents", "Bien": "OK", "Falla": "Fail", "Mantenimiento de camiones": "Truck maintenance", "No hay viajes en tránsito": "No trips in transit", "No hay viajes programados": "No scheduled trips", "Por pagarle a los drivers": "Owed to drivers", "Porcentaje del load value": "Percentage of load value", "Registro en Google Sheets": "Google Sheets log", "Sin conexión con la nube.": "No cloud connection.", "Sin datos en este periodo": "No data in this period", "Sin viajes en este rango.": "No trips in this range.", "Total gastos fijos/semana": "Total fixed expenses/week", "Usuarios sincronizados ☁️": "Users synced ☁️", "ordenado por rate / milla": "sorted by rate / mile", "viajes. No se borró nada.": "trips. Nothing was deleted.", "Calculando ruta real...": "Calculating real route...", "Nombre de la gasolinera": "Fuel station name", "Driver current location": "Driver current location", "Generar reporte visual": "Generate visual report", "Facturación En Tránsito": "In-Transit Billing", "Números de autorización": "Authority numbers", "+ Guardar viaje programado": "+ Save scheduled trip", "Basado en su ubicación GPS": "Based on their GPS location", "Borrar todos los registros": "Delete all records", "Ganancia neta de la semana": "Week net profit", "No hay gastos registrados.": "No expenses recorded.", "No hay viaje seleccionado.": "No trip selected.", "Promedio de rate por carga": "Average rate per load", "Reporte de viaje terminado": "Completed trip report", "Resumen financiero general": "General financial summary", "Sin datos en este periodo.": "No data in this period.", "Sin viajes en esta semana.": "No trips this week.", "— cambio de aceite vencido": "— oil change overdue", "Ganancias de esta semana": "This week's earnings", "Ajustes a la liquidación": "Settlement adjustments", "Agregar viaje programado": "Add scheduled trip", "Historial de pagos fijos": "Fixed payments history", "Obtener ubicación actual": "Get current location", "Paso 1 — Registrar viaje": "Step 1 — Register trip", "Aviso: los viajes ya ocupan": "Warning: trips already use", "Capturando ubicación GPS...": "Capturing GPS location...", "Distribución de facturación": "Billing distribution", "Error al guardar en la nube": "Error saving to the cloud", "Foto de descarga (unloaded)": "Unloaded photo", "Fotos guardadas en Firebase": "Photos stored in Firebase", "Gastos / Diésel Registrados": "Recorded Expenses / Diesel", "Gastos / diésel registrados": "Recorded expenses / diesel", "Historial completo de rutas": "Full route history", "Ingresa el monto del gasto.": "Enter the expense amount.", "Ingresa las millas finales.": "Enter the ending miles.", "Ingresa un monto mayor a 0.": "Enter an amount greater than 0.", "Millas estimadas (opcional)": "Estimated miles (optional)", "Millas finales del odómetro": "Ending odometer miles", "Millas por galón del camión": "Truck miles per gallon", "No se pudo subir el recibo.": "Could not upload the receipt.", "No se pudo subir el recibo:": "Could not upload the receipt:", "Reenviar reporte por correo": "Resend email report", "Se agregará al viaje activo": "Will be added to the active trip", "Sin cargas registradas aún.": "No loads recorded yet.", "Sin configuración de camión": "No truck settings", "Sin datos para este filtro.": "No data for this filter.", "Sin gastos registrados aún.": "No expenses recorded yet.", "load value ÷ millas totales": "load value ÷ total miles", "load value ÷ cargadas": "load value ÷ loaded", "cargadas + muertas": "loaded + deadhead", "tiene dos viajes terminados": "has two completed trips", "No se pudo subir a Drive": "Could not upload to Drive", "Configuración del camión": "Truck settings", "Gastos extras registrados": "Recorded extra expenses", "Historial de otros gastos": "Other expenses history", "Cualquier fecha de la semana": "Any date in the week", "Documentos y fotos del viaje": "Trip documents and photos", "Error sincronizando usuarios": "Error syncing users", "Ingresa el tipo de servicio.": "Enter the service type.", "No hay gastos para exportar.": "No expenses to export.", "No hay usuarios registrados.": "No registered users.", "No hay viajes para exportar.": "No trips to export.", "Promedio de millas por carga": "Average miles per load", "Sin viajes para este filtro.": "No trips for this filter.", "Todos los viajes del periodo": "All trips in the period", "para cubrir los gastos fijos": "to cover fixed expenses", "Odómetro final → Finalizar": "Final odometer → Finish", "Operación estable y al día": "Operations stable and up to date", "✓ Viaje programado guardado!": "✓ Scheduled trip saved!", "¿Ya te pagaron este viaje?": "Have you been paid for this trip?", "Historial de mantenimiento": "Maintenance history", "Foto del recibo (opcional)": "Receipt photo (optional)", "/gal reportado por tu flota (": "/gal reported by your fleet (", "Basado en tiempo transcurrido": "Based on elapsed time", "Botiquín de primeros auxilios": "First aid kit", "Datos guardados en la nube ☁️": "Data saved to the cloud ☁️", "GANANCIA PROYECTADA DEL VIAJE": "PROJECTED TRIP PROFIT", "Gastos extras (peajes, otros)": "Extra expenses (tolls, other)", "Ingresa las millas iniciales.": "Enter the starting miles.", "Listo para registrar tu viaje": "Ready to log your trip", "Millas iniciales del odómetro": "Starting odometer miles", "No hay datos registrados aún.": "No data recorded yet.", "No hay semanas guardadas aún.": "No saved weeks yet.", "Selecciona la fecha estimada.": "Select the estimated date.", "Ver el resumen de esta semana": "View this week's summary", "de viajes borrados eliminadas": "from deleted trips removed", "¡Bienvenido a Truck Trip Log!": "Welcome to Truck Trip Log!", "No se pudo subir el recibo": "Could not upload the receipt", "Subiendo recibo a Drive...": "Uploading receipt to Drive...", "Inspección semanal vencida": "Weekly inspection overdue", "Broker (quién dio la carga)": "Broker (who gave the load)", "Registro de pagos por viaje": "Payment record by trip", "Ubicación actual del driver": "Driver's current location", "El precio por galón del DEF ($": "The DEF price per gallon ($", "Facturación Total Comprometida": "Total Committed Billing", "Facturación total comprometida": "Total committed billing", "Ganancia por cada $1 facturado": "Profit per $1 billed", "No hay gastos registrados aún.": "No expenses recorded yet.", "No hay viajes en este período.": "No trips in this period.", "No hay viajes registrados aún.": "No trips recorded yet.", "Sin datos del periodo anterior": "No data for the previous period", "viajes que esta lista no traía": "trips this list was missing", "· toca uno para ver su detalle": "· tap one to see its details", "← Toca aquí para abrir el menú": "← Tap here to open the menu", "Ingresos vs Gastos mensuales": "Monthly Revenue vs Expenses", ": sin diésel capturado todavía.": ": no diesel recorded yet.", "Diésel proyectado (programados)": "Projected diesel (scheduled)", "El nombre no puede estar vacío.": "The name cannot be empty.", "Gasto registrado por el chofer:": "Expense recorded by the driver:", "Más rápido en pagar (% cobrado)": "Fastest to pay (% collected)", "No hay registros para exportar.": "No records to export.", "No hay viajes para este filtro.": "No trips for this filter.", "No se contó un viaje en ruta de": "An en-route trip was not counted for", "No se encontró el viaje activo.": "Active trip not found.", "sin pago o sin millas no cuenta": "without pay or miles not counted", "sin pago o sin millas no cuentan": "without pay or miles not counted", "¿Eliminar esta carga de diesel?": "Delete this diesel load?", "✓ Viaje guardado correctamente!": "✓ Trip saved successfully!", "Guardar cuadre de esta semana": "Save this week's balance", "Buscando gasolineras cercanas...": "Searching nearby fuel stations...", "Comida, hotel, oficina, trámites": "Food, hotel, office, paperwork", "Ej. Lavado, reparación, peaje...": "e.g. Wash, repair, toll...", "Ganancia actual (sin programado)": "Current profit (excl. scheduled)", "No hay gastos fijos registrados.": "No fixed expenses recorded.", "Resumen financiero de la empresa": "Company financial summary", "Sin resultados para tu búsqueda.": "No results for your search.", "TOTAL INVERTIDO EN MANTENIMIENTO": "TOTAL INVESTED IN MAINTENANCE", "¿Eliminar este viaje programado?": "Delete this scheduled trip?", "Tu última inspección fue hace": "Your last inspection was", "Editar gasto de mantenimiento": "Edit maintenance expense", "✔ Foto de carga subida — cambiar": "✔ Loaded photo uploaded — change", "Siempre guarda foto del recibo": "Always save a photo of the receipt", "Registro de cambios de aceite": "Oil change log", "Balance General de la Compañía": "Company Balance Sheet", "Elige qué reporte quieres generar": "Choose the report you want", "Inspección semanal vencida — hace": "Weekly inspection overdue —", "No hay gastos extras registrados.": "No extra expenses recorded.", "No se pudo subir la foto a Drive:": "Could not upload the photo to Drive:", "Selecciona la fecha del servicio.": "Select the service date.", "Sin inspecciones registradas aún.": "No inspections recorded yet.", "Usuario o contraseña incorrectos.": "Incorrect username or password.", "¿Eliminar este registro de gasto?": "Delete this expense record?", "— borra el que sobra en Historial": "— delete the extra one in History", "— revisa millas iniciales/finales": "— check starting/ending miles", "✓ Viaje finalizado correctamente!": "✓ Trip completed successfully!", "). ¿Seguro que es una carga nueva?": "). Are you sure it's a new load?", "Calculando millas por carretera...": "Calculating road miles...", "No se pudieron leer los respaldos.": "Could not read the backups.", "Pagos de camiones (financiamiento)": "Truck payments (financing)", "Reembolso de combustible (se suma)": "Fuel reimbursement (added)", "(y la carpeta de spam) en 1 minuto.": "(and the spam folder) in 1 minute.", ") no parece real. Revisa el recibo.": ") doesn't look right. Check the receipt.", "El usuario no puede tener espacios.": "The username cannot contain spaces.", "Ingresa el Load Value para calcular": "Enter the Load Value to calculate", "Millaje del último cambio de aceite": "Mileage at last oil change", "Pago pendiente del broker / cliente": "Payment pending from broker / customer", "Respaldos automáticos (uno por día)": "Automatic backups (one per day)", "Selecciona un driver para el viaje.": "Select a driver for the trip.", "Sin datos de ruta para hoy todavía.": "No route data for today yet.", "toca una semana para ver su detalle": "tap a week to see its details", "viajes viejos en el archivo (más de": "old trips in the archive (older than", "Aparece aquí al ingresar los ZIPs": "Appears here after entering the ZIPs", "✔ Foto de descarga subida — cambiar": "✔ Unloaded photo uploaded — change", "Ubicaciones registradas por viaje": "Locations recorded by trip", "Inspecciones semanales de drivers": "Driver weekly inspections", "Agrega al menos una carga de diesel.": "Add at least one diesel load.", "Ej. 3.99 (déjalo vacío si no aplica)": "e.g. 3.99 (leave empty if not applicable)", "días — ya está vencida (cada 7 días)": "days ago — it's overdue (every 7 days)", "Resumen de gastos de mantenimiento": "Maintenance expense summary", "ZIP Origen → ZIP Destino → ¡Listo!": "Origin ZIP → Destination ZIP → Done!", "Adjuntar recibo/factura (opcional)": "Attach receipt/invoice (optional)", "COMPARACIÓN MENSUAL · ÚLTIMOS 6 MESES": "MONTHLY COMPARISON · LAST 6 MONTHS", "Control de viajes, diesel y ganancias": "Trips, diesel and profit control", "Ej. Pago mensual Camión 1 - Banco XYZ": "e.g. Monthly payment Truck 1 - XYZ Bank", "Ingresa ambos ZIP codes de 5 dígitos.": "Enter both 5-digit ZIP codes.", "Ingresa el ZIP de origen (5 dígitos).": "Enter the origin ZIP (5 digits).", "No se encontró uno o ambos ZIP codes.": "One or both ZIP codes were not found.", "No se pudo crear la carpeta en Drive:": "Could not create the folder in Drive:", "Semanas del mes y comparación mensual": "Weeks of the month and monthly comparison", "✓ Inspección guardada — todo en orden": "✓ Inspection saved — all good", "Ubicación en tiempo real de drivers": "Real-time driver location", "Registrar servicio de mantenimiento": "Record maintenance service", "(pendiente: sin espacio en el celular)": "(pending: no space on the phone)", "Brokers, zonas y millas de tus drivers": "Brokers, regions and miles of your drivers", "Correo del camión (reportes al chofer)": "Truck email (reports to the driver)", "Facturación total (viajes completados)": "Total billing (completed trips)", "Ingresa el ZIP de destino (5 dígitos).": "Enter the destination ZIP (5 digits).", "No hay viajes con ganancia configurada": "No trips with profit set", "No se pudo subir el RC a Google Drive:": "Could not upload the RC to Google Drive:", "Presiona cuando estés listo para salir": "Press when you're ready to leave", "Sin cambios de aceite registrados aún.": "No oil changes recorded yet.", "— su ganancia sale más alta de lo real": "— their profit shows higher than it really is", "Configuración del camión (opcional)": "Truck settings (optional)", "Estado de resultados (ganancia real)": "Income statement (real profit)", "Cargas, millas, combustible y ganancias": "Loads, miles, fuel and profit", "Falta configurar el servicio de correo.": "The email service is not set up.", "Ingresa tus credenciales para continuar": "Enter your credentials to continue", "No se pudo crear la carpeta de recibos:": "Could not create the receipts folder:", "Sin viajes completados en este periodo.": "No completed trips in this period.", "Sin viajes programados en este periodo.": "No scheduled trips in this period.", "Truck Trip Log · Control de operaciones": "Truck Trip Log · Operations control", "no se pudieron subir (intenta de nuevo)": "could not be uploaded (try again)", "Dirección exacta de Pickup (opcional)": "Exact pickup address (optional)", "Ingresa las millas finales del odómetro.": "Enter the ending odometer miles.", "No se pudo subir la foto a Google Drive:": "Could not upload the photo to Google Drive:", "Sin cargas de este broker en el periodo.": "No loads from this broker in the period.", "Sin viajes completados en este periodo ·": "No completed trips in this period ·", "Tu navegador no soporta geolocalización.": "Your browser doesn't support geolocation.", "Ya tienes un viaje con esta misma ruta (": "You already have a trip with this same route (", "subió el BOL — revisa y dale Ready to Go": "uploaded the BOL — review it and mark Ready to Go", "subió el POD — revisa y dale Ready to Go": "uploaded the POD — review it and mark Ready to Go", "El cronómetro corre mientras conduces": "The timer runs while you drive", "Gross y ganancia por mes, últimos 6 meses": "Gross and profit by month, last 6 months", "No se pudo calcular (falta ZIP/ubicación)": "Could not calculate (missing ZIP/location)", "Reporte por correo al terminar cada viaje": "Email report when each trip is completed", "Revisa que fecha y monto estén completos.": "Make sure date and amount are filled in.", "Dirección exacta de Delivery (opcional)": "Exact delivery address (optional)", "Buscar por nombre de driver o camión...": "Search by driver or truck name...", "Fee cobrado y ganancia por cada dispatcher": "Fee charged and profit by dispatcher", "Gasto total (choferes + factoring + diésel": "Total expenses (drivers + factoring + diesel", "Ingresa las millas iniciales del odómetro.": "Enter the starting odometer miles.", "Ningún driver ha enviado su ubicación aún.": "No driver has sent their location yet.", "No hay viajes completados en este periodo.": "No completed trips in this period.", "No se pudo subir el recibo a Google Drive:": "Could not upload the receipt to Google Drive:", "Sin gastos para los filtros seleccionados.": "No expenses for the selected filters.", "Ej. Almuerzo en ruta, Trámite de permiso...": "e.g. Lunch on the road, permit paperwork...", "No se pudo crear la carpeta madre en Drive:": "Could not create the main folder in Drive:", "Pega primero la URL del servicio de correo.": "Paste the email service URL first.", "Sin ajustes en este periodo de liquidación.": "No adjustments in this settlement period.", ": odómetro raro, se usaron millas ZIP a ZIP.": ": odd odometer, ZIP-to-ZIP miles used.", "Enviado automáticamente por Truck Trip Log ·": "Sent automatically by Truck Trip Log ·", "Sin señal GPS reciente — estimado por tiempo": "No recent GPS signal — estimated by time", ". Pon los galones exactos que dice el recibo.": ". Enter the exact gallons on the receipt.", "No hay viajes para los filtros seleccionados.": "No trips for the selected filters.", "? (ej. falta firma, falta fecha, falta nombre)": "? (e.g. missing signature, date or name)", "Este viaje no requiere descansos obligatorios.": "This trip doesn't require mandatory breaks.", "Firebase acepta máximo 1,024 KB por documento.": "Firebase allows a maximum of 1,024 KB per document.", "Nueva contraseña (dejar vacío para no cambiar)": "New password (leave empty to keep)", "Aún no tienes ninguna inspección registrada": "You don't have any inspection recorded yet", "La contraseña debe tener al menos 4 caracteres.": "The password must have at least 4 characters.", "Marca el estado de cada punto antes de guardar.": "Mark the status of each item before saving.", "No hay gastos de mantenimiento registrados aún.": "No maintenance expenses recorded yet.", "Sin coordenadas GPS. Presiona \"Actualizar GPS\".": "No GPS coordinates. Press \"Update GPS\".", "Todo al día. No hay cobros ni pagos pendientes.": "All caught up. No pending collections or payments.", "URL del servicio de correo (Google Apps Script)": "Email service URL (Google Apps Script)", "). ¿Seguro que es una carga nueva y no la misma?": "). Are you sure it's a new load and not the same one?", "Completa nombre, apellido, usuario y contraseña.": "Fill in first name, last name, username and password.", "El mes todavía no termina: la comparación contra": "The month isn't over yet: the comparison against", "Enviar un correo cada vez que se termina un viaje": "Send an email every time a trip is completed", "No hay ubicaciones registradas en los viajes aún.": "No locations recorded on trips yet.", "No se pudo guardar el respaldo, no se borró nada.": "Could not save the backup, nothing was deleted.", "Sin gastos de empresa registrados en este periodo": "No company expenses recorded in this period", "registros a la hoja… puedes seguir usando la app.": "records to the sheet… you can keep using the app.", "Aún no tienes ninguna inspección semanal registrada": "You don't have any weekly inspection recorded yet", "No se encontraron coordenadas para los ZIP codes.": "No coordinates found for the ZIP codes.", "No se pudo calcular (sin conexión o ZIP inválido).": "Could not calculate (no connection or invalid ZIP).", "Contacta al administrador si olvidaste tu contraseña.": "Contact the administrator if you forgot your password.", "Cuántas cargas y cuánto Load Value te dio cada broker": "How many loads and how much Load Value each broker gave you", "Ingresa los galones y el precio por galón del recibo.": "Enter the gallons and price per gallon from the receipt.", "Las millas finales deben ser mayores a las iniciales.": "Ending miles must be greater than starting miles.", "Tu ubicación GPS se enviará automáticamente al admin.": "Your GPS location will be sent to the admin automatically.", "Ya existe un viaje de este chofer con la misma ruta (": "This driver already has a trip with the same route (", "¿Cancelar el viaje activo? Se eliminará del registro.": "Cancel the active trip? It will be removed from the records.", "✓ Inspección guardada — se reportaron fallas al admin": "✓ Inspection saved — issues reported to the admin", "Registrar pago de camión / seguro / otro gasto fijo": "Record truck payment / insurance / other fixed expense", "Las millas finales deben ser mayores que las iniciales.": "Ending miles must be greater than starting miles.", "Ocurrió un error al iniciar el viaje. Intenta de nuevo.": "An error occurred starting the trip. Try again.", "Registra un nuevo viaje para comenzar a agregar gastos.": "Register a new trip to start adding expenses.", ": diésel sin galones reales (no cuenta para precio/gal).": ": diesel without real gallons (not counted for price/gal).", "Las millas finales deben ser mayores que las iniciales (": "Ending miles must be greater than starting miles (", "Otros gastos (comida, hotel, tollways, oficina, trámites)": "Other expenses (food, hotel, tolls, office, paperwork)", ") porque es igual a uno ya terminado. Bórralo en Historial.": ") because it matches one already completed. Delete it in History.", "Revisa que camión, fecha, servicio y costo estén completos.": "Make sure truck, date, service and cost are filled in.", "Se suman y se dividen entre 4 para obtener el costo semanal": "They are added and divided by 4 to get the weekly cost", "❌ Archivo no válido. Usa un backup exportado desde esta app.": "❌ Invalid file. Use a backup exported from this app.", "Falta configurar el servicio de correo en Configurar empresa.": "Set up the email service in Company settings.", "Ingresa un ZIP o usa tu GPS para buscar gasolineras cercanas.": "Enter a ZIP or use your GPS to find nearby fuel stations.", "No se pudo conectar. Verifica tu internet e intenta de nuevo.": "Could not connect. Check your internet and try again.", "Los viajes que inicies aparecerán aquí hasta que se finalicen.": "Trips you start will appear here until they are completed.", "No se encontró el viaje. Recarga la página e intenta de nuevo.": "Trip not found. Reload the page and try again.", "Al finalizar se calcularán las millas recorridas y el MPG real.": "When you finish, miles driven and real MPG will be calculated.", "❌ Error al leer el archivo. Asegúrate que sea un backup válido.": "❌ Error reading the file. Make sure it's a valid backup.", "Pago bruto por cargas, anticipos, reembolsos y pago neto, con PDF": "Gross pay by load, advances, reimbursements and net pay, with PDF", "Tu ubicación se guardará automáticamente al registrar cada viaje.": "Your location will be saved automatically with each trip.", "Activa el GPS para que el admin pueda ver tu ubicación en cada viaje.": "Turn on GPS so the admin can see your location on each trip.", "No se encontró el viaje activo. Recarga la página e intenta de nuevo.": "Active trip not found. Reload the page and try again.", "Confirma que la foto muestra claramente lo siguiente antes de subirla:": "Confirm the photo clearly shows the following before uploading:", "No se encontraron gasolineras en este radio. Intenta con un radio mayor.": "No fuel stations found in this radius. Try a larger radius.", "El GPS está bloqueado. Ve a Ajustes del navegador y permite la ubicación.": "GPS is blocked. Go to your browser settings and allow location.", "Permite el acceso a tu ubicación para que el admin pueda verte en el mapa.": "Allow location access so the admin can see you on the map.", "¿Eliminar este camión? También se eliminará su historial de mantenimiento.": "Delete this truck? Its maintenance history will also be deleted.", "Ej. Anticipo en efectivo · Love's Amarillo, tarjeta de combustible rechazada": "e.g. Cash advance · Love's Amarillo, fuel card declined", "El mapa se actualiza automáticamente cuando los drivers envían su ubicación.": "The map updates automatically when drivers send their location.", "Permiso denegado. Ve a Ajustes → Privacidad → Ubicación y permite el acceso.": "Permission denied. Go to Settings → Privacy → Location and allow access.", "Todavía no hay respaldos. Se crea uno cada día que entras como administrador.": "No backups yet. One is created each day you log in as administrator.", "Hay viajes en ruta: la ganancia del mes es provisional hasta que se finalicen.": "There are trips en route: the month's profit is provisional until they are completed.", "Firebase no disponible. Los drivers deben estar en línea para ver su ubicación.": "Firebase not available. Drivers must be online to see their location.", "Tu navegador no soporta geolocalización. Los viajes se guardarán sin ubicación.": "Your browser doesn't support geolocation. Trips will be saved without location.", "Google Identity Services no ha cargado todavía. Intenta de nuevo en unos segundos.": "Google Identity Services hasn't loaded yet. Try again in a few seconds.", "Marca los 3 puntos antes de continuar. Si falta alguno en la foto, tómala de nuevo.": "Check all 3 items before continuing. If any is missing in the photo, take it again.", "No se pudo obtener la ubicación. Verifica que el GPS esté activado en tu dispositivo.": "Could not get the location. Make sure GPS is turned on on your device.", "Selecciona driver y rango de fechas · semana de sábado a viernes, por fecha de delivery": "Select driver and date range · Saturday to Friday week, by delivery date", "Usa estas opciones para hacer respaldo de tus datos o para pasarlos a otro dispositivo.": "Use these options to back up your data or move it to another device.", "Los viajes en ruta son provisionales: la ganancia cambia al capturar diésel y finalizar.": "Trips en route are provisional: profit changes once diesel is recorded and the trip is completed.", "El GPS está bloqueado. Ve a Ajustes del navegador y permite la ubicación para esta página.": "GPS is blocked. Go to your browser settings and allow location for this page.", "Cada viaje, carga de diésel y gasto se copia solo a tu hoja de Google, con su foto en Drive.": "Every trip, diesel load and expense is copied automatically to your Google sheet, with its photo in Drive.", "Si algún dato no está bien, avisa a la oficina. · Enviado automáticamente por Truck Trip Log": "If anything is wrong, let the office know. · Sent automatically by Truck Trip Log", "Usando última ubicación guardada. Presiona \"Actualizar GPS\" para obtener tu posición actual.": "Using last saved location. Press \"Update GPS\" to get your current position.", "No se pudo obtener el GPS. Activa la ubicación en tu dispositivo y presiona \"Actualizar GPS\".": "Could not get GPS. Turn on location on your device and press \"Update GPS\".", "No se completó el inicio de sesión con Google (tiempo agotado). Intenta subir la foto de nuevo.": "Google sign-in was not completed (timed out). Try uploading the photo again.", "Se van a agregar los viajes de este respaldo que falten. No se borra ningún viaje actual. ¿Continuar?": "The missing trips from this backup will be added. No current trip is deleted. Continue?", "El ETA ya usa ruta real por carretera con solo los ZIP. Si llenas la dirección exacta, la precisión es aún mayor.": "The ETA already uses the real road route with just the ZIPs. Filling in the exact address makes it even more accurate.", "En el inicio ves un resumen de tus viajes y millas recorridas. También aparecen tus últimos viajes agrupados por fecha.": "The home screen shows a summary of your trips and miles driven, plus your recent trips grouped by date.", "Ya sabes cómo usar la app. Recuerda: registra cada viaje, agrega tus gastos en ruta y finaliza el viaje al llegar. ¡Buen camino!": "You know how to use the app. Remember: log every trip, add your expenses on the road and finish the trip when you arrive. Drive safe!", "Después de guardar el viaje, presiona \"Iniciar viaje\" para comenzar el cronómetro. Esto registra tus horas trabajadas automáticamente.": "After saving the trip, press \"Start trip\" to start the timer. This records your working hours automatically.", "Esto borra TODOS los viajes de la nube y de todos los celulares. Antes se guarda un respaldo automático. Para confirmar escribe: BORRAR": "This deletes ALL trips from the cloud and every phone. An automatic backup is saved first. To confirm type: BORRAR", "En la sección \"Mi Viaje\" del menú puedes ver tu viaje activo en tiempo real, los gastos registrados y tu historial de viajes anteriores.": "In the \"My Trip\" section of the menu you can see your active trip in real time, recorded expenses and your trip history.", "Toca el botón de tres líneas (☰) en la esquina superior izquierda para abrir el menú. Desde ahí puedes navegar entre todas las secciones.": "Tap the three-line button (☰) in the top left corner to open the menu. From there you can move between all sections.", "Este es tu panel de control. Aquí podrás registrar tus viajes, cargas de diesel y ver tu historial. Te mostramos cómo funciona en unos pocos pasos.": "This is your dashboard. Here you can log your trips and diesel loads and see your history. We'll show you how it works in a few steps.", "Se van a copiar a la hoja de Google todos los viajes, cargas de diésel, gastos y mantenimientos que hay hoy en la app. Hazlo solo una vez. ¿Continuar?": "All trips, diesel loads, expenses and maintenance in the app will be copied to the Google sheet. Do this only once. Continue?", "Al llegar a tu destino ingresa las millas finales del odómetro y presiona \"Finalizar viaje\". Esto cierra el registro y envía los datos al administrador.": "When you reach your destination, enter the ending odometer miles and press \"Finish trip\". This closes the record and sends the data to the administrator.", "Mientras el viaje está activo puedes agregar gastos tocando \"+ Agregar carga\". Selecciona el tipo: Diesel ⛽, DEF 🧪 u Otro gasto 🧾. Puedes tomar foto del recibo.": "While the trip is active you can add expenses by tapping \"+ Add load\". Choose the type: Diesel ⛽, DEF 🧪 or Other expense 🧾. You can take a photo of the receipt.", "Al ingresar los ZIPs verás automáticamente cuántos galones necesitas, el costo estimado del diesel, el tiempo de conducción y los descansos obligatorios cada 600 millas.": "When you enter the ZIPs you'll automatically see how many gallons you need, the estimated diesel cost, driving time and mandatory breaks every 600 miles.", "Se van a subir a Google Drive las fotos que están guardadas en Firebase y luego se borran de Firebase. Te pedirá entrar con la cuenta de Google de la empresa. ¿Continuar?": "Photos stored in Firebase will be uploaded to Google Drive and then removed from Firebase. You'll be asked to sign in with the company Google account. Continue?", "Ve al menú y toca \"Nuevo viaje\". Ingresa el ZIP de origen y destino — la app calculará automáticamente las millas, galones de diesel necesarios y la hora de llegada estimada.": "Go to the menu and tap \"New trip\". Enter the origin and destination ZIP — the app will automatically calculate the miles, diesel gallons needed and estimated arrival time.", "Anticipos, reembolsos de combustible (cuando el driver pagó porque la tarjeta fue rechazada), bonos y deducciones. Se aplican a la liquidación de la semana que corresponde a su fecha.": "Advances, fuel reimbursements (when the driver paid because the card was declined), bonuses and deductions. They apply to the settlement for the week matching their date.", "Anticipo (se descuenta)": "Advance (subtracted)", "Bono (se suma)": "Bonus (added)", "Anticipo": "Advance", "Bono": "Bonus", "Ajustes sync error:": "Adjustments sync error:"};
+  function makeTranslator(PAIRS){
+  const EMO=/(?:\p{Extended_Pictographic}|\p{Regional_Indicator})(?:️|︎|⃣|[\u{1F3FB}-\u{1F3FF}]|‍(?:\p{Extended_Pictographic}|\p{Regional_Indicator})️?)*/gu;
+  const ws=t=>t.replace(/\s+/g,' ').trim();
+  const noEmo=t=>ws(t.replace(EMO,''));
+  const STOP=new Set(['de','del','la','el','los','las','un','una','y','o','al','en','En','es','no','que','por','para','con','sin','Sin','Del','La','El','Los','Las','Ver','ver','Todo','Mes','mes','Rol','OK','Hotel','Motor','Exterior','Admin','Docs','Fee','Rate','rate','Driver','driver','drivers','Drivers','Broker','broker','brokers','Brokers','Dispatcher','dispatcher','Factoring','Business','Dashboard','General','GENERAL','Tutorial','total','Total','Delivery','Pick up','Load Value','Rate Confirmation','Google Maps','Bajo','Mayo','Salida','Seguro','Pagos','Placa']);
+  const EXACT=new Map(), PH=new Map();
+  const capFirst=s=>s.charAt(0).toUpperCase()+s.slice(1), lowFirst=s=>s.charAt(0).toLowerCase()+s.slice(1);
+  for(const [k0,v] of Object.entries(PAIRS)){
+    const k=ws(k0), kn=noEmo(k0);
+    EXACT.set(k,v); if(kn) EXACT.set(kn,noEmo(v)||v);
+    if(STOP.has(kn)) continue;
+    if(kn.length<4 && !/\s/.test(kn)) continue;
+    if(!PH.has(kn)) PH.set(kn,noEmo(v)||v);
+    if(/^[A-ZÁÉÍÓÚÑ][a-záéíóúñ]/.test(kn)){ const l=lowFirst(kn); if(!PH.has(l)&&!STOP.has(l)) PH.set(l,lowFirst(noEmo(v)||v)); }
+    else if(/^[a-záéíóúñ]/.test(kn)){ const c=capFirst(kn); if(!PH.has(c)&&!STOP.has(c)) PH.set(c,capFirst(noEmo(v)||v)); }
+  }
+  const esc=s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  const keys=[...PH.keys()].sort((a,b)=>b.length-a.length);
+  const RX=new RegExp('(?<![\\p{L}\\p{N}])('+keys.map(esc).join('|')+')(?![\\p{L}])','gu');
+  const PATTERNS=[
+    [/\bHace (\d+) semanas\b/g,'$1 weeks ago'],[/\bEn (\d+) semanas\b/g,'In $1 weeks'],
+    [/\bhace (\d+) días\b/g,'$1 days ago'],[/\bHace (\d+) días\b/g,'$1 days ago'],
+    [/\bhace (\d+) día\b/g,'$1 day ago'],[/\(hace (\d+) min\)/g,'($1 min ago)'],
+    [/\bde (\d[\d,]*) mi\b/g,'of $1 mi'],[/(\d+)% completado/g,'$1% complete'],
+    [/\b(\d+) semanas\b/g,'$1 weeks'],[/\bpor milla\b/g,'per mile'],[/^Inicio (\d)/,'Start $1'],[/· Entrega (\d)/g,'· Delivery $1'],[/^Inicio:/,'Start:'],[/^Seguro\b/,'Insurance'],[/(^|\s)Ej\.\s/g,'$1e.g. '],[/(^|\s)[Dd]e ([A-ZÁÉÍÓÚ][^,()]*?) a ([A-ZÁÉÍÓÚ])/g,'$1from $2 to $3'],
+  ];
+  const FW=[[/(^|\s)del(?=\s)/g,'$1of the'],[/(^|\s)de(?=\s)/g,'$1of'],[/(^|\s)con(?=\s)/g,'$1with'],[/(^|\s)sin(?=\s)/g,'$1without'],[/(^|\s)en(?=\s)/g,'$1in'],[/(^|\s)para(?=\s)/g,'$1for'],[/(^|\s)por(?=\s)/g,'$1by'],[/(^|\s)y(?=\s)/g,'$1and'],[/(^|\s)o(?=\s)/g,'$1or'],[/(^|\s)(los|las|el|la)(?=\s)/g,'$1the'],[/(^|\s)(un|una)(?=\s)/g,'$1a'],[/(^|\s)al(?=\s)/g,'$1to the'],[/(^|\s)que(?=\s)/g,'$1that'],[/(^|\s)este(?=\s)/g,'$1this'],[/(^|\s)esta(?=\s)/g,'$1this'],[/(^|\s)se(?=\s)/g,'$1']];
+  function tr(text){
+    if(!text || !/[A-Za-zÀ-ÿ]/.test(text)) return text;
+    const lead=text.match(/^\s*/)[0], trail=text.match(/\s*$/)[0];
+    const core=text.slice(lead.length, text.length-trail.length);
+    let w=ws(core);
+    if(EXACT.has(w)) return lead+EXACT.get(w)+trail;
+    const m=w.match(/^([^\p{L}\p{N}]*)(.*?)([^\p{L}\p{N}]*)$/u);
+    if(m && m[2] && EXACT.has(m[2])) return lead+m[1]+EXACT.get(m[2])+m[3]+trail;
+    let out=core;
+    for(const [rx,rep] of PATTERNS) out=out.replace(rx,rep);
+    const before=out;
+    out=out.replace(RX,s=>PH.get(s)||s);
+    if(out!==before){
+      for(const [a,b] of FW) out=out.replace(a,b);
+    }
+    return lead+out+trail;
+  }
+  return tr;
+}
+
+  const tr=makeTranslator(PAIRS);
+  window.trEN=tr;
+  document.documentElement.lang='en';
+  // Fechas y números en formato de EE.UU.
+  const fixLoc=l=>(typeof l==='string'&&/^es/i.test(l))?'en-US':(Array.isArray(l)?l.map(x=>/^es/i.test(x)?'en-US':x):l);
+  ['toLocaleDateString','toLocaleTimeString','toLocaleString'].forEach(fn=>{
+    const o=Date.prototype[fn]; Date.prototype[fn]=function(l,opt){ return o.call(this,fixLoc(l),opt); };
+  });
+  const nO=Number.prototype.toLocaleString; Number.prototype.toLocaleString=function(l,opt){ return nO.call(this,fixLoc(l),opt); };
+  if(window.Intl&&Intl.DateTimeFormat){ const D=Intl.DateTimeFormat; const W=function(l,o){ return new D(fixLoc(l),o); }; W.prototype=D.prototype; W.supportedLocalesOf=D.supportedLocalesOf; Intl.DateTimeFormat=W; }
+  // Mensajes emergentes
+  const A=window.alert, C=window.confirm, P=window.prompt;
+  window.alert=m=>A.call(window,trMulti(m));
+  window.confirm=m=>C.call(window,trMulti(m));
+  window.prompt=(m,d)=>P.call(window,trMulti(m),d);
+  function trMulti(m){ if(typeof m!=='string') return m; return m.split('\n').map(tr).join('\n'); }
+  // Texto de la pantalla
+  const SKIP={SCRIPT:1,STYLE:1,TEXTAREA:1,NOSCRIPT:1,CODE:1};
+  const done=new WeakMap();
+  function doText(n){
+    const v=n.nodeValue; if(!v || done.get(n)===v) return;
+    const el=n.parentElement; if(!el || SKIP[el.tagName] || el.isContentEditable || el.closest('[data-no-tr],.leaflet-container')) return;
+    const o=tr(v); done.set(n,o); if(o!==v) n.nodeValue=o;
+  }
+  const ATTRS=['placeholder','title','aria-label','alt'];
+  function doAttrs(el){
+    ATTRS.forEach(a=>{ const v=el.getAttribute&&el.getAttribute(a); if(v){ const o=tr(v); if(o!==v) el.setAttribute(a,o); } });
+    if(el.tagName==='INPUT'&&/^(button|submit|reset)$/i.test(el.type)&&el.value){ const o=tr(el.value); if(o!==el.value) el.value=o; }
+  }
+  function walk(root){
+    if(!root) return;
+    if(root.nodeType===3){ doText(root); return; }
+    if(root.nodeType!==1 || SKIP[root.tagName]) return;
+    doAttrs(root);
+    root.querySelectorAll('[placeholder],[title],[aria-label],[alt],input[type=button],input[type=submit]').forEach(doAttrs);
+    const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT); let n; while((n=w.nextNode())) doText(n);
+  }
+  window.trWalk=walk;
+  // Ventanas de impresión / PDF
+  const WO=window.open;
+  window.open=function(){
+    const win=WO.apply(window,arguments);
+    try{
+      if(win && win.document && (!arguments[0] || arguments[0]==='' || arguments[0]==='about:blank')){
+        const d=win.document, dw=d.write.bind(d);
+        d.write=function(html){
+          if(typeof html==='string'){
+            html=html.replace(/lang="es"/g,'lang="en"').replace(/(<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>)|>([^<]+)</g,(m,blk,txt)=>blk?blk:'>'+tr(txt)+'<');
+            html=html.replace(/(placeholder|title|alt)="([^"]*)"/g,(m,a,v)=>a+'="'+tr(v)+'"');
+          }
+          return dw(html);
+        };
+      }
+    }catch(e){}
+    return win;
+  };
+  // Gráficas
+  function chartPlugin(){
+    if(!window.Chart || !Chart.register || window._trChart) return; window._trChart=1;
+    Chart.register({id:'trEN',beforeUpdate(ch){
+      const d=ch.data||{};
+      if(Array.isArray(d.labels)) d.labels=d.labels.map(l=>typeof l==='string'?tr(l):l);
+      (d.datasets||[]).forEach(ds=>{ if(typeof ds.label==='string') ds.label=tr(ds.label); });
+      const t=ch.options&&ch.options.plugins&&ch.options.plugins.title; if(t&&typeof t.text==='string') t.text=tr(t.text);
+    }});
+  }
+  chartPlugin();
+  function start(){
+    chartPlugin();
+    document.title=tr(document.title);
+    walk(document.body);
+    const q=new Set(); let busy=false;
+    function flush(){ busy=false; const items=[...q]; q.clear(); items.forEach(n=>{ if(n.nodeType===2) return; walk(n); }); }
+    new MutationObserver(ms=>{
+      ms.forEach(m=>{
+        if(m.type==='characterData') q.add(m.target);
+        else if(m.type==='attributes') { if(m.target.nodeType===1) doAttrs(m.target); }
+        else m.addedNodes.forEach(n=>q.add(n));
+      });
+      if(!busy){ busy=true; queueMicrotask(flush); }
+    }).observe(document.body,{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:ATTRS});
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',start); else start();
+})();
+
+</script>
 
 <script>
 // ===== FIREBASE CONFIG =====
@@ -4070,6 +4238,8 @@ const SESSION_KEY='trucklog_session';
 const ZC={};
 let fuelCount=0;
 const invoiceImages={};
+const fuelMeta={};   // datos originales de cada carga (tipo, loadId, fotos en Drive) para no perderlos al guardar
+const fuelDrive={};  // foto del recibo ya subida a Drive por bloque
 let activeFilter={from:null,to:null,driver:'all',broker:'all',brokerName:'all',rc:'',payStatus:'all',dispatchStatus:'all'};
 let currentUser=null;
 let _currentSidebarId='home';
@@ -4188,6 +4358,40 @@ function sanitizeForFirestore(obj){
 
 // Viajes que se pueden quitar de la nube a propósito (borrado manual de un viaje)
 const _tripDelOK=new Set();
+// ===== ARCHIVO: viajes terminados de hace más de 120 días se guardan en tripsArchive/<año-mes> =====
+// Así el documento principal (data/trips, que también usa driver.html) nunca llega al límite de 1 MB de Firebase.
+const ARCHIVE_DAYS=120;
+let _archiveTrips=[], _archiveLoaded=false, _archiveListener=null, _lastRecentCloud=null;
+function archiveCutoff(){ const d=new Date(); d.setDate(d.getDate()-ARCHIVE_DAYS); return rpLocalISO(d); }
+function isArchivable(t){ const d=t.tripStatus==='completed'?repTripDate(t):''; return !!d && d<archiveCutoff(); }
+function withArchive(recent){
+  const ids=new Set((recent||[]).map(t=>String(t.id)));
+  return (recent||[]).concat(_archiveTrips.filter(t=>!ids.has(String(t.id))&&!_tripDelOK.has(String(t.id))).map(t=>injectTripImages(t,_imagesCache||{})));
+}
+function setArchiveFromDocs(docs){
+  const m=new Map(); docs.forEach(d=>((d.data().trips)||[]).forEach(t=>m.set(String(t.id),{...t,_arch:d.id})));
+  _archiveTrips=[...m.values()]; _archiveLoaded=true;
+}
+async function writeArchive(archSet){
+  const clean=t=>{ const o=tripNoImages(t); delete o._arch; return sanitizeForFirestore(o); };
+  const byMonth={};
+  _archiveTrips.forEach(t=>{ (byMonth[t._arch]=byMonth[t._arch]||new Map()).set(String(t.id),clean(t)); });
+  const touched=new Set();
+  // viajes borrados a propósito: quitarlos del archivo
+  _archiveTrips.forEach(t=>{ if(_tripDelOK.has(String(t.id))){ byMonth[t._arch].delete(String(t.id)); touched.add(t._arch); } });
+  archSet.forEach(t=>{
+    const old=_archiveTrips.find(x=>String(x.id)===String(t.id));
+    const m=old?old._arch:repTripDate(t).slice(0,7);
+    const map=byMonth[m]=byMonth[m]||new Map();
+    const c=clean(t), prevS=map.has(String(t.id))?JSON.stringify(map.get(String(t.id))):null;
+    if(prevS!==JSON.stringify(c)){ map.set(String(t.id),c); touched.add(m); }
+  });
+  for(const m of touched){
+    await db.collection('tripsArchive').doc(m).set({trips:[...byMonth[m].values()],updatedAt:new Date().toISOString()});
+  }
+  const all=[]; Object.entries(byMonth).forEach(([m,map])=>map.forEach(t=>all.push({...t,_arch:m}))); _archiveTrips=all;
+  return true;
+}
 async function storeTrips(trips){
   _cachedTrips = trips;
   try{ localStorage.setItem(TRIPS_KEY, JSON.stringify(trips)); }
@@ -4199,7 +4403,7 @@ async function storeTrips(trips){
     try{
       const csnap = await db.collection('data').doc('trips').get();
       const cloud = (csnap.exists && csnap.data().trips) || [];
-      if(csnap.exists) _logBaseline = cloud;
+      if(csnap.exists){ const cids=new Set(cloud.map(t=>String(t.id))); _logBaseline = cloud.concat(_archiveTrips.filter(t=>!cids.has(String(t.id)))); }
       const have = new Set(trips.map(t=>String(t.id)));
       const lost = cloud.filter(t=>!have.has(String(t.id)) && !_tripDelOK.has(String(t.id)));
       if(lost.length){
@@ -4223,7 +4427,7 @@ async function storeTrips(trips){
           }
           return fl;
         });
-        const out = {...t, fuelLoads};
+        const out = {...t, fuelLoads}; delete out._arch;
         if(t.bolImage){ images[`${t.id}_bol`] = t.bolImage; out.bolImage = null; }
         if(t.podImage){ images[`${t.id}_pod`] = t.podImage; out.podImage = null; }
         if(t.loadedImage){ images[`${t.id}_loaded`] = t.loadedImage; out.loadedImage = null; }
@@ -4231,8 +4435,18 @@ async function storeTrips(trips){
         return out;
       });
 
+      // Mover al archivo los viajes viejos (primero se guarda el archivo; solo si sale bien se quitan del principal)
+      let mainClean = tripsClean;
+      if(_archiveLoaded){
+        const archIds=new Set(_archiveTrips.map(t=>String(t.id)));
+        const archSet=trips.filter(t=>isArchivable(t) || (archIds.has(String(t.id)) && t.tripStatus==='completed'));
+        if(archSet.length || [..._tripDelOK].some(id=>archIds.has(id))){
+          try{ await writeArchive(archSet); const out=new Set(archSet.map(t=>String(t.id))); mainClean=tripsClean.filter(t=>!out.has(String(t.id))); }
+          catch(e){ console.warn('No se pudo guardar el archivo; los viajes se quedan en el principal', e); }
+        }
+      }
       // Limpiar undefined antes de enviar a Firestore
-      const tripsPayload = sanitizeForFirestore({ trips: tripsClean, updatedAt: new Date().toISOString() });
+      const tripsPayload = sanitizeForFirestore({ trips: mainClean, updatedAt: new Date().toISOString() });
       // Firestore acepta máximo 1 MB por documento: avisar antes de llegar al límite
       try{ const kb=new Blob([JSON.stringify(tripsPayload)]).size/1024; window._tripsDocKB=Math.round(kb);
         if(kb>850 && !window._tripsSizeWarned){ window._tripsSizeWarned=true; showSyncBanner('Aviso: los viajes ya ocupan '+Math.round(kb)+' KB de 1,024 KB en la nube','err'); } }catch(_){}
@@ -4277,6 +4491,11 @@ async function loadImagesFromCloud(){
 // Real-time listener — keeps all devices in sync automatically
 let _imagesCache = {}; // cache de imágenes en memoria
 
+function rerenderTripsPage(){
+  const id=_currentSidebarId;
+  const map={home:'renderHome',log:'renderLog',summary:'renderSummary',pagos:'renderPagos',business:'renderBusiness',miviaje:'renderMiViaje',misganancias:'renderMisGanancias',reporte:'renderReporte',brokerreport:'renderBrokerReport',brokernamereport:'renderBrokerNameReport',dispatcherpay:'renderDispatcherPay',mercado:'renderMercado',dashboard:'renderWeekDash',balance:'renderBalance',semana:'renderSemana',gastos:'renderGastosReport'};
+  try{ if(map[id] && typeof window[map[id]]==='function') window[map[id]](); }catch(e){ console.warn(e); }
+}
 function startRealtimeSync(){
   if(!fbReady) return;
 
@@ -4306,9 +4525,10 @@ function startRealtimeSync(){
     const data = snap.data();
     if(data && data.trips){
       // Reinyectar imágenes del cache antes de actualizar
-      _cachedTrips = data.trips.map(t => injectTripImages(t, _imagesCache));
-      localStorage.setItem(TRIPS_KEY, JSON.stringify(_cachedTrips));
-      try{ logSetBase(data.trips); }catch(e){}
+      _lastRecentCloud = data.trips;
+      _cachedTrips = withArchive(data.trips.map(t => injectTripImages(t, _imagesCache)));
+      try{ localStorage.setItem(TRIPS_KEY, JSON.stringify(_cachedTrips)); }catch(e){}
+      try{ logSetBase(_cachedTrips); }catch(e){}
       setTimeout(autoBackupTrips, 4000);
       setTimeout(()=>{ fixRestoredTrips().catch(()=>{}); }, 6000);
       // Usar _currentSidebarId en lugar de .tab.active (bug fix)
@@ -4328,6 +4548,24 @@ function startRealtimeSync(){
   if(id==='new'){ try{ fillTruckSelect('f-truck-admin', null, document.getElementById('f-driver-select')?.value); }catch(e){} }
     }
   }, err=>{ console.warn('Trips sync error:', err); });
+
+  // ── Ajustes al pago del driver ──
+  db.collection('data').doc('driverAdjustments').onSnapshot(sn=>{
+    if(!sn.exists) return; const d=sn.data();
+    if(d&&d.adjustments){ localStorage.setItem(ADJ_KEY, JSON.stringify(d.adjustments)); if(_currentSidebarId==='reporte') renderReporte(); }
+  }, err=>console.warn('Ajustes sync error:', err));
+
+  // ── Archivo de viajes viejos ──
+  if(_archiveListener) _archiveListener();
+  _archiveListener = db.collection('tripsArchive').onSnapshot(snap=>{
+    setArchiveFromDocs(snap.docs);
+    if(_lastRecentCloud){
+      _cachedTrips = withArchive(_lastRecentCloud.map(t=>injectTripImages(t,_imagesCache)));
+      try{ localStorage.setItem(TRIPS_KEY, JSON.stringify(_cachedTrips)); }catch(e){}
+      try{ logSetBase(_cachedTrips); }catch(e){}
+      rerenderTripsPage();
+    }
+  }, err=>{ console.warn('Archive sync error:', err); });
 
   // ── Notificaciones de momentos clave (solo relevante para admin) ──
   if(currentUser && currentUser.role==='admin'){
@@ -4935,7 +5173,7 @@ async function onZip(el,hid){
 
 // FUEL
 function addFuelBlock(){
-  if(fuelCount>=5)return;fuelCount++;const n=fuelCount;
+  if(fuelCount>=20)return;fuelCount++;const n=fuelCount;
   const div=document.createElement('div');div.className='fuel-block';div.id='fb-'+n;
   div.innerHTML=`
     <div class="fuel-block-header">
@@ -4945,6 +5183,10 @@ function addFuelBlock(){
     <div class="field" style="margin-bottom:10px;">
       <label style="font-size:11px;color:var(--text2);font-weight:700;text-transform:uppercase;letter-spacing:.4px;">⛽ Nombre de la gasolinera</label>
       <input type="text" id="fstation-${n}" placeholder="Ej. Shell, Loves, Pilot, TA..." style="margin-top:4px;"/>
+    </div>
+    <div class="field" style="margin-bottom:10px;">
+      <label style="font-size:11px;color:var(--text2);font-weight:700;text-transform:uppercase;letter-spacing:.4px;">📅 Fecha de compra</label>
+      <input type="date" id="fdate-${n}" value="${todayStr()}" style="margin-top:4px;"/>
     </div>
     <div class="fuel-inputs">
       <div><label>Galones</label><input type="number" id="fgal-${n}" placeholder="0.0" min="0" step="0.1" oninput="calcAll()"/></div>
@@ -4966,11 +5208,11 @@ function addFuelBlock(){
       <div class="invoice-preview" id="inv-preview-${n}" style="display:none;"></div>
     </div>`;
   document.getElementById('fuel-blocks').appendChild(div);
-  if(fuelCount>=5)document.getElementById('btn-add-fuel').style.display='none';
+  if(fuelCount>=20)document.getElementById('btn-add-fuel').style.display='none';
   calcAll();
 }
 function delFuelBlock(n){
-  document.getElementById('fb-'+n)?.remove();delete invoiceImages[n];fuelCount--;
+  document.getElementById('fb-'+n)?.remove();delete invoiceImages[n];delete fuelMeta[n];delete fuelDrive[n];fuelCount--;
   document.getElementById('btn-add-fuel').style.display='';
   let i=1;document.querySelectorAll('.fuel-block').forEach(b=>{b.querySelector('.fuel-block-num').textContent=i;b.querySelector('.fuel-block-title').textContent='Carga #'+i;i++;});
   calcAll();
@@ -4983,10 +5225,23 @@ function handleInvoice(n,input){
     const prev=document.getElementById('inv-preview-'+n);
     prev.innerHTML=`<img src="${e.target.result}" onclick="openLightbox('${e.target.result.replace(/'/g,"\\'")}')"/><div style="display:flex;align-items:center;gap:8px;margin-top:4px;"><span style="font-size:11px;color:#888;">&#x2714; ${file.name}</span><button class="btn-sm btn-red-sm" onclick="removeInvoice(${n})" style="padding:2px 8px;font-size:11px;">Quitar</button></div>`;
     prev.style.display='block';document.getElementById('inv-btn-'+n).style.display='none';
+    // Subir el recibo a Google Drive (no a Firebase, que tiene límite de 1 MB)
+    const trip=(typeof _adminActiveTrip!=='undefined'&&_adminActiveTrip)?_adminActiveTrip:null;
+    if(trip){
+      const note=document.createElement('div'); note.style.cssText='font-size:11px;color:var(--text3);margin-top:3px;'; note.textContent='Subiendo a Drive…'; prev.appendChild(note);
+      const dataUrl=e.target.result;
+      uploadPhotoToDrive(trip,'diesel',dataUrl).then(res=>{
+        if(invoiceImages[n]!==dataUrl) return; // lo quitaron mientras subía
+        fuelDrive[n]={id:res.id,link:res.webViewLink,thumb:'https://drive.google.com/thumbnail?id='+res.id+'&sz=w800'};
+        delete invoiceImages[n];
+        note.style.color='var(--green)'; note.textContent='En Drive ✓';
+      }).catch(err=>{ console.warn('recibo a Drive',err); note.style.color='var(--orange)'; note.textContent='No se pudo subir a Drive; se guarda en la app.'; });
+    }
   };reader.readAsDataURL(file);
 }
 function removeInvoice(n){
-  delete invoiceImages[n];
+  delete invoiceImages[n]; delete fuelDrive[n];
+  if(fuelMeta[n]){ ['driveLink','driveThumb','driveFileId','driveStatus','image'].forEach(k=>delete fuelMeta[n][k]); }
   document.getElementById('inv-preview-'+n).innerHTML='';
   document.getElementById('inv-preview-'+n).style.display='none';
   document.getElementById('inv-btn-'+n).style.display='flex';
@@ -5006,6 +5261,7 @@ function dieselLoadError(gal, price, tipo){
   if(gal<DIESEL_GAL_MIN||gal>DIESEL_GAL_MAX) return 'Los galones ('+gal+') no parecen reales: deben estar entre '+DIESEL_GAL_MIN+' y '+DIESEL_GAL_MAX+'. Pon los galones exactos que dice el recibo.';
   return null;
 }
+function fuelRowValid(r){ return (r.gal>0&&r.price>0) || ((r.tipo||r.type)==='otro'&&r.cost>0); }
 function dieselRowsError(rows){
   for(let i=0;i<rows.length;i++){ const r=rows[i]; const e=dieselLoadError(r.gal,r.price,r.type||r.tipo||'diesel'); if(e) return 'Carga #'+(i+1)+': '+e; }
   return null;
@@ -5021,7 +5277,13 @@ function getFuelBlocks(){
     const station=(document.getElementById('fstation-'+n)?.value||'').trim();
     const sub=document.getElementById('fsub-'+n);
     if(sub)sub.textContent=(gal&&price)?'$'+cost.toFixed(2):'$0.00';
-    rows.push({gal,price,cost,station,image:invoiceImages[n]||null});
+    const date=document.getElementById('fdate-'+n)?.value||'';
+    const meta=fuelMeta[n]||{}; const tipo=meta.tipo||meta.type||'diesel';
+    const row={...meta,gal,price,cost,station,date,tipo,image:invoiceImages[n]||null};
+    if(tipo==='otro'){ row.cost=parseFloat(meta.cost)||0; row.gal=0; row.price=0; }
+    const dr=fuelDrive[n];
+    if(dr && !invoiceImages[n]){ row.image=null; row.driveFileId=dr.id; row.driveLink=dr.link; row.driveThumb=dr.thumb; row.driveStatus='done'; }
+    rows.push(row);
   });return rows;
 }
 
@@ -5105,6 +5367,9 @@ async function adminStartTrip(){
   if(!z2||z2.length<5){ showErr('Ingresa el ZIP de destino (5 dígitos).'); return; }
   if(!miStart){ showErr('Ingresa las millas iniciales.'); return; }
 
+  { const du=getUsers().find(u=>u.username===driverUsername)||{};
+    const twin=findSimilarTrip({id:'nuevo',driverUser:driverUsername,driverName:(du.firstName&&du.lastName)?du.firstName+' '+du.lastName:(du.name||driverUsername),z1,z2,date});
+    if(twin && !confirm('Ya existe un viaje de este chofer con la misma ruta ('+(twin.city1||twin.z1)+' → '+(twin.city2||twin.z2)+', '+fmtDate(tripPickupDate(twin))+', '+(twin.tripStatus==='active'?'en tránsito':'terminado')+').\n\n¿Seguro que es una carga nueva y no la misma?')) return; }
   if(btn){ btn.disabled=true; btn.textContent='⏳ Iniciando...'; }
 
   try{
@@ -5190,7 +5455,7 @@ async function adminFinishTrip(){
   if(!miEnd){ showErr('Ingresa las millas finales.'); return; }
   if(miEnd <= _adminActiveTrip.miStart){ showErr('Las millas finales deben ser mayores a las iniciales.'); return; }
 
-  const validRows = getFuelBlocks().filter(r=>r.gal>0&&r.price>0);
+  const validRows = getFuelBlocks().filter(fuelRowValid);
   { const e=dieselRowsError(validRows); if(e){ showErr(e); return; } }
   const totalGal = parseFloat(validRows.reduce((a,r)=>a+(r.gal||0),0).toFixed(2));
   const totalCost = parseFloat(validRows.reduce((a,r)=>a+(r.cost||0),0).toFixed(2));
@@ -5235,7 +5500,7 @@ async function adminSaveProgress(){
   const msg = document.getElementById('f-msg-admin');
 
   // Guardar cargas de diesel actuales
-  const validRows = getFuelBlocks().filter(r=>r.gal>0&&r.price>0);
+  const validRows = getFuelBlocks().filter(fuelRowValid);
   { const e=dieselRowsError(validRows); if(e){ if(msg){ msg.className='msg err'; msg.textContent=e; msg.style.display='block'; } else alert(e); return; } }
   const totalGal = parseFloat(validRows.reduce((a,r)=>a+(r.gal||0),0).toFixed(2));
   const totalCost = parseFloat(validRows.reduce((a,r)=>a+(r.cost||0),0).toFixed(2));
@@ -5268,6 +5533,7 @@ async function adminCancelTrip(){
   if(!_adminActiveTrip) return;
   if(!confirm('¿Cancelar el viaje activo? Se eliminará del registro.')) return;
   // Eliminar el viaje activo
+  _tripDelOK.add(String(_adminActiveTrip.id));
   const trips = loadTrips().filter(t => t.id !== _adminActiveTrip.id);
   await storeTrips(trips);
   _adminActiveTrip = null;
@@ -5626,12 +5892,24 @@ function loadFuelBlocksIntoUI(fuelLoads){
   document.getElementById('fuel-blocks').innerHTML='';
   fuelCount=0;
   Object.keys(invoiceImages).forEach(k=>delete invoiceImages[k]);
+  Object.keys(fuelMeta).forEach(k=>delete fuelMeta[k]);
+  Object.keys(fuelDrive).forEach(k=>delete fuelDrive[k]);
   document.getElementById('btn-add-fuel').style.display='';
   if(fuelLoads && fuelLoads.length){
     fuelLoads.forEach(fl=>{
       addFuelBlock();
       const n=fuelCount;
+      fuelMeta[n]={...fl};
+      const tipo=fl.tipo||fl.type||'diesel';
+      if(tipo!=='diesel'){ const tt=document.querySelector('#fb-'+n+' .fuel-block-title'); if(tt) tt.textContent+=' · '+(tipo==='def'?'DEF':(fl.desc||'Otro gasto')); }
+      if(tipo==='otro'){ const fi=document.querySelector('#fb-'+n+' .fuel-inputs'); if(fi) fi.innerHTML='<div style="grid-column:1/-1;font-size:13px;color:var(--text2);">Gasto registrado por el chofer: <b>$'+(parseFloat(fl.cost)||0).toFixed(2)+'</b></div><input type="hidden" id="fgal-'+n+'" value="0"/><input type="hidden" id="fprice-'+n+'" value="0"/><div id="fsub-'+n+'" style="display:none"></div>'; }
+      if(!fl.image && fl.driveThumb){
+        fuelDrive[n]={id:fl.driveFileId,link:fl.driveLink,thumb:fl.driveThumb};
+        const prev=document.getElementById('inv-preview-'+n);
+        if(prev){ prev.innerHTML=`<img src="${fl.driveThumb}" onclick="window.open('${fl.driveLink||fl.driveThumb}','_blank')"/><div style="display:flex;align-items:center;gap:8px;margin-top:4px;"><span style="font-size:11px;color:var(--green);">En Drive ✓</span><button class="btn-sm btn-red-sm" onclick="removeInvoice(${n})" style="padding:2px 8px;font-size:11px;">Quitar</button></div>`; prev.style.display='block'; const btn=document.getElementById('inv-btn-'+n); if(btn) btn.style.display='none'; }
+      }
       const st=document.getElementById('fstation-'+n); if(st) st.value = fl.station||'';
+      const fd=document.getElementById('fdate-'+n); if(fd) fd.value = fl.date||'';
       const ga=document.getElementById('fgal-'+n); if(ga) ga.value = fl.gal||'';
       const pr=document.getElementById('fprice-'+n); if(pr) pr.value = fl.price||3.80;
       if(fl.image){
@@ -5665,7 +5943,7 @@ async function addTrip(){
   const loadVal=isAdmin?(parseFloat(document.getElementById('f-load').value)||0):0;
   if(z1.length!==5||z2.length!==5){showFMsg('Ingresa ambos ZIP codes de 5 dígitos.','err');return;}
   if(!date){showFMsg('Selecciona una fecha.','err');return;}
-  const rows=getFuelBlocks(),validRows=rows.filter(r=>r.gal>0&&r.price>0);
+  const rows=getFuelBlocks(),validRows=rows.filter(fuelRowValid);
   { const e=dieselRowsError(validRows); if(e){ showFMsg(e,'err'); return; } }
   // For drivers: millas finales and diesel are optional (can add later)
   if(!isAdmin){
@@ -5673,6 +5951,10 @@ async function addTrip(){
   } else {
     if(isNaN(miStart)||isNaN(miEnd)||miEnd<=miStart){showFMsg('Las millas finales deben ser mayores que las iniciales.','err');return;}
     if(!validRows.length){showFMsg('Agrega al menos una carga de diesel.','err');return;}
+  }
+  if(!isAdmin && currentUser){
+    const twin=findSimilarTrip({id:'nuevo',driverUser:currentUser.username,driverName:currentUser.name,z1,z2,date});
+    if(twin && !confirm('Ya tienes un viaje con esta misma ruta ('+fmtDate(tripPickupDate(twin))+', '+(twin.tripStatus==='active'?'en curso':'terminado')+').\n\n¿Seguro que es una carga nueva?')) return;
   }
   btn.disabled=true;showFMsg('Guardando viaje...','');
   let p1=ZC[z1]||await fetchZip(z1),p2=ZC[z2]||await fetchZip(z2);
@@ -6317,7 +6599,15 @@ function dhSaveCache(){ try{ localStorage.setItem('trucklog_deadhead_cache',JSON
 function mlJump(n){ ML.anchor=new Date(); ML.anchor.setDate(ML.anchor.getDate()+7*n); renderMillas(); }
 function mlShift(d){ ML.anchor=new Date(ML.anchor||new Date()); ML.anchor.setDate(ML.anchor.getDate()+7*d); renderMillas(); }
 function mlDriverKey(t){ return t.driverUser||t.driverName||'—'; }
-function mlTripTime(t){ const ms=t.startTime?Date.parse(t.startTime):NaN; return isNaN(ms)?Date.parse((t.date||'1970-01-01')+'T12:00:00'):ms; }
+// Orden de los viajes de cada chofer: por FECHA DE PICK UP (no por cuándo se capturó en la app).
+// La hora de inicio solo desempata viajes del mismo día; si no hay hora, desempata la fecha de delivery.
+function mlTripTime(t){
+  const d=tripPickupDate(t)||'1970-01-01'; const base=Date.parse(d+'T00:00:00');
+  const st=t.startTime?new Date(t.startTime):null;
+  if(st && !isNaN(st) && rpLocalISO(st)===d) return base+(st.getHours()*60+st.getMinutes())*60000;
+  const dl=t.deliveryDate?Date.parse(t.deliveryDate+'T00:00:00'):NaN;
+  return base+12*3600000+(isNaN(dl)?0:Math.min(Math.max((dl-base)/86400000,0),10)*60000);
+}
 function mlPoint(t,end){ // coordenadas de pick up (end=false) o delivery (end=true)
   const z=end?t.z2:t.z1; const p=z&&ZC[z]; if(p&&p.lat) return {lat:p.lat,lon:p.lon};
   const lat=end?t.destLat:t.origLat, lon=end?t.destLon:t.origLon;
@@ -6343,15 +6633,31 @@ async function dhCompute(prev,t){
 }
 let _mlPending=false;
 // Calcula millas cargadas / muertas para un rango (lo usan Inicio y la pestaña de millas)
-function mlRange(from,to,driver){
+// Viajes para calcular millas: sin el viaje "en ruta" que es copia de uno ya terminado
+function mlTrips(){
   const all=loadTrips().filter(t=>t.tripStatus==='completed'||t.tripStatus==='active');
+  const done=all.filter(t=>t.tripStatus==='completed');
+  return all.filter(t=>t.tripStatus!=='active'||!findSimilarTrip(t,done));
+}
+// Rate por milla: solo cuenta viajes que ya tienen pago Y millas (si no, un viaje sin pago baja el rate y uno sin millas lo sube)
+function rateOf(list){
+  let L=0,LM=0,DM=0,n=0,pend=false;
+  (list||[]).forEach(x=>{ if(!(x.load>0&&x.loaded>0)) return; n++; L+=x.load; LM+=x.loaded; DM+=(x.dead||0); if(x.pend) pend=true; });
+  return {load:L,loaded:LM,dead:DM,used:n,skipped:(list||[]).length-n,pend,
+    loadedRate:LM?L/LM:null, allRate:(LM+DM)?L/(LM+DM):null};
+}
+function rateTxt(r,which){ const v=r[which]; if(v==null) return '—'; return '$'+v.toFixed(2)+(which==='allRate'&&r.pend?'…':''); }
+function rateNote(r){ return r.skipped?r.skipped+' viaje'+(r.skipped!==1?'s':'')+' sin pago o sin millas no cuenta'+(r.skipped!==1?'n':''):''; }
+function mlRange(from,to,driver){
+  const all=mlTrips();
   const byDrv={}; all.forEach(t=>{ (byDrv[mlDriverKey(t)]=byDrv[mlDriverKey(t)]||[]).push(t); });
   const prevOf={}; Object.values(byDrv).forEach(list=>{ list.sort((a,b)=>mlTripTime(a)-mlTripTime(b)); list.forEach((t,i)=>{ if(i>0) prevOf[t.id]=list[i-1]; }); });
   const inR=all.filter(t=>{ const d=repTripDate(t); return d>=from && d<=to && (!driver||driver==='all'||mlDriverKey(t)===driver); }).sort((a,b)=>mlTripTime(a)-mlTripTime(b));
   const rows=[], missing=[];
   inR.forEach(t=>{ const prev=prevOf[t.id]; let dh=null; if(prev){ dh=dhQuick(prev,t); if(!dh) missing.push([prev,t]); }
-    rows.push({t,prev,dh,loaded:tripDistance(t).mi||0,load:parseFloat(t.loadVal)||0}); });
+    rows.push({t,prev,dh,loaded:tripDistance(t).mi||0,load:parseFloat(t.loadVal)||0,dead:dh&&!dh.fail?dh.mi:0,pend:!!(prev&&!dh)}); });
   const T=rows.reduce((x,r)=>({trips:x.trips+1,loaded:x.loaded+r.loaded,dead:x.dead+(r.dh&&!r.dh.fail?r.dh.mi:0),load:x.load+r.load}),{trips:0,loaded:0,dead:0,load:0});
+  T.rate=rateOf(rows);
   return {rows,missing,T,all};
 }
 let _mlAfter=[];
@@ -6373,7 +6679,7 @@ function renderMillas(){
   el('ml-sub').textContent=(off===0?'Semana actual':off===-1?'Semana anterior':off===1?'Semana siguiente':off<0?'Hace '+(-off)+' semanas':'En '+off+' semanas')+' · sáb – vie';
   document.querySelectorAll('#ml-quick button').forEach(b=>b.classList.toggle('on',+b.dataset.w===off));
 
-  const all=loadTrips().filter(t=>t.tripStatus==='completed'||t.tripStatus==='active');
+  const all=mlTrips();
   // Selector de driver
   const dSel=el('ml-driver'); const names={}; all.forEach(t=>{ names[mlDriverKey(t)]=t.driverName||mlDriverKey(t); });
   dSel.innerHTML='<option value="all">Todos los drivers</option>'+Object.entries(names).sort((a,b)=>a[1].localeCompare(b[1])).map(([k,n])=>`<option value="${rpEsc(k)}">${rpEsc(n)}</option>`).join('');
@@ -6389,25 +6695,27 @@ function renderMillas(){
   inWeek.forEach(t=>{
     const prev=prevOf[t.id]; let dh=null;
     if(prev){ dh=dhQuick(prev,t); if(!dh) missing.push([prev,t]); }
-    rows.push({t,prev,dh,loaded:tripDistance(t).mi||0,load:parseFloat(t.loadVal)||0});
+    rows.push({t,prev,dh,loaded:tripDistance(t).mi||0,load:parseFloat(t.loadVal)||0,dead:dh&&!dh.fail?dh.mi:0,pend:!!(prev&&!dh)});
   });
   // Totales por driver
   const agg={};
   rows.forEach(r=>{ const k=mlDriverKey(r.t); const a=agg[k]=agg[k]||{k,name:r.t.driverName||k,trips:0,loaded:0,dead:0,load:0,pendingDh:0};
-    a.trips++; a.loaded+=r.loaded; a.load+=r.load; if(r.dh) a.dead+=r.dh.mi; else if(r.prev) a.pendingDh++; });
+    a.trips++; a.loaded+=r.loaded; a.load+=r.load; if(r.dh) a.dead+=r.dh.mi; else if(r.prev) a.pendingDh++; (a.rows=a.rows||[]).push(r); });
+  Object.values(agg).forEach(a=>{ a.rate=rateOf(a.rows); });
+  const TR=rateOf(rows);
   const A=Object.values(agg).sort((a,b)=>(b.loaded+b.dead)-(a.loaded+a.dead));
   const T=A.reduce((x,a)=>({trips:x.trips+a.trips,loaded:x.loaded+a.loaded,dead:x.dead+a.dead,load:x.load+a.load}),{trips:0,loaded:0,dead:0,load:0});
   const pctCls=p=>p<=12?'ok':p<=20?'mid':'bad';
   const tot=T.loaded+T.dead, dpct=tot?T.dead/tot*100:0;
   el('ml-kpis').innerHTML=`
     <div class="mk-kpi dark"><div class="l">Millas totales</div><div class="v">${rpNum(tot)}</div><div class="s">${T.trips} viaje${T.trips!==1?'s':''}</div></div>
-    <div class="mk-kpi"><div class="l">Millas cargadas</div><div class="v">${rpNum(T.loaded)}</div><div class="s">${T.loaded&&T.load?mkM(T.load/T.loaded)+' por milla cargada':'—'}</div></div>
+    <div class="mk-kpi"><div class="l">Millas cargadas</div><div class="v">${rpNum(T.loaded)}</div><div class="s">${TR.loadedRate!=null?rateTxt(TR,'loadedRate')+' por milla cargada':'—'}</div></div>
     <div class="mk-kpi"><div class="l">Millas muertas</div><div class="v" style="color:var(--orange)">${rpNum(T.dead)}</div><div class="s"><span class="ml-pct ${pctCls(dpct)}">${dpct.toFixed(1)}% del total</span></div></div>
-    <div class="mk-kpi"><div class="l">Rate real (con muertas)</div><div class="v">${tot&&T.load?mkM(T.load/tot):'—'}</div><div class="s">pago ÷ todas las millas</div></div>`;
+    <div class="mk-kpi"><div class="l">Rate real (con muertas)</div><div class="v">${rateTxt(TR,'allRate')}</div><div class="s">${rateNote(TR)||'pago ÷ todas las millas'}</div></div>`;
   el('ml-status').textContent=missing.length?'Calculando '+missing.length+' traslado'+(missing.length!==1?'s':'')+'…':'';
   el('ml-drivers').innerHTML=A.length?`<div class="rp-scroll"><table class="mk-bt"><thead><tr><th>Driver</th><th>Viajes</th><th>Cargadas</th><th>Muertas</th><th>Total</th><th>% muertas</th><th>Pago</th><th>Rate cargada</th><th>Rate real</th></tr></thead><tbody>`+
-    A.map(a=>{ const t=a.loaded+a.dead, p=t?a.dead/t*100:0; return `<tr style="cursor:pointer" onclick="ML.driver=${JSON.stringify(a.k).replace(/"/g,'&quot;')};renderMillas()"><td><b>${rpEsc(a.name)}</b><div class="ml-stack"><span class="a" style="width:${t?a.loaded/t*100:0}%"></span><span class="b" style="width:${t?a.dead/t*100:0}%"></span></div></td><td>${a.trips}</td><td>${rpNum(a.loaded)}</td><td class="ml-dh">${rpNum(a.dead)}${a.pendingDh?'<div class="ml-src">+'+a.pendingDh+' calculando</div>':''}</td><td><b>${rpNum(t)}</b></td><td><span class="ml-pct ${pctCls(p)}">${p.toFixed(1)}%</span></td><td>${mkM0(a.load)}</td><td>${a.loaded&&a.load?mkM(a.load/a.loaded):'—'}</td><td class="r">${t&&a.load?mkM(a.load/t):'—'}</td></tr>`; }).join('')+
-    (A.length>1?`<tr><td><b>Total</b></td><td><b>${T.trips}</b></td><td><b>${rpNum(T.loaded)}</b></td><td class="ml-dh">${rpNum(T.dead)}</td><td><b>${rpNum(tot)}</b></td><td><span class="ml-pct ${pctCls(dpct)}">${dpct.toFixed(1)}%</span></td><td><b>${mkM0(T.load)}</b></td><td>${T.loaded&&T.load?mkM(T.load/T.loaded):'—'}</td><td class="r">${tot&&T.load?mkM(T.load/tot):'—'}</td></tr>`:'')+
+    A.map(a=>{ const t=a.loaded+a.dead, p=t?a.dead/t*100:0; return `<tr style="cursor:pointer" onclick="ML.driver=${JSON.stringify(a.k).replace(/"/g,'&quot;')};renderMillas()"><td><b>${rpEsc(a.name)}</b><div class="ml-stack"><span class="a" style="width:${t?a.loaded/t*100:0}%"></span><span class="b" style="width:${t?a.dead/t*100:0}%"></span></div></td><td>${a.trips}</td><td>${rpNum(a.loaded)}</td><td class="ml-dh">${rpNum(a.dead)}${a.pendingDh?'<div class="ml-src">+'+a.pendingDh+' calculando</div>':''}</td><td><b>${rpNum(t)}</b></td><td><span class="ml-pct ${pctCls(p)}">${p.toFixed(1)}%</span></td><td>${mkM0(a.load)}</td><td>${rateTxt(a.rate,'loadedRate')}</td><td class="r">${rateTxt(a.rate,'allRate')}${a.rate.skipped?'<div class="ml-src">'+rateNote(a.rate)+'</div>':''}</td></tr>`; }).join('')+
+    (A.length>1?`<tr><td><b>Total</b></td><td><b>${T.trips}</b></td><td><b>${rpNum(T.loaded)}</b></td><td class="ml-dh">${rpNum(T.dead)}</td><td><b>${rpNum(tot)}</b></td><td><span class="ml-pct ${pctCls(dpct)}">${dpct.toFixed(1)}%</span></td><td><b>${mkM0(T.load)}</b></td><td>${rateTxt(TR,'loadedRate')}</td><td class="r">${rateTxt(TR,'allRate')}</td></tr>`:'')+
     `</tbody></table></div><div style="display:flex;gap:14px;font-size:11px;color:var(--text3);margin-top:8px;"><span><i style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#1E3A8A;vertical-align:-1px;"></i> Cargadas</span><span><i style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#E0A13A;vertical-align:-1px;"></i> Muertas</span></div>`
     :'<div class="home-empty">Sin viajes en esta semana.</div>';
   el('ml-trips').innerHTML=rows.length?rows.map(r=>{ const t=r.t, p=r.prev;
@@ -6597,7 +6905,7 @@ function renderMonthDash(){
   const N=v=>Math.round(v||0).toLocaleString('en-US');
   const first=n=>(n||'—').trim().split(' ')[0].replace(/^./,c=>c.toUpperCase()).replace(/^(.)(.*)$/,(m,a,b)=>a+b.toLowerCase());
   const sum=(arr,f)=>arr.reduce((a,x)=>a+(f(x)||0),0);
-  const all=loadTrips();
+  const all=mlTrips();
   const ml=mlRange('1900-01-01','2999-12-31','all'); const rowOf={}; ml.rows.forEach(x=>rowOf[String(x.t.id)]=x);
   if(ml.missing.length) mlResolveMissing(ml.missing,()=>{ if(_currentSidebarId==='dashboard') renderWeekDash(); });
   const calcCache={};
@@ -6605,7 +6913,7 @@ function renderMonthDash(){
     .map(t=>calcCache[t.id]||(calcCache[t.id]={t,c:wdTripCalc(t,rowOf[String(t.id)])}));
   const agg=X=>{ const G=sum(X,x=>x.c.lv), LM=sum(X,x=>x.c.loaded), DM=sum(X,x=>x.c.dead), TM=LM+DM, NET=sum(X,x=>x.c.net);
     return {n:X.length, act:X.filter(x=>x.t.tripStatus==='active').length, G, LM, DM, TM, P:sum(X,x=>x.c.driverPay), F:sum(X,x=>x.c.fact), DP:sum(X,x=>x.c.disp), DI:sum(X,x=>x.c.diesel), NET,
-      rpm:TM&&G?G/TM:null, dhp:TM?DM/TM*100:null, mar:G?NET/G*100:null}; };
+      rpm:rateOf(X.map(x=>({load:x.c.lv,loaded:x.c.loaded,dead:x.c.dead,pend:x.c.pend}))).allRate, dhp:TM?DM/TM*100:null, mar:G?NET/G*100:null}; };
   const monthData=(y,m)=>{ const wk=wdMonthWeeks(y,m); const from=rpLocalISO(wk[0].st), to=rpLocalISO(wk[wk.length-1].en);
     return {y,m,wk,from,to,X:inRange(from,to)}; };
   const cur=monthData(Y,Mo); const A=agg(cur.X);
@@ -6711,6 +7019,7 @@ function renderMonthDash(){
 }
 function wdJump(n){ wdAnchor=new Date(); wdAnchor.setDate(wdAnchor.getDate()+7*n); renderWeekDash(); }
 function wdShift(d){ wdAnchor=new Date(wdAnchor||new Date()); wdAnchor.setDate(wdAnchor.getDate()+7*d); renderWeekDash(); }
+function wdRate(arr){ return rateOf((arr||[]).map(x=>({load:x.c.lv,loaded:x.c.loaded,dead:x.c.dead,pend:x.c.pend}))); }
 function wdTripCalc(t,row){
   const lv=parseFloat(t.loadVal)||0;
   const payPct=parseFloat(t.payPct)||0;
@@ -6740,7 +7049,18 @@ function renderWeekDash(){
   const wkLbl=off===0?'Semana actual':off===-1?'Semana anterior':off===1?'Semana siguiente':off<0?'Hace '+(-off)+' semanas':'En '+off+' semanas';
   const all=loadTrips();
   const done=all.filter(t=>t.tripStatus==='completed'&&repTripDate(t)>=from&&repTripDate(t)<=to).sort((a,b)=>repTripDate(a).localeCompare(repTripDate(b)));
-  const active=all.filter(t=>t.tripStatus==='active'&&(isCur||(repTripDate(t)>=from&&repTripDate(t)<=to)));
+  const doneAll=all.filter(t=>t.tripStatus==='completed');
+  const fromLate=rpLocalISO(new Date(st.getFullYear(),st.getMonth(),st.getDate()-14));
+  const dupHidden=[];
+  const active=all.filter(t=>{
+    if(t.tripStatus!=='active') return false;
+    const d=repTripDate(t);
+    // en la semana, o (semana actual) entrega atrasada de hasta 2 semanas
+    if(!((d>=from&&d<=to) || (isCur && d>=fromLate && d<from))) return false;
+    const twin=findSimilarTrip(t,doneAll);
+    if(twin){ dupHidden.push([t,twin]); return false; }
+    return true;
+  });
   const ml=mlRange('1900-01-01','2999-12-31','all'); const rowOf={}; ml.rows.forEach(x=>rowOf[String(x.t.id)]=x);
   if(ml.missing.length) mlResolveMissing(ml.missing,()=>{ if(_currentSidebarId==='dashboard') renderWeekDash(); });
   const D=done.map(t=>({t,c:wdTripCalc(t,rowOf[String(t.id)])})), A=active.map(t=>({t,c:wdTripCalc(t,rowOf[String(t.id)])}));
@@ -6758,7 +7078,7 @@ function renderWeekDash(){
     <td><b>${c.rpm!=null?M(c.rpm):'—'}</b></td><td>${c.gal?c.gal.toLocaleString('en-US',{maximumFractionDigits:3}):'N/D'}</td><td>${c.ppg!=null?M(c.ppg):'N/D'}</td><td>${c.dpm!=null?M(c.dpm):'N/D'}</td>
     <td>${M(c.driverPay)}${c.payPct?`<small>(${c.payPct}%)</small>`:''}</td>${anyDisp?`<td>${M(c.disp)}</td>`:''}<td>${M(c.fact)}</td><td>${M(c.diesel)}</td>
     <td class="g${prov?' prov':''}">${M(c.net)}${prov?'<small>(provisional)</small>':''}</td></tr>`; };
-  const tot=(arr,label,prov)=>{ const L=sum(arr,x=>x.c.lv), T=sum(arr,x=>x.c.tot); return `<tr class="tt"><td colspan="5" class="r">${label} (${arr.length})</td><td>${N(sum(arr,x=>x.c.dead))}</td><td>${N(sum(arr,x=>x.c.loaded))}</td><td>${N(T)}</td><td>${M(L)}</td><td>${T&&L?M(L/T):'—'}</td><td>${sum(arr,x=>x.c.gal)?sum(arr,x=>x.c.gal).toLocaleString('en-US',{maximumFractionDigits:3}):'—'}</td><td>—</td><td>—</td><td>${M(sum(arr,x=>x.c.driverPay))}</td>${anyDisp?`<td>${M(sum(arr,x=>x.c.disp))}</td>`:''}<td>${M(sum(arr,x=>x.c.fact))}</td><td>${M(sum(arr,x=>x.c.diesel))}</td><td class="g${prov?' prov':''}">${M(sum(arr,x=>x.c.net))}</td></tr>`; };
+  const tot=(arr,label,prov)=>{ const L=sum(arr,x=>x.c.lv), T=sum(arr,x=>x.c.tot); return `<tr class="tt"><td colspan="5" class="r">${label} (${arr.length})</td><td>${N(sum(arr,x=>x.c.dead))}</td><td>${N(sum(arr,x=>x.c.loaded))}</td><td>${N(T)}</td><td>${M(L)}</td><td>${rateTxt(wdRate(arr),'allRate')}</td><td>${sum(arr,x=>x.c.gal)?sum(arr,x=>x.c.gal).toLocaleString('en-US',{maximumFractionDigits:3}):'—'}</td><td>—</td><td>—</td><td>${M(sum(arr,x=>x.c.driverPay))}</td>${anyDisp?`<td>${M(sum(arr,x=>x.c.disp))}</td>`:''}<td>${M(sum(arr,x=>x.c.fact))}</td><td>${M(sum(arr,x=>x.c.diesel))}</td><td class="g${prov?' prov':''}">${M(sum(arr,x=>x.c.net))}</td></tr>`; };
   const table=(arr,prov,label,empty)=>arr.length?`<div class="wd-scroll"><table class="wd-t">${head}${arr.map(x=>row(x,prov)).join('')}${tot(arr,label,prov)}</table></div>`:`<div class="wd-empty">${empty}</div>`;
   const X=D.concat(A);
   const G=sum(X,x=>x.c.lv), P=sum(X,x=>x.c.driverPay), F=sum(X,x=>x.c.fact), DP=sum(X,x=>x.c.disp), DI=sum(X,x=>x.c.diesel), NET=sum(X,x=>x.c.net);
@@ -6779,6 +7099,8 @@ function renderWeekDash(){
   X.forEach(x=>{ if(!x.c.gal && x.c.diesel===0) obs.push(`${first(x.t.driverName)} ${x.t.rc?'#'+x.t.rc:''}: sin diésel capturado todavía.`); else if(!x.c.gal) obs.push(`${first(x.t.driverName)} ${x.t.rc?'#'+x.t.rc:''}: diésel sin galones reales (no cuenta para precio/gal).`); });
   X.forEach(x=>{ if(tripOdoSuspect(x.t)) obs.push(`${first(x.t.driverName)} ${x.t.rc?'#'+x.t.rc:''}: odómetro raro, se usaron millas ZIP a ZIP.`); });
   if(A.length) obs.push('Los viajes en ruta son provisionales: la ganancia cambia al capturar diésel y finalizar.');
+  dupHidden.forEach(([a,b])=>obs.unshift(`No se contó un viaje en ruta de ${first(a.driverName)} (${a.city1||a.z1||''} → ${a.city2||a.z2||''}) porque es igual a uno ya terminado. Bórralo en Historial.`));
+  findTripDuplicates(done).forEach(([a,b])=>obs.unshift(`Posible duplicado: ${first(a.driverName)} tiene dos viajes terminados ${a.city1||a.z1||''} → ${a.city2||a.z2||''} (${fmtDate(tripPickupDate(a))} y ${fmtDate(tripPickupDate(b))}). Revisa en Historial.`));
   const conc=[];
   if(G) conc.push(`Ganancia ${A.length?'provisional':'de la semana'}: ${M(NET)} (${(NET/G*100).toFixed(1)}% de margen).`);
   if(TM) conc.push(`Millas muertas: ${N(DM)} de ${N(TM)} (${(DM/TM*100).toFixed(1)}%).`);
@@ -6819,7 +7141,7 @@ function renderWeekDash(){
         <tr><td>Margen de ganancia</td><td class="b gr">${G?(NET/G*100).toFixed(1)+'%':'—'}</td></tr>
         <tr><td>Ganancia por cada $1 facturado</td><td class="b gr">${G?M(NET/G):'—'}</td></tr></table></div>
       <div class="wd-c c2"><div class="ch">EFICIENCIA DE CARGAS</div><table>
-        <tr><td>RPM all-in promedio (${X.length} cargas)</td><td class="b">${TM&&G?M(G/TM):'—'}</td></tr>
+        <tr><td>RPM all-in promedio (${wdRate(X).used} cargas con pago)</td><td class="b">${rateTxt(wdRate(X),'allRate')}</td></tr>
         <tr><td>Mejor RPM ${best?'('+rpEsc(first(best.t.driverName))+(best.t.rc?' #'+rpEsc(best.t.rc):'')+')':''}</td><td class="b">${best?M(best.c.rpm):'—'}</td></tr>
         <tr><td>Peor RPM ${worst?'('+rpEsc(first(worst.t.driverName))+(worst.t.rc?' #'+rpEsc(worst.t.rc):'')+')':''}</td><td class="b">${worst?M(worst.c.rpm):'—'}</td></tr>
         <tr><td>Millas cargadas (total)</td><td class="b">${N(LM)}</td></tr>
@@ -6831,7 +7153,8 @@ function renderWeekDash(){
         ${dRow('Gross',a=>sum(a,x=>x.c.lv),M)}
         ${dRow('Millas totales',a=>sum(a,x=>x.c.tot),N)}
         ${dRow('Millas muertas',a=>sum(a,x=>x.c.dead),N)}
-        ${dRow('RPM all-in promedio',a=>{const t=sum(a,x=>x.c.tot),l=sum(a,x=>x.c.lv);return t?l/t:null;},v=>v==null?'—':M(v))}
+        ${dRow('RPM all-in promedio',a=>wdRate(a).allRate,v=>v==null?'—':M(v))}
+        ${dRow('Rate millas cargadas',a=>wdRate(a).loadedRate,v=>v==null?'—':M(v))}
         ${dRow('Pago chofer',a=>sum(a,x=>x.c.driverPay),M,true)}
         ${dRow('Diésel asignado',a=>sum(a,x=>x.c.diesel),M,true)}
         ${dRow('Ganancia YENAVI',a=>sum(a,x=>x.c.net),M,true)}</table>`:'<div class="wd-empty">Sin cargas.</div>'}</div>
@@ -7287,11 +7610,11 @@ function logTripDetailHTML(t){ return `
         </div>
         ${(t.fuelLoads||[]).map((fl,fi)=>`
           <div class="fuel-item">
-            <div class="fuel-item-row"><span class="fuel-item-info">${fl.station?'⛽ <b>'+fl.station+'</b> &nbsp;·&nbsp; ':''}${fl.type==='def'?'🧴 DEF':'⛽ Diesel'} &nbsp;·&nbsp; Carga #${fi+1} &nbsp;·&nbsp; ${fl.gal} gal &nbsp;@&nbsp; $${fl.price}/gal</span>
+            <div class="fuel-item-row"><span class="fuel-item-info">${fl.date?'📅 '+fmtDate(fl.date)+' &nbsp;·&nbsp; ':''}${fl.station?'⛽ <b>'+fl.station+'</b> &nbsp;·&nbsp; ':''}${fl.type==='def'?'🧴 DEF':'⛽ Diesel'} &nbsp;·&nbsp; Carga #${fi+1} &nbsp;·&nbsp; ${fl.gal} gal &nbsp;@&nbsp; $${fl.price}/gal</span>
             <span style="display:flex;align-items:center;gap:6px;"><span class="fuel-item-cost">$${fl.cost.toFixed(2)}</span>
             <button onclick="deleteDieselFromTrip(${t.id},${fi})" style="font-size:10px;color:var(--red);background:none;border:none;cursor:pointer;font-family:inherit;">✕</button>
             </span></div>
-            ${fl.image?`<div class="fuel-item-img"><img src="${fl.image}" onclick="openLightbox('${fl.image.replace(/'/g,"\\'")}')"/><div style="font-size:11px;color:#aaa;margin-top:3px;">Toca para ampliar</div></div>`:'<div style="font-size:11px;color:#ccc;margin-top:4px;">Sin recibo adjunto</div>'}
+            ${(!fl.image&&fl.driveThumb)?`<div class="fuel-item-img"><img src="${fl.driveThumb}" onclick="window.open('${fl.driveLink||fl.driveThumb}','_blank')"/><div style="font-size:11px;color:var(--green);margin-top:3px;">En Drive ✓</div></div>`:fl.image?`<div class="fuel-item-img"><img src="${fl.image}" onclick="openLightbox('${fl.image.replace(/'/g,"\\'")}')"/><div style="font-size:11px;color:#aaa;margin-top:3px;">Toca para ampliar</div></div>`:'<div style="font-size:11px;color:#ccc;margin-top:4px;">Sin recibo adjunto</div>'}
           </div>`).join('')}
       </div>
       <!-- ANÁLISIS POR MILLA -->
@@ -7513,6 +7836,7 @@ function openAddDieselModal(tripId){
   document.getElementById('add-diesel-trip-id').value = tripId;
   document.getElementById('add-diesel-trip-info').textContent = `${trip.city1||'—'} → ${trip.city2||'—'} · ${fmtDate(trip.date)}`;
   document.getElementById('add-diesel-station').value = '';
+  document.getElementById('add-diesel-date').value = todayStr();
   document.getElementById('add-diesel-gal').value = '';
   document.getElementById('add-diesel-price').value = '3.80';
   document.getElementById('add-diesel-sub').textContent = '$0.00';
@@ -7580,7 +7904,14 @@ async function saveAddDiesel(){
   const fuelType = document.getElementById('add-diesel-type').value || 'diesel';
   { const e=dieselLoadError(gal,price,fuelType); if(e){ alert(e); return; } }
   const cost = parseFloat((gal*price).toFixed(2));
-  const newLoad = { gal, price, cost, station, type: fuelType, image: _addDieselImgData||null };
+  const fdate = document.getElementById('add-diesel-date').value || todayStr();
+  const newLoad = { gal, price, cost, station, date: fdate, type: fuelType, tipo: fuelType, image: _addDieselImgData||null };
+  if(_addDieselImgData){
+    const tr0 = loadTrips().find(t=>t.id===tripId);
+    if(tr0){ try{ const res = await uploadPhotoToDrive(tr0,'diesel',_addDieselImgData);
+      Object.assign(newLoad,{image:null,driveFileId:res.id,driveLink:res.webViewLink,driveThumb:'https://drive.google.com/thumbnail?id='+res.id+'&sz=w800',driveStatus:'done'});
+    }catch(e){ console.warn('recibo a Drive',e); } }
+  }
 
   const trips = loadTrips();
   const idx = trips.findIndex(t=>t.id===tripId);
@@ -7637,7 +7968,8 @@ async function clearAll(){
   try{ await saveTripsBackup('manual_antes_de_borrar_'+Date.now(), true); }catch(e){ alert('No se pudo guardar el respaldo, no se borró nada.'); return; }
   _cachedTrips=[];
   localStorage.removeItem(TRIPS_KEY);
-  if(fbReady) db.collection('data').doc('trips').set({trips:[], updatedAt: new Date().toISOString()}).catch(()=>{});
+  if(fbReady){ db.collection('data').doc('trips').set({trips:[], updatedAt: new Date().toISOString()}).catch(()=>{});
+    db.collection('tripsArchive').get().then(sn=>sn.forEach(d=>d.ref.delete())).catch(()=>{}); _archiveTrips=[]; }
   // Resetear UI de combustible
   document.getElementById('fuel-blocks').innerHTML='';
   fuelCount=0;
@@ -8260,6 +8592,11 @@ function tripOdoSuspect(t){
   if(m>3500) return true;
   const ref=t.routeMiles||t.roadMiles; return !!(ref && (m>ref*2.2+150 || m<ref*0.45));
 }
+// ===== Detección de viajes duplicados (mismo chofer, misma ruta ZIP, pick up a ≤3 días) =====
+function tripDupKey(t){ const n=((t.driverName||'').trim().split(' ')[0]||t.driverUser||'').toLowerCase(); return [n,String(t.z1||''),String(t.z2||'')].join('|'); }
+function tripDaysApart(a,b){ const x=Date.parse((tripPickupDate(a)||'')+'T12:00:00'), y=Date.parse((tripPickupDate(b)||'')+'T12:00:00'); return (isNaN(x)||isNaN(y))?99:Math.abs(x-y)/86400000; }
+function findSimilarTrip(t, list){ return (list||loadTrips()).find(x=>String(x.id)!==String(t.id) && tripDupKey(x)===tripDupKey(t) && tripDaysApart(x,t)<=3); }
+function findTripDuplicates(trips){ const out=[]; for(let i=0;i<trips.length;i++) for(let j=i+1;j<trips.length;j++){ const a=trips[i], b=trips[j]; if(tripDupKey(a)===tripDupKey(b) && tripDaysApart(a,b)<=3) out.push([a,b]); } return out; }
 function tripRatePerMile(t){ const d=tripDistance(t); const lv=parseFloat(t.loadVal)||0; return (d.mi>0&&lv>0)?lv/d.mi:null; }
 function fmtDateShort(d){ if(!d) return ''; const [y,m,dd]=d.split('-'); return m+'/'+dd+'/'+y.slice(2); }
 
@@ -8429,8 +8766,7 @@ function renderAdminReport(){
     el('rp-dead').textContent=rpNum(dead);
     el('rp-dead-sub').textContent=totMi>0?(dead/totMi*100).toFixed(1)+'% del total'+(pendDh?' · calculando…':''):(pendDh?'calculando…':'—');
     el('rp-tmiles').textContent=rpNum(totMi);
-    el('rp-rpm').textContent=totMi>0?rpMoney(lv/totMi):'—';
-    el('rp-rpm-loaded').textContent=loaded>0?rpMoney(lv/loaded):'—';
+    { const R=rateOf(mlr.rows.filter(x=>ids.has(String(x.t.id)))); el('rp-rpm').textContent=rateTxt(R,'allRate'); el('rp-rpm-loaded').textContent=rateTxt(R,'loadedRate'); }
   } else if(rpTrip==='all'){
     el('rp-eyebrow').textContent='Ganancia real';
     netEl.textContent=rpMoney(cur.net); netEl.classList.toggle('neg',cur.net<0);
@@ -8452,8 +8788,7 @@ function renderAdminReport(){
     el('rp-dead').textContent=rpNum(dead);
     el('rp-dead-sub').textContent=totMi>0?(dead/totMi*100).toFixed(1)+'% del total'+(pendDh?' · calculando…':''):(pendDh?'calculando…':'—');
     el('rp-tmiles').textContent=rpNum(totMi);
-    el('rp-rpm').textContent=totMi>0?rpMoney(cur.income/totMi):'—';
-    el('rp-rpm-loaded').textContent=cur.miles>0?rpMoney(cur.income/cur.miles):'—';
+    { const R=rateOf(mlr.rows.filter(x=>doneIds.has(String(x.t.id)))); el('rp-rpm').textContent=rateTxt(R,'allRate'); el('rp-rpm-loaded').textContent=rateTxt(R,'loadedRate'); }
   } else {
     const t=tripsSorted.find(x=>String(x.id)===String(rpTrip));
     const row=mlr.rows.find(x=>String(x.t.id)===String(t.id))||{};
@@ -8514,9 +8849,9 @@ function renderAdminReport(){
     box.innerHTML=`
       <div class="an-grid">
         <div class="an-k"><div class="l">Millas totales</div><div class="v">${rpNum(tot)}</div><div class="s">${T.trips} viaje${T.trips!==1?'s':''}</div></div>
-        <div class="an-k"><div class="l">Millas cargadas</div><div class="v">${rpNum(T.loaded)}</div><div class="s">${T.loaded&&T.load?mkM(T.load/T.loaded)+'/mi':'—'}</div></div>
+        <div class="an-k"><div class="l">Millas cargadas</div><div class="v">${rpNum(T.loaded)}</div><div class="s">${T.rate.loadedRate!=null?rateTxt(T.rate,'loadedRate')+'/mi':'—'}</div></div>
         <div class="an-k"><div class="l">Millas muertas</div><div class="v" style="color:var(--orange)">${rpNum(T.dead)}</div><div class="s" style="color:${pc};font-weight:700;">${dp.toFixed(1)}% del total${ml.missing.length?' · calculando…':''}</div></div>
-        <div class="an-k"><div class="l">Rate real</div><div class="v">${tot&&T.load?mkM(T.load/tot):'—'}</div><div class="s">contando millas muertas</div></div>
+        <div class="an-k"><div class="l">Rate real</div><div class="v">${rateTxt(T.rate,'allRate')}</div><div class="s">${rateNote(T.rate)||'contando millas muertas'}</div></div>
       </div>
       ${tot?`<div class="an-bar"><span class="a" style="width:${T.loaded/tot*100}%"></span><span class="b" style="width:${T.dead/tot*100}%"></span></div><div style="display:flex;gap:14px;font-size:11px;color:var(--text3);margin-bottom:12px;"><span><i style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#1E3A8A;vertical-align:-1px;"></i> Cargadas</span><span><i style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#E0A13A;vertical-align:-1px;"></i> Muertas</span></div>`:''}
       <div class="an-cols">
@@ -8572,6 +8907,12 @@ function renderAdminReport(){
   if(pendingDriver.length) items.push({c:'var(--orange)',t:`${pendingDriver.length} pago${pendingDriver.length!==1?'s':''} a driver pendiente${pendingDriver.length!==1?'s':''}`,s:'Por pagarle a los drivers',v:rpMoney(sumF(pendingDriver,t=>t.driver)),nav:'reportes'});
   if(pendingDispatch.length) items.push({c:'var(--red)',t:`${pendingDispatch.length} fee${pendingDispatch.length!==1?'s':''} de dispatcher`,s:'Pendiente o por cobrar',v:rpMoney(sumF(pendingDispatch,t=>t.fee)),nav:'dispatcherpay'});
   if(overdueInsp.length) items.push({c:'var(--orange)',t:`Inspección vencida (${overdueInsp.length})`,s:overdueInsp.map(u=>u.name).join(', '),v:'Ver',nav:'mantenimiento'});
+  { const lim=rpLocalISO(new Date(Date.now()-60*86400000));
+    const dups=findTripDuplicates(trips.filter(t=>(t.tripStatus==='active'||t.tripStatus==='completed')&&tripPickupDate(t)>=lim));
+    if(dups.length) items.unshift({c:'var(--red)',t:`${dups.length} viaje${dups.length!==1?'s':''} posiblemente duplicado${dups.length!==1?'s':''}`,s:dups.slice(0,3).map(([a])=>(a.driverName||'').split(' ')[0]+': '+(a.city1||a.z1||'')+' → '+(a.city2||a.z2||'')).join(' · ')+' — borra el que sobra en Historial',v:'Ver',nav:'log'}); }
+  { const lim=rpLocalISO(new Date(Date.now()-60*86400000));
+    const noDiesel=trips.filter(t=>t.tripStatus==='completed'&&repTripDate(t)>=lim&&!((t.fuelLoads||[]).some(f=>(f.tipo||f.type||'diesel')==='diesel'&&parseFloat(f.gal)>0)));
+    if(noDiesel.length) items.push({c:'var(--orange)',t:`${noDiesel.length} viaje${noDiesel.length!==1?'s':''} terminado${noDiesel.length!==1?'s':''} sin diésel`,s:noDiesel.slice(0,3).map(t=>(t.driverName||'').split(' ')[0]+': '+(t.city1||t.z1||'')+' → '+(t.city2||t.z2||'')).join(' · ')+' — su ganancia sale más alta de lo real',v:'Ver',nav:'log'}); }
   const odoBad=trips.filter(t=>t.tripStatus==='completed'&&tripOdoSuspect(t));
   if(odoBad.length) items.push({c:'var(--red)',t:`${odoBad.length} viaje${odoBad.length!==1?'s':''} con millas de odómetro raras`,s:odoBad.slice(0,3).map(t=>(t.city1||'')+' → '+(t.city2||'')+' ('+rpNum(t.miles)+' mi)').join(' · ')+' — revisa millas iniciales/finales',v:'Ver',nav:'log'});
   if(oilTrucks.length) items.push({c:oilTrucks.some(t=>getOilChangeStatus(t).status==='overdue')?'var(--red)':'var(--orange)',t:`Cambio de aceite (${oilTrucks.length})`,s:oilTrucks.map(t=>t.name).join(', '),v:'Ver',nav:'mantenimiento'});
@@ -9313,17 +9654,17 @@ function bizFilterTrips(trips){
   const to=document.getElementById('biz-to')?.value;
   if(from||to){
     return trips.filter(t=>{
-      if(from&&t.date<from)return false;
-      if(to&&t.date>to)return false;
+      if(from&&repTripDate(t)<from)return false;
+      if(to&&repTripDate(t)>to)return false;
       return true;
     });
   }
   if(bizFilterMonth&&bizFilterYear){
     const key=`${bizFilterYear}-${String(bizFilterMonth).padStart(2,'0')}`;
-    return trips.filter(t=>t.date&&t.date.startsWith(key));
+    return trips.filter(t=>repTripDate(t).startsWith(key));
   }
   if(bizFilterYear){
-    return trips.filter(t=>t.date&&t.date.startsWith(String(bizFilterYear)));
+    return trips.filter(t=>repTripDate(t).startsWith(String(bizFilterYear)));
   }
   return trips;
 }
@@ -9424,8 +9765,7 @@ const DASH_MONTHS_FULL=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio'
 function dashMondayOf(dateStr){
   const d=new Date((dateStr||todayStr())+'T00:00:00');
   const day=d.getDay();
-  const diff=(day===0?-6:1-day);
-  d.setDate(d.getDate()+diff);
+  d.setDate(d.getDate()-((day+1)%7)); // semana de trabajo: sábado a viernes
   return d;
 }
 function dashAddDays(d,n){const r=new Date(d);r.setDate(r.getDate()+n);return r;}
@@ -9571,7 +9911,7 @@ function renderDashboard(){
   document.getElementById('dash-filter-summary').innerHTML=`&#x1F4C5; <strong>${dashRangeLabel(from,to)}</strong>`;
 
   const allTrips=loadTrips();
-  const completed=allTrips.filter(t=>t.tripStatus==='completed'&&inDashRange(t.date,from,to));
+  const completed=allTrips.filter(t=>t.tripStatus==='completed'&&inDashRange(repTripDate(t),from,to));
   const active=allTrips.filter(t=>t.tripStatus==='active'&&inDashRange((t.startTime?t.startTime.slice(0,10):t.date),from,to));
   const scheduled=loadScheduled().filter(s=>inDashRange(s.date,from,to));
   const extras=loadExtras().filter(e=>inDashRange(e.date,from,to));
@@ -9731,7 +10071,7 @@ function renderDashboard(){
 function printDashboardReport(){
   const {from,to}=getDashRange();
   const allTrips=loadTrips();
-  const completed=allTrips.filter(t=>t.tripStatus==='completed'&&inDashRange(t.date,from,to));
+  const completed=allTrips.filter(t=>t.tripStatus==='completed'&&inDashRange(repTripDate(t),from,to));
   const active=allTrips.filter(t=>t.tripStatus==='active'&&inDashRange((t.startTime?t.startTime.slice(0,10):t.date),from,to));
   const scheduled=loadScheduled().filter(s=>inDashRange(s.date,from,to));
   const extras=loadExtras().filter(e=>inDashRange(e.date,from,to));
@@ -10824,7 +11164,7 @@ function renderBalance(){
   const {from,to}=getBalRange();
   document.getElementById('bal-filter-summary').innerHTML=`&#x1F4C5; <strong>${balRangeLabel(from,to)}</strong>`;
 
-  const completed=loadTrips().filter(t=>t.tripStatus==='completed'&&inDashRange(t.date,from,to));
+  const completed=loadTrips().filter(t=>t.tripStatus==='completed'&&inDashRange(repTripDate(t),from,to));
   const extras=loadExtras().filter(e=>inDashRange(e.date,from,to));
   const maint=loadMaintenance().filter(m=>inDashRange(m.date,from,to));
   const companyExp=loadCompanyExpenses().filter(e=>inDashRange(e.date,from,to));
@@ -11010,11 +11350,8 @@ function renderSemana(){
   const trips=loadTrips().filter(t=>t.profitSet&&t.tripStatus==='completed');
   const weekMap={};
   trips.forEach(t=>{
-    if(!t.date) return;
-    const d=new Date(t.date+'T00:00:00');
-    const day=d.getDay();
-    const diff=d.getDate()-day+(day===0?-6:1);
-    const mon=new Date(d); mon.setDate(diff);
+    const dd=repTripDate(t); if(!dd) return;
+    const mon=rpMonday(rpParse(dd)); // sábado de esa semana (sáb–vie), por fecha de delivery
     const sun=new Date(mon); sun.setDate(mon.getDate()+6);
     const key=isoLocal(mon);
     if(!weekMap[key]) weekMap[key]={start:new Date(mon),end:new Date(sun),trips:[]};
@@ -11072,11 +11409,8 @@ function guardarSemana(){
   const trips=loadTrips().filter(t=>t.profitSet&&t.tripStatus==='completed');
   const weekMap={};
   trips.forEach(t=>{
-    if(!t.date) return;
-    const d=new Date(t.date+'T00:00:00');
-    const day=d.getDay();
-    const diff=d.getDate()-day+(day===0?-6:1);
-    const mon=new Date(d); mon.setDate(diff);
+    const dd=repTripDate(t); if(!dd) return;
+    const mon=rpMonday(rpParse(dd)); // sábado de esa semana (sáb–vie), por fecha de delivery
     const sun=new Date(mon); sun.setDate(mon.getDate()+6);
     const key=isoLocal(mon);
     if(!weekMap[key]) weekMap[key]={start:new Date(mon),end:new Date(sun),trips:[]};
@@ -11210,7 +11544,7 @@ function renderBusiness(){
   // group by month
   const months={};
   trips.forEach(t=>{
-    const key=t.date?t.date.slice(0,7):'';if(!key)return;
+    const key=repTripDate(t).slice(0,7);if(!key)return;
     if(!months[key])months[key]={key,trips:0,income:0,net:0,diesel:0,fees:0,driver:0,extra:0};
     months[key].trips++;months[key].diesel+=t.totalCost||0;
     if(t.profitSet){months[key].income+=t.loadVal||0;months[key].net+=t.net||0;months[key].fees+=t.fee||0;months[key].driver+=t.driver||0;}
@@ -11603,7 +11937,7 @@ function t(key){return (T[currentLang]&&T[currentLang][key])||T['es'][key]||key;
 function toggleLang(){
   currentLang=currentLang==='es'?'en':'es';
   localStorage.setItem(LANG_KEY,currentLang);
-  applyLang();
+  location.reload();
 }
 
 function applyLang(){
@@ -11776,7 +12110,7 @@ function refreshRunningFuelList(){
   }
 
   listEl.innerHTML = loads.map(function(fl,i){
-    const stationLabel = fl.station ? '⛽ <b>'+fl.station+'</b> &nbsp;·&nbsp; ' : '';
+    const stationLabel = (fl.date ? '📅 '+fmtDate(fl.date)+' &nbsp;·&nbsp; ' : '') + (fl.station ? '⛽ <b>'+fl.station+'</b> &nbsp;·&nbsp; ' : '');
     let imgHtml = '';
     if(fl.driveStatus==='done' && fl.driveThumb){
       imgHtml = '<div style="margin-top:5px;"><img src="'+fl.driveThumb+'" style="max-height:60px;border-radius:6px;border:1px solid var(--border2);cursor:pointer;" onclick="window.open(\''+fl.driveLink+'\',\'_blank\')" /><div style="font-size:10px;color:var(--green);font-weight:700;margin-top:2px;">☁️ En Drive ✓</div></div>';
@@ -12306,7 +12640,7 @@ function renderMiViaje(){
         return '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:11px 14px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;">' +
           '<div>' +
           '<div style="font-size:13px;font-weight:600;color:var(--text);display:flex;align-items:center;">Gasto #' + (i+1) + tipoBadge + '</div>' +
-          '<div style="font-size:12px;color:var(--text3);margin-top:3px;">' + desc + '</div>' +
+          '<div style="font-size:12px;color:var(--text3);margin-top:3px;">' + (fl.date ? fmtDate(fl.date)+' · ' : '') + desc + '</div>' +
           fuelImgHtml +
           '</div>' +
           '<div style="font-size:16px;font-weight:800;color:var(--text);">$' + fl.cost.toFixed(2) + '</div>' +
@@ -12464,6 +12798,7 @@ function openAddGastoModal(){
   document.getElementById('gasto-monto').value = '';
   document.getElementById('gasto-desc').value = '';
   document.getElementById('gasto-station').value = '';
+  document.getElementById('gasto-date').value = todayStr();
   document.getElementById('gasto-subtotal').textContent = '$0.00';
   document.getElementById('gasto-img-preview').style.display = 'none';
   document.getElementById('gasto-img-btns').style.display = 'flex';
@@ -12523,7 +12858,7 @@ function saveGasto(){
   const t = trips[idx];
   const loadId = Date.now();
   const pendingImageFile = gastoImgFile || null; // el archivo original, para subir a Drive en segundo plano
-  let newLoad = { loadId, tipo: gastoTipoActual, image: null, driveStatus: pendingImageFile ? 'uploading' : null };
+  let newLoad = { loadId, tipo: gastoTipoActual, date: document.getElementById('gasto-date').value || todayStr(), image: null, driveStatus: pendingImageFile ? 'uploading' : null };
 
   if(gastoTipoActual === 'otro'){
     const monto = parseFloat(document.getElementById('gasto-monto').value)||0;
@@ -13211,7 +13546,7 @@ function renderGastosReport(){
     const loads = t.fuelLoads || [];
     loads.forEach(function(fl){
       rows.push({
-        date: t.date,
+        date: fl.date || t.date,
         driver: t.driverName || t.driverUser || '—',
         route: (t.city1||'') + ' → ' + (t.city2||''),
         tipo: fl.tipo || 'diesel',
@@ -13531,7 +13866,7 @@ function logFuelKey(f){ return [f.loadId||'',f.tipo||f.type||'diesel',f.station|
 function logFuelItems(t, f, i, op){
   const tipo=f.tipo||f.type||'diesel', gal=parseFloat(f.gal)||0, cost=parseFloat(f.cost)||0;
   const row={'ID viaje':String(t.id),'Fecha viaje':t.date||'','Chofer':t.driverName||'','Camión':logTruckName(t),'RC':t.rc||'','Ruta':logRoute(t),
-    'Tipo':tipo,'Gasolinera':f.station||f.desc||'','Galones':gal,'Precio/gal':parseFloat(f.price)||(gal?+(cost/gal).toFixed(3):''),'Total':cost,'Carga #':i+1};
+    'Fecha compra':f.date||'','Tipo':tipo,'Gasolinera':f.station||f.desc||'','Galones':gal,'Precio/gal':parseFloat(f.price)||(gal?+(cost/gal).toFixed(3):''),'Total':cost,'Carga #':i+1};
   if(f.driveLink) row['Foto']=f.driveLink;
   const img=(op!=='borrado'&&typeof f.image==='string'&&f.image.startsWith('data:'))?f.image:null;
   return {kind:'diesel',op,row,image:img,imageName:`${t.date||''}_${logTruckName(t)||t.driverName||''}_${t.rc?'RC'+t.rc:'viaje'+t.id}_${tipo}_${i+1}`};
@@ -13612,6 +13947,53 @@ function logSendAll(){
 }
 setTimeout(()=>{ try{ logFlush(); }catch(e){} }, 6000);
 
+// ===== ESPACIO EN LA NUBE + MOVER FOTOS A DRIVE =====
+function kbOf(o){ return Math.round(new Blob([JSON.stringify(o||{})]).size/1024); }
+async function showStorageStatus(){
+  const box=document.getElementById('storage-status'); if(!box) return;
+  if(!fbReady||!db){ box.innerHTML='<div style="font-size:12px;color:var(--red);">Sin conexión con la nube.</div>'; return; }
+  box.innerHTML='<div style="font-size:12px;color:var(--text3);">Revisando…</div>';
+  try{
+    const [ts,is]=await Promise.all([db.collection('data').doc('trips').get(),db.collection('data').doc('images').get()]);
+    const tKB=ts.exists?kbOf(ts.data()):0, iKB=is.exists?kbOf(is.data()):0;
+    const imgs=(is.exists&&is.data().images)||{}; const nImg=Object.values(imgs).filter(v=>typeof v==='string'&&v.startsWith('data:')).length;
+    const bar=(kb,label,extra)=>{ const p=Math.min(100,kb/1024*100), c=p>80?'var(--red)':p>60?'var(--orange)':'var(--green)';
+      return `<div style="margin-top:8px;font-size:12.5px;"><div style="display:flex;justify-content:space-between;"><span>${label}</span><b style="color:${c}">${kb} KB de 1,024 KB</b></div><div style="height:8px;background:var(--bg4);border-radius:4px;overflow:hidden;margin-top:3px;"><span style="display:block;height:100%;width:${p}%;background:${c};"></span></div>${extra||''}</div>`; };
+    box.innerHTML=bar(tKB,'Viajes recientes',`<div style="font-size:11px;color:var(--text3);margin-top:2px;">${(_lastRecentCloud||[]).length} viajes aquí · ${_archiveTrips.length} viajes viejos en el archivo (más de ${ARCHIVE_DAYS} días, se mueven solos)</div>`)
+      +bar(iKB,'Fotos guardadas en Firebase',`<div style="font-size:11px;color:var(--text3);margin-top:2px;">${nImg} foto${nImg!==1?'s':''}</div>`+(nImg?`<button onclick="moveImagesToDrive()" style="margin-top:6px;padding:7px 12px;background:#F0FDF4;color:#16A34A;border:1.5px solid #BBF7D0;border-radius:8px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit;">Mover fotos a Google Drive</button>`:''))
+      +'<div id="img-move-msg" style="font-size:12px;margin-top:6px;"></div>';
+  }catch(e){ box.innerHTML='<div style="font-size:12px;color:var(--red);">No se pudo revisar: '+e.message+'</div>'; }
+}
+async function moveImagesToDrive(){
+  if(!confirm('Se van a subir a Google Drive las fotos que están guardadas en Firebase y luego se borran de Firebase. Te pedirá entrar con la cuenta de Google de la empresa. ¿Continuar?')) return;
+  const msg=document.getElementById('img-move-msg'); const say=(t,c)=>{ if(msg){ msg.style.color=c||'var(--text2)'; msg.textContent=t; } };
+  try{ await getGoogleDriveToken(); }catch(e){ say('No se pudo entrar a Google Drive.','var(--red)'); return; }
+  const snap=await db.collection('data').doc('images').get();
+  const imgs={...((snap.exists&&snap.data().images)||{})};
+  const keys=Object.keys(imgs).filter(k=>typeof imgs[k]==='string'&&imgs[k].startsWith('data:'));
+  const trips=loadTrips(); let done=0, orphan=0, fail=0;
+  for(const k of keys){
+    const cut=k.lastIndexOf('_'); const tid=k.slice(0,cut), kind=k.slice(cut+1);
+    const t=trips.find(x=>String(x.id)===tid);
+    if(!t){ delete imgs[k]; orphan++; continue; }
+    say('Subiendo foto '+(done+fail+1)+' de '+keys.length+'…');
+    try{
+      const isFuel=/^\d+$/.test(kind);
+      const res=await uploadPhotoToDrive(t, isFuel?'diesel':kind, imgs[k]);
+      const thumb='https://drive.google.com/thumbnail?id='+res.id+'&sz=w800';
+      const cur=loadTrips().find(x=>String(x.id)===tid)||t;
+      if(isFuel){ const fl=(cur.fuelLoads||[])[+kind]; if(fl) Object.assign(fl,{image:null,driveFileId:res.id,driveLink:res.webViewLink,driveThumb:thumb,driveStatus:'done'}); }
+      else Object.assign(cur,{[kind+'Image']:null,[kind+'DriveFileId']:res.id,[kind+'DriveLink']:res.webViewLink,[kind+'DriveThumb']:thumb,[kind+'DriveStatus']:'done'});
+      delete imgs[k]; delete _imagesCache[k]; done++;
+    }catch(e){ console.warn('foto a Drive',k,e); fail++; }
+  }
+  _imagesCache={...imgs};
+  _logMute=true; try{ await storeTrips(loadTrips()); }finally{ _logMute=false; }
+  await db.collection('data').doc('images').set(sanitizeForFirestore({images:imgs,updatedAt:new Date().toISOString()}));
+  say('Listo: '+done+' foto'+(done!==1?'s':'')+' en Drive'+(orphan?', '+orphan+' de viajes borrados eliminadas':'')+(fail?', '+fail+' no se pudieron subir (intenta de nuevo)':'')+'.', fail?'var(--orange)':'var(--green)');
+  setTimeout(showStorageStatus,1500);
+}
+
 // ===== RESPALDOS AUTOMÁTICOS + RESTAURAR SIN BORRAR =====
 function tripNoImages(t){
   const o={...t, fuelLoads:(t.fuelLoads||[]).map(f=>f&&typeof f==='object'?{...f,image:null}:f)};
@@ -13620,7 +14002,8 @@ function tripNoImages(t){
 }
 async function saveTripsBackup(id, force){
   if(!fbReady||!db) return;
-  const trips=(loadTrips()||[]).map(tripNoImages);
+  const archIds=new Set(_archiveTrips.map(t=>String(t.id)));
+  const trips=(loadTrips()||[]).filter(t=>force||!archIds.has(String(t.id))).map(tripNoImages);
   if(!trips.length && !force) return;
   const ref=db.collection('backups').doc(id);
   if(!force){ const s=await ref.get(); if(s.exists && (s.data().count||0)>=trips.length) return; }
@@ -13663,7 +14046,7 @@ function matchTripUser(name){
 // Agrega viajes de un respaldo SIN borrar los que ya están en la nube
 async function mergeTripsIn(incoming){
   let cur=loadTrips()||[];
-  if(fbReady&&db){ try{ const s=await db.collection('data').doc('trips').get(); if(s.exists&&s.data().trips) cur=s.data().trips.map(t=>injectTripImages(t,_imagesCache||{})); }catch(e){} }
+  if(fbReady&&db){ try{ const s=await db.collection('data').doc('trips').get(); if(s.exists&&s.data().trips) cur=withArchive(s.data().trips.map(t=>injectTripImages(t,_imagesCache||{}))); }catch(e){} }
   const sig=t=>[t.date,(t.driverName||'').trim().toLowerCase().split(' ')[0],String(t.z1||''),String(t.z2||''),Math.round(parseFloat(t.loadVal)||0)].join('|');
   const ids=new Set(cur.map(t=>String(t.id))), sigs=new Set(cur.map(sig));
   const trucks=loadTrucks();
@@ -13832,6 +14215,71 @@ function renderMisGanancias(){
 }
 
 // ===== REPORTE DRIVER =====
+// ===== AJUSTES AL PAGO DEL DRIVER =====
+const ADJ_KEY='trucklog_driver_adj';
+const ADJ_TYPES={
+  adelanto:{es:'Anticipo',en:'Cash Advance',sign:-1},
+  diesel:{es:'Reembolso de combustible',en:'Fuel Reimbursement',sign:1},
+  bono:{es:'Bono',en:'Bonus',sign:1},
+  descuento:{es:'Deducción',en:'Deduction',sign:-1}
+};
+function loadAdj(){ try{ return JSON.parse(localStorage.getItem(ADJ_KEY))||[]; }catch(e){ return []; } }
+function saveAdj(list){
+  try{ logListDiff('ajuste', loadAdj(), list); }catch(e){}
+  localStorage.setItem(ADJ_KEY, JSON.stringify(list));
+  if(fbReady&&db) db.collection('data').doc('driverAdjustments').set(sanitizeForFirestore({adjustments:list,updatedAt:new Date().toISOString()})).catch(e=>console.warn('ajustes',e));
+}
+async function initDriverAdj(){
+  if(!fbReady) return;
+  try{ const sn=await db.collection('data').doc('driverAdjustments').get(); if(sn.exists&&sn.data().adjustments) localStorage.setItem(ADJ_KEY, JSON.stringify(sn.data().adjustments)); }catch(e){}
+}
+function adjSigned(a){ return (ADJ_TYPES[a.type]?ADJ_TYPES[a.type].sign:1)*(parseFloat(a.amount)||0); }
+function adjFor(driverF, from, to){
+  return loadAdj().filter(a=>(driverF==='all'||a.driverName===driverF)&&(!from||a.date>=from)&&(!to||a.date<=to)).sort((x,y)=>(x.date||'').localeCompare(y.date||''));
+}
+function renderAdjCard(driverF, from, to){
+  const m2=v=>(v<0?'-$':'$')+Math.abs(v||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  // selector de driver del formulario
+  const sel=document.getElementById('rep-adj-driver'); if(!sel) return;
+  const names=[...new Set([...loadTrips().map(t=>t.driverName).filter(Boolean), ...getUsers().filter(u=>u.role==='driver').map(u=>(u.firstName&&u.lastName)?u.firstName+' '+u.lastName:u.name).filter(Boolean)])].sort();
+  const keep=sel.value;
+  sel.innerHTML=names.map(n=>`<option value="${rpEsc(n)}">${rpEsc(n)}</option>`).join('');
+  sel.value = driverF!=='all' && names.includes(driverF) ? driverF : (names.includes(keep)?keep:names[0]||'');
+  const dEl=document.getElementById('rep-adj-date'); if(dEl && !dEl.value) dEl.value=todayStr();
+  // lista del periodo
+  const list=adjFor(driverF,from,to);
+  const box=document.getElementById('rep-adj-list');
+  if(!list.length){ box.innerHTML='<div style="font-size:12.5px;color:var(--text3);">Sin ajustes en este periodo de liquidación.</div>'; return; }
+  const total=list.reduce((a,x)=>a+adjSigned(x),0);
+  box.innerHTML=list.map(a=>{ const v=adjSigned(a); return `<div class="rp-row"><div class="a"><div class="n">${ADJ_TYPES[a.type]?ADJ_TYPES[a.type].es:a.type}${driverF==='all'?' · '+rpEsc(a.driverName):''}</div><div class="m">${fmtDate(a.date)}${a.note?' · '+rpEsc(a.note):''}</div></div>
+    <div class="b" style="display:flex;align-items:center;gap:10px;"><div class="v" style="color:${v<0?'var(--red)':'var(--green)'}">${v<0?'−':'+'}${m2(Math.abs(v))}</div><button class="btn-sm btn-red-sm" onclick="delDriverAdj(${JSON.stringify(a.id)})" style="padding:3px 9px;">✕</button></div></div>`; }).join('')
+    +`<div class="rp-row total"><div class="a"><div class="n">Total de ajustes</div></div><div class="b"><div class="v" style="color:${total<0?'var(--red)':'var(--green)'}">${total<0?'−':'+'}${m2(Math.abs(total))}</div></div></div>`;
+}
+function addDriverAdj(){
+  const msg=document.getElementById('rep-adj-msg');
+  const sm=(t,c)=>{ msg.className='msg '+c; msg.textContent=t; msg.style.display='block'; if(c==='ok') setTimeout(()=>msg.style.display='none',2500); };
+  const driverName=document.getElementById('rep-adj-driver').value;
+  const date=document.getElementById('rep-adj-date').value;
+  const type=document.getElementById('rep-adj-type').value;
+  const amount=parseFloat(document.getElementById('rep-adj-amount').value)||0;
+  const note=document.getElementById('rep-adj-note').value.trim();
+  if(!driverName){ sm('Selecciona el driver.','err'); return; }
+  if(!date){ sm('Selecciona la fecha.','err'); return; }
+  if(!(amount>0)){ sm('Ingresa un monto mayor a 0.','err'); return; }
+  const u=getUsers().find(x=>((x.firstName&&x.lastName)?x.firstName+' '+x.lastName:x.name)===driverName);
+  const list=loadAdj();
+  list.push({id:Date.now(),driverName,driverUser:u?u.username:'',date,type,amount:parseFloat(amount.toFixed(2)),note,
+    category:ADJ_TYPES[type].es, description:note, createdAt:new Date().toISOString(), by:(currentUser&&currentUser.username)||''});
+  saveAdj(list);
+  document.getElementById('rep-adj-amount').value=''; document.getElementById('rep-adj-note').value='';
+  sm('✓ Ajuste guardado','ok');
+  renderReporte();
+}
+function delDriverAdj(id){
+  if(!confirm('¿Eliminar este ajuste?')) return;
+  saveAdj(loadAdj().filter(a=>String(a.id)!==String(id)));
+  renderReporte();
+}
 function renderReporte(){
   const trips = loadTrips();
   if(!document.getElementById('rep-from').value && !document.getElementById('rep-to').value && !window._repInit){
@@ -13853,6 +14301,7 @@ function renderReporte(){
   const payF    = document.getElementById('rep-paystatus').value;
   const fromF   = document.getElementById('rep-from').value;
   const toF     = document.getElementById('rep-to').value;
+  renderAdjCard(driverF, fromF, toF);
 
   // Base set (driver + fecha) usado para el desglose de pagados/pendientes
   let baseFiltered = trips.filter(t=>{
@@ -13891,11 +14340,12 @@ function renderReporte(){
 
   // Tiles
   const m2=v=>'$'+(v||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const adjList=adjFor(driverF,fromF,toF), adjTotal=adjList.reduce((a,x)=>a+adjSigned(x),0);
   const totalMiles=filtered.reduce((a,t)=>a+(tripDistance(t).mi||0),0);
   document.getElementById('rep-tiles').innerHTML = `
-    <div class="rep-tile main"><div class="l">Total a pagar</div><div class="v">${m2(totalPay)}</div><div class="s">${totalTrips} viaje${totalTrips!==1?'s':''} · ${totalMiles.toLocaleString('en-US')} mi</div></div>
-    <div class="rep-tile"><div class="l">Ya pagado</div><div class="v" style="color:var(--green)">${m2(paidTotal)}</div><div class="s">${paidTrips.length} viaje${paidTrips.length!==1?'s':''}</div></div>
-    <div class="rep-tile"><div class="l">Pendiente de pago</div><div class="v" style="color:var(--orange)">${m2(unpaidTotal)}</div><div class="s">${unpaidTrips.length} viaje${unpaidTrips.length!==1?'s':''}</div></div>`;
+    <div class="rep-tile main"><div class="l">Pago neto</div><div class="v">${m2(totalPay+adjTotal)}</div><div class="s">${totalTrips} carga${totalTrips!==1?'s':''} · ${totalMiles.toLocaleString('en-US')} mi${adjList.length?' · pago bruto '+m2(totalPay)+(adjTotal<0?' − ':' + ')+m2(Math.abs(adjTotal))+' en ajustes':''}</div></div>
+    <div class="rep-tile"><div class="l">Liquidado</div><div class="v" style="color:var(--green)">${m2(paidTotal)}</div><div class="s">${paidTrips.length} viaje${paidTrips.length!==1?'s':''}</div></div>
+    <div class="rep-tile"><div class="l">Por liquidar</div><div class="v" style="color:var(--orange)">${m2(unpaidTotal)}</div><div class="s">${unpaidTrips.length} viaje${unpaidTrips.length!==1?'s':''}</div></div>`;
 
   // Table rows
   const tbody = document.getElementById('rep-tbody');
@@ -13991,6 +14441,11 @@ function generarPDF(){
   const totalPay    = filtered.filter(t=>t.profitSet).reduce((a,t)=>a+(t.driver||0),0);
   const totalLoad   = filtered.filter(t=>t.profitSet).reduce((a,t)=>a+(t.loadVal||0),0);
   const totalExtras = filtered.reduce((a,t)=>a+(t.extrasTotal||0),0);
+  const adjList     = adjFor(driverF,fromF,toF);
+  const adjTotal    = adjList.reduce((a,x)=>a+adjSigned(x),0);
+  const grandPay    = totalPay + adjTotal;
+  const usd = v=>(v<0?'-$':'$')+Math.abs(v).toFixed(2);
+  const adjRows = adjList.map(a=>{ const v=adjSigned(a); return `<tr><td class="date">${fmtDate(a.date)}</td><td>${(ADJ_TYPES[a.type]||{}).en||a.type}${driverF==='all'?' — '+a.driverName:''}</td><td>${a.note||''}</td><td class="right" style="font-weight:700;color:${v<0?'#B42318':'#15803D'};">${v<0?'-':'+'}$${Math.abs(v).toFixed(2)}</td></tr>`; }).join('');
   const co          = loadCompany();
   const driverUser  = driverF==='all' ? null : getUsers().find(u=>u.name===driverF||u.username===driverF||u.firstName+' '+u.lastName===driverF);
   const driverFullName = driverF==='all' ? 'All Drivers' : (driverUser ? [driverUser.firstName, driverUser.lastName].filter(Boolean).join(' ') || driverUser.name || driverF : driverF);
@@ -14173,11 +14628,11 @@ function generarPDF(){
         ${co.address?`<div style="font-size:11px;color:#444;margin-top:2px;">📍 ${co.address}</div>`:''}
         ${co.phone?`<div style="font-size:11px;color:#444;margin-top:1px;">📞 ${applyPhoneFmt(co.phone)}</div>`:''}
         ${co.mc||co.dot?`<div style="font-size:10px;color:#666;margin-top:3px;">${co.mc?'MC: '+co.mc:''}${co.mc&&co.dot?' &nbsp;|&nbsp; ':''}${co.dot?'DOT: '+co.dot:''}</div>`:''}
-        ${!co.name?`<div class="bw-title">Payment Voucher</div>`:''}
+        ${!co.name?`<div class="bw-title">Driver Settlement</div>`:''}
       </div>
     </div>
     <div class="bw-doc-info">
-      ${co.name?`<div style="font-size:16px;font-weight:900;color:#000;text-align:right;margin-bottom:6px;">Payment Voucher</div>`:''}
+      ${co.name?`<div style="font-size:16px;font-weight:900;color:#000;text-align:right;margin-bottom:6px;">Driver Settlement</div>`:''}
       <div class="bw-doc-label">Date Issued</div>
       <div class="bw-doc-val">${todayFull}</div>
       <div class="bw-doc-label" style="margin-top:8px;">Period</div>
@@ -14194,10 +14649,16 @@ function generarPDF(){
 
   <!-- PAYMENT AMOUNT — centro de atención -->
   <div style="border:3px solid #000;border-radius:4px;padding:32px;text-align:center;margin-bottom:28px;">
-    <div style="font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">Amount Paid</div>
-    <div style="font-size:64px;font-weight:900;color:#000;letter-spacing:-2px;line-height:1;">\$${totalPay.toFixed(2)}</div>
+    <div style="font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">Net Pay</div>
+    <div style="font-size:64px;font-weight:900;color:#000;letter-spacing:-2px;line-height:1;">${usd(grandPay)}</div>
     <div style="font-size:13px;color:#555;margin-top:10px;">Period: ${periodoEN}</div>
   </div>
+  ${adjList.length?`<div class="bw-line-items">
+    <div class="bw-line-header">Settlement Summary</div>
+    <div class="bw-line-row"><div class="bw-line-desc">Gross Pay<small>${filtered.length} load${filtered.length!==1?'s':''}</small></div><div class="bw-line-amount">$${totalPay.toFixed(2)}</div></div>
+    ${adjList.map(a=>{ const v=adjSigned(a); return `<div class="bw-line-row"><div class="bw-line-desc">${(ADJ_TYPES[a.type]||{}).en||a.type}<small>${fmtDate(a.date)}${a.note?' · '+a.note:''}</small></div><div class="bw-line-amount">${v<0?'-':'+'}$${Math.abs(v).toFixed(2)}</div></div>`; }).join('')}
+    <div class="bw-line-row total"><div class="bw-line-desc">Net Pay</div><div class="bw-line-amount">${usd(grandPay)}</div></div>
+  </div>`:''}
 
   <!-- FIRMA DEL DRIVER -->
   <div style="margin-top:48px;">
@@ -14231,11 +14692,11 @@ function generarPDF(){
         ${co.address?`<div style="font-size:11px;color:#444;margin-top:2px;">📍 ${co.address}</div>`:''}
         ${co.phone?`<div style="font-size:11px;color:#444;margin-top:1px;">📞 ${applyPhoneFmt(co.phone)}</div>`:''}
         ${co.mc||co.dot?`<div style="font-size:10px;color:#666;margin-top:3px;">${co.mc?'MC: '+co.mc:''}${co.mc&&co.dot?' &nbsp;|&nbsp; ':''}${co.dot?'DOT: '+co.dot:''}</div>`:''}
-        ${!co.name?`<div class="bw-title">Trip Report</div>`:''}
+        ${!co.name?`<div class="bw-title">Settlement Detail</div>`:''}
       </div>
     </div>
     <div class="bw-doc-info">
-      ${co.name?`<div style="font-size:16px;font-weight:900;color:#000;text-align:right;margin-bottom:6px;">Trip Report</div>`:''}
+      ${co.name?`<div style="font-size:16px;font-weight:900;color:#000;text-align:right;margin-bottom:6px;">Settlement Detail</div>`:''}
       <div class="bw-doc-label">Date Issued</div>
       <div class="bw-doc-val">${todayFull}</div>
       <div class="bw-doc-label" style="margin-top:8px;">Period</div>
@@ -14252,8 +14713,8 @@ function generarPDF(){
       ${driverPhone?`<div class="bw-driver-period">📞 ${applyPhoneFmt(driverPhone)}</div>`:""}
     </div>
     <div class="bw-amount-block">
-      <div class="bw-amount-label">Total Payment</div>
-      <div class="bw-amount-val">$${totalPay.toFixed(2)}</div>
+      <div class="bw-amount-label">Net Pay</div>
+      <div class="bw-amount-val">${usd(grandPay)}</div>
     </div>
   </div>
 
@@ -14262,7 +14723,7 @@ function generarPDF(){
   <!-- TABLE -->
   <div class="table-wrap">
     <div class="table-header">
-      <div class="table-title">📋 Trip Detail</div>
+      <div class="table-title">📋 Load Detail</div>
       <div class="table-count">${filtered.length} records</div>
     </div>
     <table>
@@ -14279,7 +14740,7 @@ function generarPDF(){
       <tbody>${rows2}</tbody>
       <tbody>
         <tr class="total-row">
-          <td colspan="4"><span class="total-label">Period Total</span></td>
+          <td colspan="4"><span class="total-label">Gross Pay</span></td>
           <td><span class="total-pay">$${totalPay.toFixed(2)}</span></td>
           <td></td>
         </tr>
@@ -14290,6 +14751,13 @@ function generarPDF(){
       </tbody>
     </table>
   </div>
+  ${adjList.length?`<div class="table-wrap">
+    <div class="table-header"><div class="table-title">💵 Settlement Adjustments</div><div class="table-count">${adjList.length} records</div></div>
+    <table><thead><tr><th>Date</th><th>Type</th><th>Note</th><th class="right">Amount</th></tr></thead>
+    <tbody>${adjRows}
+      <tr class="total-row"><td colspan="3"><span class="total-label">Net Pay (Gross ${usd(totalPay)} ${adjTotal<0?'−':'+'} Adjustments ${usd(Math.abs(adjTotal))})</span></td><td><span class="total-pay">${usd(grandPay)}</span></td></tr>
+    </tbody></table>
+  </div>`:''}
 
   <!-- SIGNATURES -->
   <div class="sig-section">
@@ -14795,6 +15263,7 @@ window.addEventListener('load', function(){
     initExtras();
     initMaintenance();
     initCompanyExpenses();
+    initDriverAdj();
     const session=getSession();
     if(session){
       const fresh=getUsers().find(u=>u.username===session.username);
@@ -14805,7 +15274,8 @@ window.addEventListener('load', function(){
       // Cargar trips y luego reinyectar imágenes del documento separado
       db.collection('data').doc('trips').get().then(snap=>{
         if(snap.exists&&snap.data().trips){
-          _cachedTrips=snap.data().trips;
+          _lastRecentCloud=snap.data().trips;
+          _cachedTrips=withArchive(snap.data().trips);
           localStorage.setItem(TRIPS_KEY,JSON.stringify(_cachedTrips));
         }
         // Cargar imágenes desde documento separado

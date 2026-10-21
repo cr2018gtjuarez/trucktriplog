@@ -1431,8 +1431,11 @@
             <div class="field"><label>Fecha de pick up</label><input type="date" id="f-date-admin"/></div>
             <div class="field"><label>Fecha de delivery (cita)</label><input type="date" id="f-delivery-date-admin"/></div>
             <div class="field"><label>Rendimiento (MPG)</label><input type="number" id="f-mpg-admin" value="8" min="1" max="50" step="0.1" oninput="calcAll()"/></div>
-            <div class="field"><label>ZIP origen</label><input type="text" id="f-z1-admin" maxlength="5" inputmode="numeric" placeholder="00000" oninput="onZipAdmin(this,'h1a')"/><div class="hint" id="h1a"></div></div>
-            <div class="field"><label>ZIP destino</label><input type="text" id="f-z2-admin" maxlength="5" inputmode="numeric" placeholder="00000" oninput="onZipAdmin(this,'h2a')"/><div class="hint" id="h2a"></div></div>
+            <div class="field"><label>ZIP de origen (de dónde sale el camión)</label><input type="text" id="f-zs-admin" maxlength="5" inputmode="numeric" placeholder="00000" oninput="onZipAdmin(this,'hsa');calcDeadAdmin()"/><div class="hint" id="hsa">Opcional. Se usa para las millas muertas hasta el pick up.</div></div>
+            <div class="field"><label>ZIP pick up</label><input type="text" id="f-z1-admin" maxlength="5" inputmode="numeric" placeholder="00000" oninput="onZipAdmin(this,'h1a');calcDeadAdmin()"/><div class="hint" id="h1a"></div></div>
+            <div class="field"><label>ZIP destino (delivery)</label><input type="text" id="f-z2-admin" maxlength="5" inputmode="numeric" placeholder="00000" oninput="onZipAdmin(this,'h2a')"/><div class="hint" id="h2a"></div></div>
+            <div class="field"><label>Millas muertas (para llegar al pick up)</label><input type="number" id="f-dead-admin" placeholder="Se calcula sola" min="0" step="0.1" oninput="this.dataset.manual=this.value?'1':''"/><div class="hint" id="h-dead-admin">Pon el ZIP de origen y el de pick up, o el odómetro inicial.</div></div>
+            <div class="field"><label>Millas GPS / ruta</label><input type="number" id="f-gpsmi-admin" placeholder="Ej. 780" min="0" step="0.1"/><div class="hint">Manual. Las que marca el GPS o el RC.</div></div>
           </div>
           <!-- DIRECCIONES EXACTAS (opcional, para ruta real y ETA preciso) -->
           <div class="g2" style="margin-top:10px;">
@@ -1449,13 +1452,13 @@
           </div>
           <div class="field" style="margin-top:10px;">
             <label>Camión</label>
-            <select id="f-truck-admin"><option value="">— Selecciona el camión —</option></select>
+            <select id="f-truck-admin" onchange="updateOdoHint()"><option value="">— Selecciona el camión —</option></select>
           </div>
           <!-- % PAGO -->
           <div class="field" style="margin-top:10px;">
             <label>💰 % de pago del driver</label>
             <div style="display:flex;align-items:center;gap:10px;">
-              <select id="f-pay-pct-select" onchange="document.getElementById('f-pay-pct').value=this.value;calcAll();" style="flex:1;padding:10px 13px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:14px;color:var(--text);background:var(--bg3);font-family:inherit;outline:none;">
+              <select id="f-pay-pct-select" onchange="document.getElementById('f-pay-pct').value=this.value;calcAll();accSum('f-acc');" style="flex:1;padding:10px 13px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:14px;color:var(--text);background:var(--bg3);font-family:inherit;outline:none;">
                 <option value="">— Selecciona % —</option>
                 <option value="20">20%</option>
                 <option value="25">25%</option>
@@ -1494,6 +1497,27 @@
             <input type="number" id="f-factoring-admin" placeholder="Ej. 3.99 (déjalo vacío si no aplica)" min="0" max="100" step="0.01" oninput="calcAll()"/>
             <div class="hint">Solo si factorizas: 2.99% + 1% por transferencia inmediata = 3.99%</div>
           </div>
+
+          <div style="margin-top:12px;padding:12px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;">
+            <div style="font-size:12px;font-weight:800;color:var(--text);margin-bottom:2px;">Pagos adicionales (TONU / Detention / Layover)</div>
+            <div class="hint" style="margin-bottom:8px;">Opcional. Monto que te paga el broker y % que le toca al chofer (si lo dejas vacío usa el % del viaje).</div>
+            <div style="display:grid;grid-template-columns:110px 1fr 1fr;gap:8px;align-items:center;margin-bottom:6px;">
+              <div style="font-size:13px;font-weight:700;color:var(--text);">TONU</div>
+              <input type="number" id="f-acc-tonu-amt" placeholder="$ monto" min="0" step="0.01" oninput="accSum('f-acc')"/>
+              <input type="number" id="f-acc-tonu-pct" placeholder="% chofer" min="0" max="100" step="0.5" oninput="accSum('f-acc')"/>
+            </div>
+            <div style="display:grid;grid-template-columns:110px 1fr 1fr;gap:8px;align-items:center;margin-bottom:6px;">
+              <div style="font-size:13px;font-weight:700;color:var(--text);">Detention</div>
+              <input type="number" id="f-acc-detention-amt" placeholder="$ monto" min="0" step="0.01" oninput="accSum('f-acc')"/>
+              <input type="number" id="f-acc-detention-pct" placeholder="% chofer" min="0" max="100" step="0.5" oninput="accSum('f-acc')"/>
+            </div>
+            <div style="display:grid;grid-template-columns:110px 1fr 1fr;gap:8px;align-items:center;margin-bottom:6px;">
+              <div style="font-size:13px;font-weight:700;color:var(--text);">Layover</div>
+              <input type="number" id="f-acc-layover-amt" placeholder="$ monto" min="0" step="0.01" oninput="accSum('f-acc')"/>
+              <input type="number" id="f-acc-layover-pct" placeholder="% chofer" min="0" max="100" step="0.5" oninput="accSum('f-acc')"/>
+            </div>
+            <div class="hint" id="f-acc-sum"></div>
+          </div>
           <!-- RC NUMBER -->
           <div class="field" style="margin-top:10px;">
             <label>🔖 RC # (Rate Confirmation)</label>
@@ -1501,8 +1525,9 @@
           </div>
           <!-- MILLAS INICIALES -->
           <div class="field" style="margin-top:10px;">
-            <label>🛣️ Millas iniciales</label>
-            <input type="number" id="f-mi-start-admin" placeholder="Ej. 125000" min="0" oninput="calcAll()"/>
+            <label>🛣️ Odómetro inicial</label>
+            <input type="number" id="f-mi-start-admin" placeholder="Ej. 125000" min="0" oninput="calcAll();updateOdoHint()"/>
+            <div class="hint" id="h-odo-admin" style="line-height:1.45;"></div>
           </div>
         </div>
         <div class="msg" id="f-msg-admin-s1"></div>
@@ -1647,16 +1672,41 @@
       <div class="card">
         <div class="card-title">🏁 Finalizar viaje</div>
         <div class="g2">
-          <div class="field"><label>Millas finales</label><input type="number" id="f-mi-end-admin" placeholder="Ej. 125800" min="0" oninput="calcAll()"/></div>
-          <div class="field"><label>Millas del viaje</label><div class="computed" id="c-miles">—</div></div>
+          <div class="field"><label>Odómetro final</label><input type="number" id="f-mi-end-admin" placeholder="Ej. 125800" min="0" oninput="calcAll()"/></div>
+          <div class="field"><label>Millas GPS / ruta</label><input type="number" id="f-gpsmi-end-admin" placeholder="Ej. 780" min="0" step="0.1" oninput="calcAll()"/></div>
         </div>
-        <div class="field" style="margin-top:10px;"><label>Load Value ($)</label><input type="number" id="f-load" placeholder="Ej. 5000" min="0" step="0.01" oninput="calcAll()"/></div>
+        <div class="field" style="margin-top:10px;"><label>Millas muertas (para llegar al pick up)</label><input type="number" id="f-dead-end-admin" placeholder="0" min="0" step="0.1" oninput="calcAll()"/></div>
+        <div class="field" style="margin-top:10px;"><label>Millas del viaje</label><div class="computed" id="c-miles">—</div></div>
+        <div class="field" style="margin-top:10px;"><label>Millas totales y rate</label><div class="computed" id="c-miles-total" style="display:block;line-height:1.5;">—</div></div>
+
+          <div style="margin-top:12px;padding:12px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;">
+            <div style="font-size:12px;font-weight:800;color:var(--text);margin-bottom:2px;">Pagos adicionales (TONU / Detention / Layover)</div>
+            <div class="hint" style="margin-bottom:8px;">Opcional. Monto que te paga el broker y % que le toca al chofer (si lo dejas vacío usa el % del viaje).</div>
+            <div style="display:grid;grid-template-columns:110px 1fr 1fr;gap:8px;align-items:center;margin-bottom:6px;">
+              <div style="font-size:13px;font-weight:700;color:var(--text);">TONU</div>
+              <input type="number" id="fe-acc-tonu-amt" placeholder="$ monto" min="0" step="0.01" oninput="calcAll()"/>
+              <input type="number" id="fe-acc-tonu-pct" placeholder="% chofer" min="0" max="100" step="0.5" oninput="calcAll()"/>
+            </div>
+            <div style="display:grid;grid-template-columns:110px 1fr 1fr;gap:8px;align-items:center;margin-bottom:6px;">
+              <div style="font-size:13px;font-weight:700;color:var(--text);">Detention</div>
+              <input type="number" id="fe-acc-detention-amt" placeholder="$ monto" min="0" step="0.01" oninput="calcAll()"/>
+              <input type="number" id="fe-acc-detention-pct" placeholder="% chofer" min="0" max="100" step="0.5" oninput="calcAll()"/>
+            </div>
+            <div style="display:grid;grid-template-columns:110px 1fr 1fr;gap:8px;align-items:center;margin-bottom:6px;">
+              <div style="font-size:13px;font-weight:700;color:var(--text);">Layover</div>
+              <input type="number" id="fe-acc-layover-amt" placeholder="$ monto" min="0" step="0.01" oninput="calcAll()"/>
+              <input type="number" id="fe-acc-layover-pct" placeholder="% chofer" min="0" max="100" step="0.5" oninput="calcAll()"/>
+            </div>
+            <div class="hint" id="fe-acc-sum"></div>
+          </div>
+        <div class="field" style="margin-top:10px;"><label>Load Value / flete ($)</label><input type="number" id="f-load" placeholder="Ej. 5000" min="0" step="0.01" oninput="calcAll()"/></div>
 
         <!-- Breakdown -->
         <div class="profit-breakdown" style="margin-top:12px;">
           <div class="pb-row"><span class="pb-label">Load Value</span><span class="pb-val" id="pb-load">$—</span></div>
           <div class="pb-row"><span class="pb-label sub">Dispatcher Fee</span><span class="pb-val red" id="pb-fee">- $—</span></div>
           <div class="pb-row" id="pb-factoring-row" style="display:none;"><span class="pb-label sub">Factoring Fee</span><span class="pb-val red" id="pb-factoring">- $—</span></div>
+          <div class="pb-row" id="pb-acc-row" style="display:none;"><span class="pb-label sub">Pagos adicionales</span><span class="pb-val" id="pb-acc">$—</span></div>
           <div class="pb-row"><span class="pb-label sub">Driver Pay</span><span class="pb-val red" id="pb-driver">- $—</span></div>
           <div class="pb-row"><span class="pb-label sub">Costo diesel</span><span class="pb-val red" id="pb-diesel">- $—</span></div>
           <div class="pb-row"><span class="pb-label" style="font-weight:700;">Ganancia neta</span><span class="pb-val big green" id="pb-net">$—</span></div>
@@ -3573,7 +3623,7 @@
       <div class="rp-card-h"><span>Rutas más frecuentes</span><span class="rp-muted">estado a estado</span></div>
       <div id="mk-lanes"></div>
     </div>
-    <div style="font-size:11px;color:var(--text3);margin:2px 4px 12px;" class="mk-foot">Solo cuenta viajes terminados con pago capturado. Rate / milla = total pagado ÷ total de millas del grupo (millas de carretera ZIP a ZIP). Grupos con 1–2 cargas se marcan como "pocos datos".</div>
+    <div style="font-size:11px;color:var(--text3);margin:2px 4px 12px;" class="mk-foot">Solo cuenta viajes terminados con pago capturado. Rate / milla = total pagado ÷ (millas cargadas + millas muertas para llegar al pick up). Grupos con 1–2 cargas se marcan como "pocos datos".</div>
     </div><!-- /mk-tab-brokers -->
 
     <div id="mk-tab-millas" style="display:none;">
@@ -3601,7 +3651,7 @@
         <div class="rp-card-h"><span>Viaje por viaje</span><span class="rp-muted">millas muertas = de donde entregó el viaje anterior a donde recoge este</span></div>
         <div id="ml-trips"></div>
       </div>
-      <div style="font-size:11px;color:var(--text3);margin:2px 4px 12px;">Millas cargadas: distancia por carretera de ZIP a ZIP de cada viaje. Millas muertas: si el odómetro final del viaje anterior y el inicial de este están capturados se usa la diferencia; si no, se calcula la distancia por carretera entre el delivery anterior y el pick up de este. Los viajes cuentan en la semana de su fecha de delivery (sáb – vie).</div>
+      <div style="font-size:11px;color:var(--text3);margin:2px 4px 12px;">Millas cargadas: millas reales del odómetro (final − inicial) de cada viaje terminado; si el odómetro falta o no cuadra, se usa la distancia por carretera de ZIP a ZIP. Millas muertas: si el odómetro final del viaje anterior y el inicial de este están capturados se usa la diferencia; si no, se calcula la distancia por carretera entre el delivery anterior y el pick up de este. Los viajes cuentan en la semana de su fecha de delivery (sáb – vie).</div>
     </div>
   </div>
 
@@ -3796,12 +3846,24 @@
     <!-- Odómetro -->
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:1rem;">
       <div class="field">
-        <label>🛣️ Mi. Iniciales</label>
+        <label>🛣️ Odómetro inicial</label>
         <input type="number" id="edit-mi-start" placeholder="Ej. 125000" min="0" oninput="previewEdit()"/>
       </div>
       <div class="field">
-        <label>🛣️ Mi. Finales</label>
+        <label>🛣️ Odómetro final</label>
         <input type="number" id="edit-mi-end" placeholder="Ej. 125800" min="0" oninput="previewEdit()"/>
+      </div>
+      <div class="field">
+        <label>Millas muertas</label>
+        <input type="number" id="edit-dead" placeholder="Se calcula sola" min="0" step="0.1"/>
+      </div>
+      <div class="field">
+        <label>Millas GPS / ruta</label>
+        <input type="number" id="edit-gpsmi" placeholder="Ej. 780" min="0" step="0.1"/>
+      </div>
+      <div class="field">
+        <label>ZIP de origen (salida)</label>
+        <input type="text" id="edit-zs" maxlength="5" inputmode="numeric" placeholder="00000"/>
       </div>
       <div class="field">
         <label>MPG</label>
@@ -3862,8 +3924,28 @@
 
     <!-- Load Value -->
     <div class="field" style="margin-bottom:1rem;">
-      <label>💵 Load Value ($)</label>
+      <label>💵 Load Value / flete ($)</label>
       <input type="number" id="edit-load" placeholder="Ej. 5000" min="0" step="0.01" oninput="previewEdit()"/>
+          <div style="margin-top:12px;padding:12px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;">
+            <div style="font-size:12px;font-weight:800;color:var(--text);margin-bottom:2px;">Pagos adicionales (TONU / Detention / Layover)</div>
+            <div class="hint" style="margin-bottom:8px;">Opcional. Monto que te paga el broker y % que le toca al chofer (si lo dejas vacío usa el % del viaje).</div>
+            <div style="display:grid;grid-template-columns:110px 1fr 1fr;gap:8px;align-items:center;margin-bottom:6px;">
+              <div style="font-size:13px;font-weight:700;color:var(--text);">TONU</div>
+              <input type="number" id="ed-acc-tonu-amt" placeholder="$ monto" min="0" step="0.01" oninput="previewEdit()"/>
+              <input type="number" id="ed-acc-tonu-pct" placeholder="% chofer" min="0" max="100" step="0.5" oninput="previewEdit()"/>
+            </div>
+            <div style="display:grid;grid-template-columns:110px 1fr 1fr;gap:8px;align-items:center;margin-bottom:6px;">
+              <div style="font-size:13px;font-weight:700;color:var(--text);">Detention</div>
+              <input type="number" id="ed-acc-detention-amt" placeholder="$ monto" min="0" step="0.01" oninput="previewEdit()"/>
+              <input type="number" id="ed-acc-detention-pct" placeholder="% chofer" min="0" max="100" step="0.5" oninput="previewEdit()"/>
+            </div>
+            <div style="display:grid;grid-template-columns:110px 1fr 1fr;gap:8px;align-items:center;margin-bottom:6px;">
+              <div style="font-size:13px;font-weight:700;color:var(--text);">Layover</div>
+              <input type="number" id="ed-acc-layover-amt" placeholder="$ monto" min="0" step="0.01" oninput="previewEdit()"/>
+              <input type="number" id="ed-acc-layover-pct" placeholder="% chofer" min="0" max="100" step="0.5" oninput="previewEdit()"/>
+            </div>
+            <div class="hint" id="ed-acc-sum"></div>
+          </div>
     </div>
 
     <!-- Diesel -->
@@ -5287,6 +5369,52 @@ function getFuelBlocks(){
   });return rows;
 }
 
+// ===== Pagos adicionales: TONU / Detention / Layover =====
+const ACC_TYPES=[['tonu','TONU'],['detention','Detention'],['layover','Layover']];
+function readAcc(prefix, defPct){
+  const out=[];
+  ACC_TYPES.forEach(([k,lbl])=>{
+    const amt=parseFloat(document.getElementById(prefix+'-'+k+'-amt')?.value)||0;
+    if(!(amt>0)) return;
+    const pr=document.getElementById(prefix+'-'+k+'-pct')?.value;
+    const pct=(pr!==''&&pr!=null&&!isNaN(parseFloat(pr)))?parseFloat(pr):(parseFloat(defPct)||0);
+    out.push({type:k,label:lbl,amount:parseFloat(amt.toFixed(2)),pct});
+  });
+  return out;
+}
+function fillAcc(prefix, list){
+  ACC_TYPES.forEach(([k])=>{
+    const a=(list||[]).find(x=>x.type===k);
+    const am=document.getElementById(prefix+'-'+k+'-amt'), pc=document.getElementById(prefix+'-'+k+'-pct');
+    if(am) am.value=a?a.amount:''; if(pc) pc.value=a?a.pct:'';
+  });
+  accSum(prefix);
+}
+function accTotals(list){
+  let total=0, driver=0;
+  (list||[]).forEach(a=>{ total+=parseFloat(a.amount)||0; driver+=(parseFloat(a.amount)||0)*(parseFloat(a.pct)||0)/100; });
+  return {total:parseFloat(total.toFixed(2)), driver:parseFloat(driver.toFixed(2))};
+}
+function accSum(prefix, defPct){
+  const el=document.getElementById(prefix+'-sum'); if(!el) return;
+  if(defPct==null){
+    defPct = prefix==='f-acc' ? (parseFloat(document.getElementById('f-pay-pct')?.value)||0)
+           : prefix==='ed-acc' ? (parseFloat(document.getElementById('edit-pay-pct')?.value)||0)
+           : ((typeof _adminActiveTrip!=='undefined'&&_adminActiveTrip&&_adminActiveTrip.payPct)||0);
+  }
+  const list=readAcc(prefix,defPct), t=accTotals(list);
+  el.textContent = list.length ? ('Total adicionales: $'+fmt(t.total)+' · al chofer: $'+fmt(t.driver)) : '';
+}
+// Pago completo del viaje: flete + adicionales; chofer = flete × % + cada adicional × su %
+function tripPayCalc(lineHaul, payPct, accList, brokerFeePct, factoringFeePct){
+  const at=accTotals(accList);
+  const loadVal=parseFloat(((lineHaul||0)+at.total).toFixed(2));
+  const driver=parseFloat((((lineHaul||0)*(payPct||0)/100)+at.driver).toFixed(2));
+  const fee=parseFloat((loadVal*(brokerFeePct||0)/100).toFixed(2));
+  const factoringFee=parseFloat((loadVal*(factoringFeePct||0)/100).toFixed(2));
+  return {loadVal, driver, fee, factoringFee, accTotal:at.total, accDriver:at.driver};
+}
+function tripLineHaul(t){ return t.lineHaul!=null ? t.lineHaul : Math.max((parseFloat(t.loadVal)||0)-accTotals(t.accessorials).total,0); }
 function fmt(n){return n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
 
 function calcAll(){
@@ -5294,7 +5422,27 @@ function calcAll(){
   const miStart=parseFloat(document.getElementById(isAdmin?'f-mi-start-admin':'f-mi-start')?.value);
   const miEnd=parseFloat(document.getElementById(isAdmin?'f-mi-end-admin':'f-mi-end')?.value);
   const miles=(!isNaN(miStart)&&!isNaN(miEnd)&&miEnd>miStart)?(miEnd-miStart):null;
-  document.getElementById('c-miles').textContent=miles!==null?miles.toLocaleString('en-US')+' mi':'—';
+  { const cm=document.getElementById('c-miles');
+    if(cm){ let h=miles!==null?miles.toLocaleString('en-US')+' mi reales':'—';
+      const at=(typeof _adminActiveTrip!=='undefined'&&_adminActiveTrip)?_adminActiveTrip:null;
+      const gpsIn=parseFloat(document.getElementById('f-gpsmi-end-admin')?.value)||null;
+      const at2=at?{...at,gpsMiles:gpsIn||at.gpsMiles}:null;
+      const ref=at2?(at2.gpsMiles||at2.routeMiles||at2.roadMiles):null;
+      const refLbl=at2&&at2.gpsMiles?'GPS / ruta':'ZIP a ZIP';
+      if(isAdmin&&miles!==null&&ref){ const bad=odoCheck(at2,miles); h='Odómetro: '+h+'<span style="font-size:11px;font-weight:600;margin-left:8px;color:'+(bad?'var(--red)':'var(--text3)')+';">'+refLbl+' '+Math.round(ref).toLocaleString('en-US')+' mi ('+(miles>=ref?'+':'')+Math.round((miles/ref-1)*100)+'%)</span>'; }
+      cm.innerHTML=h; }
+    const ct=document.getElementById('c-miles-total');
+    if(ct && isAdmin){
+      const at=(typeof _adminActiveTrip!=='undefined'&&_adminActiveTrip)?_adminActiveTrip:null;
+      const gpsIn=parseFloat(document.getElementById('f-gpsmi-end-admin')?.value)||0;
+      const loaded=miles!==null?miles:(gpsIn||(at?tripDistance(at).mi:0));
+      const dead=parseFloat(document.getElementById('f-dead-end-admin')?.value)||0;
+      const lv=(parseFloat(document.getElementById('f-load')?.value)||0)+(at?accTotals(readAcc('fe-acc',at.payPct)).total:0);
+      const tot=loaded+dead;
+      if(!loaded){ ct.textContent='—'; }
+      else ct.innerHTML='<b>'+Math.round(tot).toLocaleString('en-US')+' mi</b> = '+Math.round(loaded).toLocaleString('en-US')+' cargadas + '+Math.round(dead).toLocaleString('en-US')+' muertas'
+        +(lv?'<br>Rate total: <b>$'+(lv/tot).toFixed(2)+'/mi</b> <span style="color:var(--text3);font-weight:500;">(solo cargadas: $'+(lv/loaded).toFixed(2)+'/mi)</span>':'');
+    } }
   const rows=getFuelBlocks();
   const totalGal=rows.reduce((a,r)=>a+(r.gal||0),0);
   const totalCost=rows.reduce((a,r)=>a+(r.cost||0),0);
@@ -5302,14 +5450,19 @@ function calcAll(){
   document.getElementById('c-total-cost').textContent='$'+totalCost.toFixed(2);
   document.getElementById('c-mpg-real').textContent=(miles&&totalGal)?(miles/totalGal).toFixed(1)+' MPG':'—';
   if(currentUser&&currentUser.role==='admin'){
-    const loadVal=parseFloat(document.getElementById('f-load')?.value)||0;
-    const payPct=parseFloat(document.getElementById('f-pay-pct')?.value)||0;
+    const atrip=(typeof _adminActiveTrip!=='undefined'&&_adminActiveTrip)?_adminActiveTrip:null;
+    const lineHaul=parseFloat(document.getElementById('f-load')?.value)||0;
+    const payPct=atrip?(parseFloat(atrip.payPct)||0):(parseFloat(document.getElementById('f-pay-pct')?.value)||0);
+    const accList=atrip?readAcc('fe-acc',payPct):[]; const accT=accTotals(accList);
+    if(atrip) accSum('fe-acc',payPct);
+    const loadVal=parseFloat((lineHaul+accT.total).toFixed(2));
     const brokerFeePct=(typeof _adminActiveTrip!=='undefined'&&_adminActiveTrip&&_adminActiveTrip.brokerFeePct!=null&&!isNaN(_adminActiveTrip.brokerFeePct))?_adminActiveTrip.brokerFeePct:13;
     const fee=loadVal?parseFloat((loadVal*brokerFeePct/100).toFixed(2)):0;
     const factoringFeePct=(typeof _adminActiveTrip!=='undefined'&&_adminActiveTrip&&_adminActiveTrip.factoringFeePct!=null&&!isNaN(_adminActiveTrip.factoringFeePct))?_adminActiveTrip.factoringFeePct:0;
     const factoringFee=loadVal?parseFloat((loadVal*factoringFeePct/100).toFixed(2)):0;
-    const driver=payPct&&loadVal?parseFloat((loadVal*payPct/100).toFixed(2)):0;
+    const driver=parseFloat(((lineHaul*payPct/100)+accT.driver).toFixed(2));
     const net=parseFloat((loadVal-fee-factoringFee-driver-totalCost).toFixed(2));
+    { const r=document.getElementById('pb-acc-row'); if(r){ r.style.display=accT.total?'':'none'; const v=document.getElementById('pb-acc'); if(v) v.textContent='+ $'+fmt(accT.total)+' ('+accList.map(a=>a.label).join(', ')+')'; } }
     if(document.getElementById('c-load'))   document.getElementById('c-load').textContent=loadVal?'$'+fmt(loadVal):'$—';
     if(document.getElementById('pb-load'))  document.getElementById('pb-load').textContent=loadVal?'$'+fmt(loadVal):'$—';
     if(document.getElementById('pb-fee'))   document.getElementById('pb-fee').textContent=fee?'- $'+fmt(fee):'- $—';
@@ -5321,7 +5474,7 @@ function calcAll(){
     if(document.getElementById('pb-net'))   document.getElementById('pb-net').textContent=loadVal?'$'+fmt(net):'$—';
     const nb=document.getElementById('net-box'),nv=document.getElementById('net-val'),ns=document.getElementById('net-sub');
     if(nb&&nv&&ns){
-      if(loadVal){nv.textContent='$'+fmt(net);nb.className=net>=0?'net-box':'net-box loss';ns.textContent='Load $'+fmt(loadVal)+(fee?' − Dispatch $'+fmt(fee):'')+(factoringFee?' − Factoring $'+fmt(factoringFee):'')+(driver?' − Driver $'+fmt(driver):'')+(totalCost?' − Diesel $'+fmt(totalCost):'');}
+      if(loadVal){nv.textContent='$'+fmt(net);nb.className=net>=0?'net-box':'net-box loss';ns.textContent='Load $'+fmt(loadVal)+(accT.total?' (incluye adicionales $'+fmt(accT.total)+')':'')+(fee?' − Dispatch $'+fmt(fee):'')+(factoringFee?' − Factoring $'+fmt(factoringFee):'')+(driver?' − Driver $'+fmt(driver):'')+(totalCost?' − Diesel $'+fmt(totalCost):'');}
       else{nb.className='net-box';nv.textContent='$—';ns.textContent='Ingresa el Load Value para calcular';}
     }
   }
@@ -5346,6 +5499,10 @@ async function adminStartTrip(){
   const z1 = (document.getElementById('f-z1-admin').value||'').trim();
   const z2 = (document.getElementById('f-z2-admin').value||'').trim();
   const miStart = parseFloat(document.getElementById('f-mi-start-admin').value)||0;
+  const zStart = (document.getElementById('f-zs-admin')?.value||'').trim();
+  const gpsMiles = parseFloat(document.getElementById('f-gpsmi-admin')?.value)||null;
+  const deadRaw = document.getElementById('f-dead-admin')?.value;
+  const deadMiles = (deadRaw!==''&&deadRaw!=null&&!isNaN(parseFloat(deadRaw)))?Math.round(parseFloat(deadRaw)):null;
   const mpg = parseFloat(document.getElementById('f-mpg-admin').value)||8;
   const driverSel = document.getElementById('f-driver-select');
   const driverUsername = driverSel ? driverSel.value : '';
@@ -5363,9 +5520,15 @@ async function adminStartTrip(){
   function showErr(t){ msg.className='msg err'; msg.textContent=t; msg.style.display='block'; }
 
   if(!driverUsername){ showErr('Selecciona un driver.'); return; }
-  if(!z1||z1.length<5){ showErr('Ingresa el ZIP de origen (5 dígitos).'); return; }
+  if(zStart && zStart.length!==5){ showErr('El ZIP de origen debe tener 5 dígitos.'); return; }
+  if(!z1||z1.length<5){ showErr('Ingresa el ZIP de pick up (5 dígitos).'); return; }
   if(!z2||z2.length<5){ showErr('Ingresa el ZIP de destino (5 dígitos).'); return; }
   if(!miStart){ showErr('Ingresa las millas iniciales.'); return; }
+  { const tv=document.getElementById('f-truck-admin')?.value;
+    if(!tv){ showErr('Selecciona el camión (se usa para controlar el odómetro).'); return; }
+    const last=lastOdoForTruck(tv);
+    if(last && miStart<parseFloat(last.miEnd) && !confirm('El odómetro inicial ('+miStart.toLocaleString('en-US')+') es menor que el último registrado de este camión ('+parseFloat(last.miEnd).toLocaleString('en-US')+').\n\n¿Seguro que está bien?')) return;
+    if(last && miStart-parseFloat(last.miEnd)>1500 && !confirm('Hay '+Math.round(miStart-parseFloat(last.miEnd)).toLocaleString('en-US')+' millas desde el último viaje de este camión.\n\n¿Seguro que está bien el odómetro?')) return; }
 
   { const du=getUsers().find(u=>u.username===driverUsername)||{};
     const twin=findSimilarTrip({id:'nuevo',driverUser:driverUsername,driverName:(du.firstName&&du.lastName)?du.firstName+' '+du.lastName:(du.name||driverUsername),z1,z2,date});
@@ -5418,6 +5581,9 @@ async function adminStartTrip(){
       deliveryDate: deliveryDate||null,
       pickupAddress: pickupAddress||null, deliveryAddress: deliveryAddress||null,
       routeMiles, routeDurationSec, origLat, origLon, destLat, destLon,
+      zStart: zStart||null, cityStart: zStart&&ZC[zStart]?ZC[zStart].city:null, stateStart: zStart&&ZC[zStart]?ZC[zStart].abbr:null,
+      gpsMiles, deadMiles,
+      accessorials: readAcc('f-acc', payPct),
       tripStatus: 'active',
       startTime: new Date().toISOString(),
       fuelLoads:[], totalGal:0, totalCost:0,
@@ -5447,13 +5613,17 @@ async function adminStartTrip(){
 async function adminFinishTrip(){
   if(!_adminActiveTrip){ alert('No hay viaje seleccionado.'); return; }
   const miEnd = parseFloat(document.getElementById('f-mi-end-admin').value)||0;
-  const loadVal = parseFloat(document.getElementById('f-load').value)||0;
+  const lineHaul = parseFloat(document.getElementById('f-load').value)||0;
   const msg = document.getElementById('f-msg-admin');
 
   function showErr(t){ msg.className='msg err'; msg.textContent=t; msg.style.display='block'; }
 
   if(!miEnd){ showErr('Ingresa las millas finales.'); return; }
-  if(miEnd <= _adminActiveTrip.miStart){ showErr('Las millas finales deben ser mayores a las iniciales.'); return; }
+  if(miEnd <= _adminActiveTrip.miStart){ showErr('El odómetro final debe ser mayor al inicial.'); return; }
+  _adminActiveTrip.gpsMiles = parseFloat(document.getElementById('f-gpsmi-end-admin')?.value)||_adminActiveTrip.gpsMiles||null;
+  { const v=document.getElementById('f-dead-end-admin')?.value; if(v!==''&&v!=null&&!isNaN(parseFloat(v))) _adminActiveTrip.deadMiles=Math.round(parseFloat(v)); }
+  { const bad=odoCheck(_adminActiveTrip, miEnd-_adminActiveTrip.miStart);
+    if(bad && !confirm(bad+'\n\nRevisa las millas inicial y final. ¿Guardar así de todos modos?')) return; }
 
   const validRows = getFuelBlocks().filter(fuelRowValid);
   { const e=dieselRowsError(validRows); if(e){ showErr(e); return; } }
@@ -5462,10 +5632,10 @@ async function adminFinishTrip(){
   const miles = miEnd - _adminActiveTrip.miStart;
   const payPct = _adminActiveTrip.payPct || 0;
   const brokerFeePct = (_adminActiveTrip.brokerFeePct!=null && !isNaN(_adminActiveTrip.brokerFeePct)) ? _adminActiveTrip.brokerFeePct : 13;
-  const fee = loadVal ? parseFloat((loadVal * brokerFeePct/100).toFixed(2)) : 0;
   const factoringFeePct = (_adminActiveTrip.factoringFeePct!=null && !isNaN(_adminActiveTrip.factoringFeePct)) ? _adminActiveTrip.factoringFeePct : 0;
-  const factoringFee = loadVal ? parseFloat((loadVal * factoringFeePct/100).toFixed(2)) : 0;
-  const driver = payPct && loadVal ? parseFloat((loadVal * payPct / 100).toFixed(2)) : 0;
+  const accessorials = readAcc('fe-acc', payPct);
+  const pc = tripPayCalc(lineHaul, payPct, accessorials, brokerFeePct, factoringFeePct);
+  const loadVal = pc.loadVal, fee = pc.fee, factoringFee = pc.factoringFee, driver = pc.driver;
   const net = parseFloat((loadVal - fee - factoringFee - driver - totalCost - (_adminActiveTrip.extrasTotal||0)).toFixed(2));
 
   // Actualizar el viaje existente
@@ -5479,6 +5649,7 @@ async function adminFinishTrip(){
     cpm: miles&&totalCost ? parseFloat((totalCost/miles).toFixed(4)) : 0,
     galExp: parseFloat((miles/(_adminActiveTrip.mpg||8)).toFixed(2)),
     loadVal, fee, driver, net,
+    lineHaul, accessorials, accTotal: pc.accTotal, accDriver: pc.accDriver,
     factoringFeePct, factoringFee,
     profitSet: loadVal > 0,
     payPct,
@@ -5490,6 +5661,8 @@ async function adminFinishTrip(){
   else trips.unshift(updatedTrip);
   await storeTrips(trips);
   queueTripEmail(updatedTrip.id);
+  try{ const tr=tripTruck(updatedTrip).truck; if(tr){ const trucks=loadTrucks(); const i=trucks.findIndex(x=>String(x.id)===String(tr.id));
+    if(i>=0 && miEnd>(parseFloat(trucks[i].mileage)||0)){ trucks[i].mileage=miEnd; saveTrucks(trucks); } } }catch(e){}
 
   _adminActiveTrip = null;
   backToEnTransitoList('✓ Viaje finalizado correctamente!');
@@ -5510,6 +5683,10 @@ async function adminSaveProgress(){
     ..._adminActiveTrip,
     fuelLoads: validRows,
     totalGal, totalCost,
+    gpsMiles: parseFloat(document.getElementById('f-gpsmi-end-admin')?.value)||_adminActiveTrip.gpsMiles||null,
+    accessorials: readAcc('fe-acc', _adminActiveTrip.payPct),
+    deadMiles: (function(){ const v=document.getElementById('f-dead-end-admin')?.value; return (v!==''&&v!=null&&!isNaN(parseFloat(v)))?Math.round(parseFloat(v)):(_adminActiveTrip.deadMiles??null); })(),
+    miEnd: parseFloat(document.getElementById('f-mi-end-admin')?.value)||_adminActiveTrip.miEnd||null,
     lastSaved: new Date().toISOString()
   };
 
@@ -5517,7 +5694,7 @@ async function adminSaveProgress(){
   const trips = loadTrips();
   const idx = trips.findIndex(t => t.id === _adminActiveTrip.id);
   if(idx>=0){
-    trips[idx] = {...trips[idx], fuelLoads:validRows, totalGal, totalCost, lastSaved:_adminActiveTrip.lastSaved};
+    trips[idx] = {...trips[idx], fuelLoads:validRows, totalGal, totalCost, gpsMiles:_adminActiveTrip.gpsMiles, deadMiles:_adminActiveTrip.deadMiles, accessorials:_adminActiveTrip.accessorials, miEnd:_adminActiveTrip.miEnd, lastSaved:_adminActiveTrip.lastSaved};
     await storeTrips(trips);
   }
 
@@ -5541,7 +5718,9 @@ async function adminCancelTrip(){
 }
 
 function adminResetForm(){
-  ['f-z1-admin','f-z2-admin','f-mi-start-admin','f-mi-end-admin','f-load','f-rc-admin','f-brokername-admin','f-addr1-admin','f-addr2-admin'].forEach(id=>{
+  { const d=document.getElementById('f-dead-admin'); if(d){ d.value=''; d.dataset.manual=''; } }
+  fillAcc('f-acc', []);
+  ['f-zs-admin','f-gpsmi-admin','f-z1-admin','f-z2-admin','f-mi-start-admin','f-mi-end-admin','f-load','f-rc-admin','f-brokername-admin','f-addr1-admin','f-addr2-admin'].forEach(id=>{
     const el=document.getElementById(id); if(el) el.value='';
   });
   document.getElementById('f-date-admin').value = todayStr();
@@ -5553,12 +5732,14 @@ function adminResetForm(){
   document.getElementById('f-broker-fee-admin').value = '13';
   document.getElementById('f-factoring-admin').value = '';
   document.getElementById('h1a').textContent='';
+  { const h=document.getElementById('hsa'); if(h) h.textContent='Opcional. Se usa para las millas muertas hasta el pick up.'; }
   document.getElementById('h2a').textContent='';
   populateDriverSelects();
 }
 
 // ===== EN TRÁNSITO =====
 function renderEnTransito(){
+  ensureDeadMap(_rerenderEtDead);
   document.getElementById('entransito-list').style.display='block';
   document.getElementById('entransito-detail').style.display='none';
   const active = loadTrips().filter(t=>t.tripStatus==='active')
@@ -5572,7 +5753,7 @@ function renderEnTransito(){
   }
   empty.style.display='none';
   const money=v=>'$'+(parseFloat(v)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
-  const head=`<div class="et-head"><div>Driver / ruta</div><div>Pick up</div><div>Delivery</div><div class="et-num">Millas</div><div class="et-num">Pago</div><div class="et-num">Rate</div><div class="et-st">Estado</div></div>`;
+  const head=`<div class="et-head"><div>Driver / ruta</div><div>Pick up</div><div>Delivery</div><div class="et-num">Millas totales</div><div class="et-num">Pago</div><div class="et-num">Rate total</div><div class="et-st">Estado</div></div>`;
   const rows=active.map(t=>{
     const d=tripDistance(t), r=tripRatePerMile(t);
     const idArg=JSON.stringify(t.id).replace(/"/g,'&quot;');
@@ -5582,9 +5763,9 @@ function renderEnTransito(){
       <div class="et-route"><div class="lg-r1">${t.driverName||'—'}</div><div class="lg-r2">${t.city1||t.z1||'—'}, ${t.state1||''} → ${t.city2||t.z2||'—'}, ${t.state2||''}${t.rc?' · RC '+t.rc:''}</div></div>
       <div class="et-date"><span class="et-lbl">Pick up</span>${tripPickupDate(t)?fmtDateShort(tripPickupDate(t)):'—'}${t.startTime?`<div class="lg-r2">${new Date(t.startTime).toLocaleTimeString('es-US',{hour:'numeric',minute:'2-digit'})}</div>`:''}</div>
       <div class="et-date"><span class="et-lbl">Delivery</span>${t.deliveryDate?`<span style="${late?'color:var(--red);font-weight:700;':''}">${fmtDateShort(t.deliveryDate)}</span>${late?'<div class="lg-r2" style="color:var(--red)">Atrasado</div>':''}`:'<span class="lg-muted" style="color:var(--text3)">Sin fecha</span>'}</div>
-      <div class="et-num"><span class="et-lbl">Millas</span>${d.mi?d.mi.toLocaleString('en-US'):'—'}</div>
+      <div class="et-num"><span class="et-lbl">Millas</span>${logMilesCell(t)}</div>
       <div class="et-num"><span class="et-lbl">Pago</span>${parseFloat(t.loadVal)>0?money(t.loadVal):'—'}</div>
-      <div class="et-num lg-rate"><span class="et-lbl">Rate</span>${r!==null?'$'+r.toFixed(2)+'<span>/mi</span>':'—'}</div>
+      <div class="et-num lg-rate"><span class="et-lbl">Rate total</span>${r!==null?'$'+r.toFixed(2)+'<span>/mi</span>':'—'}</div>
       <div class="et-st"><span class="lg-pill paid"><span class="et-dot"></span>En curso</span></div>
     </div>`;
   }).join('');
@@ -5630,7 +5811,10 @@ function openTripDetail(tripId){
      <div id="at-dates-msg" style="font-size:11px;color:var(--green);font-weight:700;margin-top:4px;min-height:14px;"></div>`;
 
   document.getElementById('f-mi-end-admin').value = t.miEnd||'';
-  document.getElementById('f-load').value = t.loadVal||'';
+  { const g=document.getElementById('f-gpsmi-end-admin'); if(g) g.value = t.gpsMiles||''; }
+  { const dEl=document.getElementById('f-dead-end-admin'); if(dEl){ const dm=tripDeadMiles(t); dEl.value = dm==null?'':Math.round(dm); } }
+  document.getElementById('f-load').value = t.loadVal ? tripLineHaul(t) : '';
+  fillAcc('fe-acc', t.accessorials||[]);
   const msg=document.getElementById('f-msg-admin'); if(msg) msg.style.display='none';
 
   loadFuelBlocksIntoUI(t.fuelLoads);
@@ -6104,8 +6288,12 @@ function openEditModal(tripId){
   document.getElementById('edit-z2').value=t.z2||'';
   document.getElementById('edit-mi-start').value=t.miStart||'';
   document.getElementById('edit-mi-end').value=t.miEnd||'';
+  document.getElementById('edit-gpsmi').value=t.gpsMiles||'';
+  document.getElementById('edit-dead').value=(t.deadMiles!=null&&t.deadMiles!=='')?t.deadMiles:'';
+  document.getElementById('edit-zs').value=t.zStart||'';
   document.getElementById('edit-mpg').value=t.mpg||'';
-  document.getElementById('edit-load').value=t.loadVal||'';
+  document.getElementById('edit-load').value=t.loadVal?tripLineHaul(t):'';
+  fillAcc('ed-acc', t.accessorials||[]);
   document.getElementById('edit-diesel').value=t.totalCost||'';
   document.getElementById('edit-gallons').value=t.totalGal||'';
   document.getElementById('edit-pay-pct').value=t.payPct||'';
@@ -6140,9 +6328,11 @@ function openEditModal(tripId){
 function previewEdit(){
   const id=parseInt(document.getElementById('edit-trip-id').value);
   const t=loadTrips().find(x=>x.id===id); if(!t)return;
-  const loadVal=parseFloat(document.getElementById('edit-load').value)||0;
+  const lineHaulE=parseFloat(document.getElementById('edit-load').value)||0;
   const diesel=parseFloat(document.getElementById('edit-diesel').value)||t.totalCost||0;
   const payPct=parseFloat(document.getElementById('edit-pay-pct').value)||t.payPct||0;
+  const accE=readAcc('ed-acc',payPct), accTE=accTotals(accE); accSum('ed-acc',payPct);
+  const loadVal=parseFloat((lineHaulE+accTE.total).toFixed(2));
   const extrasTotal=_editExtras.reduce((a,e)=>a+(parseFloat(e.monto)||0),0);
   const brokerFeePctRaw=parseFloat(document.getElementById('edit-broker-fee').value);
   const brokerFeePct=!isNaN(brokerFeePctRaw)?brokerFeePctRaw:((t.brokerFeePct!=null&&!isNaN(t.brokerFeePct))?t.brokerFeePct:13);
@@ -6150,9 +6340,9 @@ function previewEdit(){
   const factoringFeePctRaw=parseFloat(document.getElementById('edit-factoring').value);
   const factoringFeePct=!isNaN(factoringFeePctRaw)?factoringFeePctRaw:((t.factoringFeePct!=null&&!isNaN(t.factoringFeePct))?t.factoringFeePct:0);
   const factoringFee=loadVal?parseFloat((loadVal*factoringFeePct/100).toFixed(2)):0;
-  const driver=loadVal&&payPct?parseFloat((loadVal*payPct/100).toFixed(2)):0;
+  const driver=parseFloat(((lineHaulE*payPct/100)+accTE.driver).toFixed(2));
   const net=parseFloat((loadVal-fee-factoringFee-driver-diesel-extrasTotal).toFixed(2));
-  document.getElementById('ep-load').textContent=loadVal?'$'+fmt(loadVal):'$—';
+  document.getElementById('ep-load').textContent=loadVal?'$'+fmt(loadVal)+(accTE.total?' (incl. adicionales $'+fmt(accTE.total)+')':''):'$—';
   document.getElementById('ep-fee-label').textContent='Fee '+brokerFeePct+'%';
   document.getElementById('ep-fee').textContent=loadVal?'- $'+fmt(fee):'- $—';
   const factoringRow=document.getElementById('ep-factoring-row');
@@ -6210,14 +6400,16 @@ async function saveEditModal(){
 
   // Ganancia
   const loadValRaw=document.getElementById('edit-load').value;
-  const loadVal=loadValRaw?parseFloat(loadValRaw):t.loadVal||0;
-  let profitFields={};
+  const lineHaul=loadValRaw?parseFloat(loadValRaw):tripLineHaul(t);
+  const accessorials=readAcc('ed-acc',newPayPct);
+  const pcE=tripPayCalc(lineHaul,newPayPct,accessorials,newBrokerFeePct,newFactoringFeePct);
+  const loadVal=pcE.loadVal;
+  let profitFields={accessorials, accTotal:pcE.accTotal, accDriver:pcE.accDriver, lineHaul};
   if(loadVal){
-    const fee=parseFloat((loadVal*newBrokerFeePct/100).toFixed(2));
-    const factoringFee=parseFloat((loadVal*newFactoringFeePct/100).toFixed(2));
-    const driver=newPayPct?parseFloat((loadVal*newPayPct/100).toFixed(2)):t.driver||0;
+    const fee=pcE.fee, factoringFee=pcE.factoringFee;
+    const driver=(newPayPct||accessorials.length)?pcE.driver:t.driver||0;
     const net=parseFloat((loadVal-fee-factoringFee-driver-newDiesel-extrasTotal).toFixed(2));
-    profitFields={loadVal,fee,driver,net,payPct:newPayPct,profitSet:true,factoringFeePct:newFactoringFeePct,factoringFee};
+    profitFields={...profitFields,loadVal,fee,driver,net,payPct:newPayPct,profitSet:true,factoringFeePct:newFactoringFeePct,factoringFee};
   }
 
   const newZ1=(document.getElementById('edit-z1')?.value||t.z1||'').trim();
@@ -6233,6 +6425,11 @@ async function saveEditModal(){
     city1:newCity1, state1:newState1,
     city2:newCity2, state2:newState2,
     miStart:newMiStart, miEnd:newMiEnd,
+    gpsMiles: parseFloat(document.getElementById('edit-gpsmi').value)||null,
+    deadMiles: (function(){ const v=document.getElementById('edit-dead').value; return (v!==''&&!isNaN(parseFloat(v)))?Math.round(parseFloat(v)):null; })(),
+    zStart: (function(){ const z=(document.getElementById('edit-zs').value||'').trim(); return z.length===5?z:null; })(),
+    cityStart: (function(){ const z=(document.getElementById('edit-zs').value||'').trim(); return z===t.zStart?(t.cityStart||null):(ZC[z]?ZC[z].city:null); })(),
+    stateStart: (function(){ const z=(document.getElementById('edit-zs').value||'').trim(); return z===t.zStart?(t.stateStart||null):(ZC[z]?ZC[z].abbr:null); })(),
     miles:newMiles!==null?newMiles:t.miles,
     mpg:newMpg,
     totalCost:newDiesel, totalGal:newGallons,
@@ -6402,14 +6599,15 @@ function mkM0(v){ return '$'+Math.round(v||0).toLocaleString('en-US'); }
 function mkAgg(list,keyFn){
   const g={};
   list.forEach(t=>{ const k=keyFn(t); if(!k) return; if(!g[k]) g[k]={k,loads:0,load:0,miles:0,loadM:0,net:0,paid:0};
-    const a=g[k], d=tripDistance(t).mi, lv=parseFloat(t.loadVal)||0;
+    const a=g[k], d=tripDistance(t).mi, dm=tripDeadMiles(t)||0, lv=parseFloat(t.loadVal)||0;
     a.loads++; a.load+=lv; a.net+=parseFloat(t.net)||0; if(t.payStatus==='paid') a.paid++;
-    if(d>0){ a.miles+=d; a.loadM+=lv; } });
+    if(d>0){ a.miles+=d+dm; a.loaded=(a.loaded||0)+d; a.dead=(a.dead||0)+dm; a.loadM+=lv; } });
   Object.values(g).forEach(a=>{ a.rate=a.miles>0?a.loadM/a.miles:null; a.avg=a.loads?a.load/a.loads:0; a.avgNet=a.loads?a.net/a.loads:0; a.paidPct=a.loads?a.paid/a.loads:0; });
   return Object.values(g);
 }
 function renderMercado(){
   const el=id=>document.getElementById(id); if(!el('page-mercado')) return;
+  ensureDeadMap(_rerenderMkDead);
   if(MK.tab==='millas'){ renderMillas(); return; }
   document.querySelectorAll('#mk-period button').forEach(b=>b.classList.toggle('on',+b.dataset.p===MK.period));
   document.querySelectorAll('#mk-side button').forEach(b=>b.classList.toggle('on',b.dataset.s===MK.side));
@@ -6613,8 +6811,15 @@ function mlPoint(t,end){ // coordenadas de pick up (end=false) o delivery (end=t
   const lat=end?t.destLat:t.origLat, lon=end?t.destLon:t.origLon;
   return (lat&&lon)?{lat,lon}:null;
 }
+// Punto de salida: el ZIP de origen capturado gana sobre el delivery del viaje anterior
+function mlPrevFor(t, prevOf){
+  if(t.deadMiles!=null && t.deadMiles!=='' && !t.zStart && !prevOf[t.id]) return {id:'dm', z2:'', city2:'salida', state2:'', _dm:1};
+  if(t.zStart && String(t.zStart).length===5) return {id:'zs'+t.zStart, z2:t.zStart, city2:t.cityStart||(ZC[t.zStart]||{}).city||t.zStart, state2:t.stateStart||(ZC[t.zStart]||{}).abbr||'', _zs:1};
+  return prevOf[t.id];
+}
 // Devuelve {mi,src} o null si hay que calcular por red
 function dhQuick(prev,t){
+  if(t.deadMiles!=null && t.deadMiles!=='' && !isNaN(parseFloat(t.deadMiles))) return {mi:Math.round(parseFloat(t.deadMiles)),src:'capturado'};
   const a=parseFloat(prev.miEnd), b=parseFloat(t.miStart);
   if(a>0 && b>0 && b>=a && b-a<2000) return {mi:Math.round(b-a),src:'odómetro'};
   const k=prev.id+'>'+t.id; if(_dhCache[k]) return _dhCache[k]; if(_dhFail[k]) return {mi:0,src:'sin ubicación',fail:true};
@@ -6654,7 +6859,8 @@ function mlRange(from,to,driver){
   const prevOf={}; Object.values(byDrv).forEach(list=>{ list.sort((a,b)=>mlTripTime(a)-mlTripTime(b)); list.forEach((t,i)=>{ if(i>0) prevOf[t.id]=list[i-1]; }); });
   const inR=all.filter(t=>{ const d=repTripDate(t); return d>=from && d<=to && (!driver||driver==='all'||mlDriverKey(t)===driver); }).sort((a,b)=>mlTripTime(a)-mlTripTime(b));
   const rows=[], missing=[];
-  inR.forEach(t=>{ const prev=prevOf[t.id]; let dh=null; if(prev){ dh=dhQuick(prev,t); if(!dh) missing.push([prev,t]); }
+  inR.forEach(t=>{ const prev=mlPrevFor(t,prevOf); let dh=null; if(prev){ dh=dhQuick(prev,t); if(!dh) missing.push([prev,t]); }
+    if(dh&&!dh.fail) _dhByTrip[String(t.id)]=dh.mi;
     rows.push({t,prev,dh,loaded:tripDistance(t).mi||0,load:parseFloat(t.loadVal)||0,dead:dh&&!dh.fail?dh.mi:0,pend:!!(prev&&!dh)}); });
   const T=rows.reduce((x,r)=>({trips:x.trips+1,loaded:x.loaded+r.loaded,dead:x.dead+(r.dh&&!r.dh.fail?r.dh.mi:0),load:x.load+r.load}),{trips:0,loaded:0,dead:0,load:0});
   T.rate=rateOf(rows);
@@ -6693,8 +6899,9 @@ function renderMillas(){
     .sort((a,b)=>mlTripTime(a)-mlTripTime(b));
   const rows=[]; const missing=[];
   inWeek.forEach(t=>{
-    const prev=prevOf[t.id]; let dh=null;
+    const prev=mlPrevFor(t,prevOf); let dh=null;
     if(prev){ dh=dhQuick(prev,t); if(!dh) missing.push([prev,t]); }
+    if(dh&&!dh.fail) _dhByTrip[String(t.id)]=dh.mi;
     rows.push({t,prev,dh,loaded:tripDistance(t).mi||0,load:parseFloat(t.loadVal)||0,dead:dh&&!dh.fail?dh.mi:0,pend:!!(prev&&!dh)});
   });
   // Totales por driver
@@ -7421,7 +7628,11 @@ function fmtDate(d){if(!d)return'';const[y,m,day]=d.split('-');return m+'/'+day+
 function fmtNum(n){return(n||0).toLocaleString('en-US');}
 function fmtD(n){return'$'+(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
 
+function _rerenderLogDead(){ if(_currentSidebarId==='log') renderLog(); }
+function _rerenderEtDead(){ if(_currentSidebarId==='entransito' && document.getElementById('entransito-list')?.style.display!=='none') renderEnTransito(); }
+function _rerenderMkDead(){ if(_currentSidebarId==='mercado') renderMercado(); }
 function renderLog(){
+  ensureDeadMap(_rerenderLogDead);
   const all=loadTrips(),filtered=filterTrips(all);
   const el=document.getElementById('trip-list');
   const isFiltered=activeFilter.from||activeFilter.to||hasExtraLogFilters();
@@ -7461,7 +7672,7 @@ function renderLog(){
     const transitSrc    = source.filter(t=>t.tripStatus==='active');
 
     const calcTotals = (src)=>{
-      const tMi=src.reduce((a,t)=>a+(t.miles||0),0);
+      const tMi=src.reduce((a,t)=>a+tripTotalMiles(t),0);
       const tLoad=src.filter(t=>t.profitSet).reduce((a,t)=>a+(t.loadVal||0),0);
       const tNet=src.filter(t=>t.profitSet).reduce((a,t)=>a+(t.net||0),0);
       const tDiesel=src.reduce((a,t)=>a+(t.totalCost||0),0);
@@ -7588,7 +7799,12 @@ function logTripDetailHTML(t){ return `
       <div class="trip-grid">
         <div class="trip-stat"><div class="trip-stat-lbl">Mi. iniciales</div><div class="trip-stat-val">${fmtNum(t.miStart||0)}</div><div class="trip-stat-unit">odóm.</div></div>
         <div class="trip-stat"><div class="trip-stat-lbl">Mi. finales</div><div class="trip-stat-val">${fmtNum(t.miEnd||0)}</div><div class="trip-stat-unit">odóm.</div></div>
-        <div class="trip-stat"><div class="trip-stat-lbl">Millas viaje</div><div class="trip-stat-val">${fmtNum(t.miles||0)}</div><div class="trip-stat-unit">mi</div></div>
+        <div class="trip-stat"><div class="trip-stat-lbl">Millas GPS / ruta</div><div class="trip-stat-val">${t.gpsMiles?fmtNum(Math.round(t.gpsMiles)):'—'}</div><div class="trip-stat-unit">manual</div></div>
+        ${(t.accessorials||[]).length?`<div class="trip-stat" style="grid-column:span 2;"><div class="trip-stat-lbl">Pagos adicionales</div><div class="trip-stat-val" style="font-size:12px;">${t.accessorials.map(a=>a.label+' $'+fmt(a.amount)+' ('+a.pct+'% chofer)').join(' · ')}</div><div class="trip-stat-unit">flete $${fmt(tripLineHaul(t))}</div></div>`:''}
+        <div class="trip-stat"><div class="trip-stat-lbl">Millas muertas</div><div class="trip-stat-val">${tripDeadMiles(t)==null?'—':fmtNum(Math.round(tripDeadMiles(t)))}</div><div class="trip-stat-unit">${t.deadMiles!=null&&t.deadMiles!==''&&t.deadMilesSrc!=='calculado'?'capturadas':'calculadas'}</div></div>
+        <div class="trip-stat"><div class="trip-stat-lbl">Rate total</div><div class="trip-stat-val">${tripRatePerMile(t)==null?'—':'$'+tripRatePerMile(t).toFixed(2)}</div><div class="trip-stat-unit">cargadas + muertas</div></div>
+        <div class="trip-stat"><div class="trip-stat-lbl">ZIP de origen</div><div class="trip-stat-val">${t.zStart||'—'}</div><div class="trip-stat-unit">${t.cityStart?t.cityStart+', '+(t.stateStart||''):'salida'}</div></div>
+        <div class="trip-stat"><div class="trip-stat-lbl">Millas totales</div><div class="trip-stat-val">${fmtNum(tripTotalMiles(t))}</div><div class="trip-stat-unit">${fmtNum(tripDistance(t).mi||0)} carg. + ${fmtNum(Math.round(tripDeadMiles(t)||0))} muertas</div></div>
         <div class="trip-stat"><div class="trip-stat-lbl">MPG real</div><div class="trip-stat-val">${t.mpgReal||'—'}</div><div class="trip-stat-unit">mi/gal</div></div>
         <div class="trip-stat"><div class="trip-stat-lbl">Total galones</div><div class="trip-stat-val">${t.totalGal||0}</div><div class="trip-stat-unit">gal</div></div>
         <div class="trip-stat"><div class="trip-stat-lbl">Costo diesel</div><div class="trip-stat-val">${fmtD(t.totalCost||0)}</div><div class="trip-stat-unit">total</div></div>
@@ -7638,6 +7854,12 @@ function logTripDetailHTML(t){ return `
         <button class="btn-sm btn-red-sm" onclick="delTrip(${t.id})">Eliminar</button>
       </div>
     </div>`; }
+function logMilesCell(t){
+  const d=tripDistance(t), dm=tripDeadMiles(t);
+  if(!d.mi) return '—';
+  if(dm==null) return d.mi.toLocaleString('en-US')+' mi<div class="lg-r2">cargadas</div>';
+  return (d.mi+dm).toLocaleString('en-US')+' mi<div class="lg-r2">'+d.mi.toLocaleString('en-US')+' carg. + '+Math.round(dm).toLocaleString('en-US')+' muertas</div>';
+}
 function logRowHTML(t){
   const open=_logOpen.has(String(t.id));
   const d=tripDistance(t), rate=tripRatePerMile(t);
@@ -7651,7 +7873,7 @@ function logRowHTML(t){
       <div class="lg-c lg-date">${pu?fmtDateShort(pu):'—'}</div>
       <div class="lg-c lg-date">${del?fmtDateShort(del):(active?'<span class="lg-muted">En tránsito</span>':'—')}</div>
       <div class="lg-c lg-route"><div class="lg-r1">${t.city1||t.z1||'—'}, ${t.state1||''} → ${t.city2||t.z2||'—'}, ${t.state2||''}</div><div class="lg-r2">${t.driverName||'—'}${t.rc?' · RC '+t.rc:''}${t.brokerName?' · '+t.brokerName:''}</div></div>
-      <div class="lg-c lg-num" id="lg-mi-${t.id}">${d.mi?d.mi.toLocaleString('en-US')+' mi':'—'}${d.src&&d.src!=='ZIP a ZIP'?`<div class="lg-r2">${d.src}</div>`:''}</div>
+      <div class="lg-c lg-num" id="lg-mi-${t.id}">${logMilesCell(t)}</div>
       <div class="lg-c lg-num">${t.profitSet||t.loadVal?'$'+(parseFloat(t.loadVal)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}):'—'}</div>
       <div class="lg-c lg-num lg-rate" id="lg-rate-${t.id}">${rate!==null?'$'+rate.toFixed(2)+'<span>/mi</span>':'—'}</div>
       <div class="lg-c lg-num ${net===null?'':net>=0?'lg-pos':'lg-neg'}">${net===null?'—':(net<0?'-$':'$')+Math.abs(net).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
@@ -7661,7 +7883,7 @@ function logRowHTML(t){
   </div>`;
 }
 function logListHTML(list){
-  const head=`<div class="lg-head"><div class="lg-c lg-tg"></div><div class="lg-c lg-date">Pick up</div><div class="lg-c lg-date">Delivery</div><div class="lg-c lg-route">Ruta / driver</div><div class="lg-c lg-num">Millas</div><div class="lg-c lg-num">Pago</div><div class="lg-c lg-num">Rate</div><div class="lg-c lg-num">Ganancia</div><div class="lg-c lg-st">Cobro</div></div>`;
+  const head=`<div class="lg-head"><div class="lg-c lg-tg"></div><div class="lg-c lg-date">Pick up</div><div class="lg-c lg-date">Delivery</div><div class="lg-c lg-route">Ruta / driver</div><div class="lg-c lg-num">Millas totales</div><div class="lg-c lg-num">Pago</div><div class="lg-c lg-num">Rate total</div><div class="lg-c lg-num">Ganancia</div><div class="lg-c lg-st">Cobro</div></div>`;
   return `<div class="lg-tools"><button class="btn-sm" onclick="logExpandAll(true)">Abrir todos</button><button class="btn-sm" onclick="logExpandAll(false)">Cerrar todos</button></div>
     <div class="lg-scroll" id="lg-scroll"><div class="lg-table">${head}${list.map(logRowHTML).join('')}</div></div>`;
 }
@@ -7777,7 +7999,7 @@ async function calcAndRenderMileAnalysis(t){
   // Actualizar fila del historial
   const miCell=document.getElementById('lg-mi-'+updated.id), rateCell=document.getElementById('lg-rate-'+updated.id);
   if(miCell||rateCell){ const d=tripDistance(updated), r=tripRatePerMile(updated);
-    if(miCell) miCell.innerHTML=d.mi?d.mi.toLocaleString('en-US')+' mi'+(d.src&&d.src!=='ZIP a ZIP'?`<div class="lg-r2">${d.src}</div>`:''):'—';
+    if(miCell) miCell.innerHTML=logMilesCell(updated);
     if(rateCell) rateCell.innerHTML=r!==null?'$'+r.toFixed(2)+'<span>/mi</span>':'—'; }
   // Actualizar DOM de esta card
   const gridEl = document.getElementById('ma-grid-'+updated.id);
@@ -7793,7 +8015,7 @@ async function calcAndRenderMileAnalysis(t){
 
 function renderSummary(){
   const trips=loadTrips();
-  const totalMi=trips.reduce((a,t)=>a+(t.miles||0),0);
+  const totalMi=trips.reduce((a,t)=>a+tripTotalMiles(t),0);
   const totalGal=trips.reduce((a,t)=>a+(t.totalGal||0),0);
   const totalCost=trips.reduce((a,t)=>a+(t.totalCost||0),0);
   const wp=trips.filter(t=>t.profitSet);
@@ -7818,7 +8040,7 @@ function renderSummary(){
     <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f0f0ec;">
       <div>
         <div style="font-size:13px;font-weight:700;color:#1a1a1a;">${t.city1} &rarr; ${t.city2}${t.driverName?`<span class="driver-tag">&#x1F464; ${t.driverName}</span>`:''}</div>
-        <div style="font-size:11px;color:#aaa;margin-top:2px;">${fmtDate(t.date)} &nbsp;&middot;&nbsp; ${fmtNum(t.miles)} mi &nbsp;&middot;&nbsp; ${t.payStatus==='paid'?'<span style="color:#27ae60;">&#x2714; Pagado</span>':'<span style="color:#e67e22;">&#x23F3; Pendiente</span>'}</div>
+        <div style="font-size:11px;color:#aaa;margin-top:2px;">${fmtDate(t.date)} &nbsp;&middot;&nbsp; ${fmtNum(tripTotalMiles(t))} mi &nbsp;&middot;&nbsp; ${t.payStatus==='paid'?'<span style="color:#27ae60;">&#x2714; Pagado</span>':'<span style="color:#e67e22;">&#x23F3; Pendiente</span>'}</div>
       </div>
       <div style="text-align:right;">
         ${t.profitSet?`<div style="font-size:17px;font-weight:700;color:${t.net>=0?'#27ae60':'#c0392b'};">${fmtD(t.net)}</div>`:`<div style="font-size:13px;color:#e67e22;font-weight:600;">Sin ganancia</div>`}
@@ -7980,10 +8202,10 @@ async function clearAll(){
 
 function exportCSV(){
   const trips=filterTrips(loadTrips());if(!trips.length){alert('No hay viajes para exportar.');return;}
-  const h=['Fecha','Driver','ZIP Orig','Ciudad Orig','Estado','ZIP Dest','Ciudad Dest','Estado','Mi.Iniciales','Mi.Finales','Millas','MPG Real','Total Galones','Costo Diesel($)','Load Value($)','Fee($)','Driver Pay($)','Ganancia Neta($)','Estado Pago','Notas','Gasolineras'];
+  const h=['Fecha','Driver','ZIP Orig','Ciudad Orig','Estado','ZIP Dest','Ciudad Dest','Estado','Mi.Iniciales','Mi.Finales','Millas cargadas','Millas muertas','Millas totales','Rate total ($/mi)','MPG Real','Total Galones','Costo Diesel($)','Load Value($)','Fee($)','Driver Pay($)','Ganancia Neta($)','Estado Pago','Notas','Gasolineras'];
   const rows=trips.map(t=>{
     const stations=(t.fuelLoads||[]).map(f=>f.station||'').filter(Boolean).join(' | ');
-    return [t.date,t.driverName||'—',t.z1,t.city1,t.state1,t.z2,t.city2,t.state2,t.miStart,t.miEnd,t.miles,t.mpgReal,t.totalGal,t.totalCost,t.profitSet?t.loadVal:'—',t.profitSet?t.fee:'—',t.profitSet?t.driver:'—',t.profitSet?t.net:'—',t.payStatus==='paid'?'Pagado':'Pendiente',t.payNotes||'',stations];
+    return [t.date,t.driverName||'—',t.z1,t.city1,t.state1,t.z2,t.city2,t.state2,t.miStart,t.miEnd,tripDistance(t).mi||0,Math.round(tripDeadMiles(t)||0),tripTotalMiles(t),tripRatePerMile(t)!=null?tripRatePerMile(t).toFixed(2):'—',t.mpgReal,t.totalGal,t.totalCost,t.profitSet?t.loadVal:'—',t.profitSet?t.fee:'—',t.profitSet?t.driver:'—',t.profitSet?t.net:'—',t.payStatus==='paid'?'Pagado':'Pendiente',t.payNotes||'',stations];
   });
   const csv=[h,...rows].map(r=>r.map(v=>'"'+(String(v||'').replace(/"/g,'""'))+'"').join(',')).join('\n');
   const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
@@ -8092,6 +8314,7 @@ function fillTruckSelect(selId, value, driverUser){
 }
 function onDriverSelectChange(){
   try{ fillTruckSelect('f-truck-admin', null, document.getElementById('f-driver-select')?.value); }catch(e){}
+  setTimeout(updateOdoHint,0);
   const sel = document.getElementById('f-driver-select');
   const pctInput = document.getElementById('f-pay-pct');
   const pctSelect = document.getElementById('f-pay-pct-select');
@@ -8185,7 +8408,7 @@ function renderBrokerReport(){
     if(!byBroker[b]) byBroker[b] = {broker:b, count:0, miles:0, load:0, fee:0, driver:0, diesel:0, net:0};
     const g = byBroker[b];
     g.count++;
-    g.miles += t.miles||0;
+    g.miles += tripTotalMiles(t);
     if(t.profitSet){
       g.load += t.loadVal||0;
       g.fee += t.fee||0;
@@ -8236,7 +8459,7 @@ function renderBrokerReport(){
         <td style="padding:9px 14px;">${t.broker||'—'}</td>
         <td style="padding:9px 14px;">${t.driverName||'—'}</td>
         <td style="padding:9px 14px;">${t.city1||t.z1||'—'} → ${t.city2||t.z2||'—'}</td>
-        <td style="padding:9px 14px;text-align:right;">${t.miles?t.miles.toLocaleString('en-US'):'—'}</td>
+        <td style="padding:9px 14px;text-align:right;">${tripTotalMiles(t)?tripTotalMiles(t).toLocaleString('en-US'):'—'}${tripDeadMiles(t)?`<div style="font-size:10.5px;color:var(--text3);">${Math.round(tripDeadMiles(t)).toLocaleString('en-US')} muertas</div>`:''}</td>
         <td style="padding:9px 14px;text-align:right;">${t.loadVal?'$'+fmt(t.loadVal):'—'}</td>
         <td style="padding:9px 14px;text-align:right;">${t.fee?'$'+fmt(t.fee):'—'}</td>
         <td style="padding:9px 14px;text-align:right;font-weight:600;color:${(t.net||0)>=0?'var(--green)':'#c0392b'};">${t.profitSet?'$'+fmt(t.net):'—'}</td>
@@ -8278,7 +8501,7 @@ function renderBrokerNameReport(){
     if(!byBroker[b]) byBroker[b] = {broker:b, count:0, miles:0, load:0};
     const g = byBroker[b];
     g.count++;
-    g.miles += t.miles||0;
+    g.miles += tripTotalMiles(t);
     if(t.profitSet) g.load += t.loadVal||0;
   });
   const brokerRows = Object.values(byBroker).sort((a,b)=>b.load-a.load);
@@ -8320,7 +8543,7 @@ function renderBrokerNameReport(){
         <td style="padding:9px 14px;">${t.rc||'—'}</td>
         <td style="padding:9px 14px;">${t.driverName||'—'}</td>
         <td style="padding:9px 14px;">${t.city1||t.z1||'—'} → ${t.city2||t.z2||'—'}</td>
-        <td style="padding:9px 14px;text-align:right;">${t.miles?t.miles.toLocaleString('en-US'):'—'}</td>
+        <td style="padding:9px 14px;text-align:right;">${tripTotalMiles(t)?tripTotalMiles(t).toLocaleString('en-US'):'—'}${tripDeadMiles(t)?`<div style="font-size:10.5px;color:var(--text3);">${Math.round(tripDeadMiles(t)).toLocaleString('en-US')} muertas</div>`:''}</td>
         <td style="padding:9px 14px;text-align:right;">${t.loadVal?'$'+fmt(t.loadVal):'—'}</td>
         <td style="padding:9px 14px;">${t.tripStatus==='active'?'🟢 En tránsito':'✓ Completado'}</td>
       </tr>`).join('');
@@ -8505,7 +8728,7 @@ function renderHome(){
 
   tripsEl.innerHTML=sortedDates.map(date=>{
     const dayTrips=grouped[date];
-    const dayMiles=dayTrips.reduce((a,t)=>a+(t.miles||0),0);
+    const dayMiles=dayTrips.reduce((a,t)=>a+tripTotalMiles(t),0);
     const dayNet=dayTrips.reduce((a,t)=>a+(t.net||0),0);
 
     const rows=dayTrips.map(t=>{
@@ -8533,7 +8756,7 @@ function renderHome(){
             </div>
             <div style="background:var(--bg2);border-radius:8px;padding:8px;text-align:center;">
               <div style="font-size:9px;color:var(--text3);font-weight:700;text-transform:uppercase;margin-bottom:3px;">🛣️ Millas</div>
-              <div style="font-size:13px;font-weight:800;color:var(--text);">${fmtNum(t.miles||0)}</div>
+              <div style="font-size:13px;font-weight:800;color:var(--text);">${fmtNum(tripTotalMiles(t))}</div>
             </div>
             <div style="background:var(--bg2);border-radius:8px;padding:8px;text-align:center;">
               <div style="font-size:9px;color:var(--text3);font-weight:700;text-transform:uppercase;margin-bottom:3px;">⛽ Diesel</div>
@@ -8551,7 +8774,7 @@ function renderHome(){
             <div style="font-size:14px;font-weight:700;color:var(--text);">${t.city1||'—'} → ${t.city2||'—'}</div>
             <div style="font-size:11px;color:var(--text3);margin-top:2px;">${t.state1||''} → ${t.state2||''}</div>
           </div>
-          <div style="font-size:12px;color:var(--text3);font-weight:600;">${fmtNum(t.miles||0)} mi</div>
+          <div style="font-size:12px;color:var(--text3);font-weight:600;">${fmtNum(tripTotalMiles(t))} mi</div>
         </div>`;
       }
     }).join('');
@@ -8581,23 +8804,118 @@ function rpLocalISO(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padSta
 function tripPickupDate(t){ return t.pickupDate||t.date||''; }
 function tripDeliveryDate(t){ return (t.deliveryDate) || (t.tripStatus==='completed' ? rpTripDate(t) : ''); }
 function tripDistance(t){
+  // Millas reales: odómetro (final − inicial) cuando el viaje terminó y el número cuadra
+  if(t.tripStatus==='completed' && t.miles>0 && !tripOdoSuspect(t)) return {mi:Math.round(t.miles),src:'odómetro'};
+  if(t.gpsMiles>0)   return {mi:Math.round(t.gpsMiles),src:'GPS / ruta'};
   if(t.roadMiles>0)  return {mi:Math.round(t.roadMiles),src:'ZIP a ZIP'};
   if(t.routeMiles>0) return {mi:Math.round(t.routeMiles),src:'ruta'};
   if(t.miles>0 && t.miles<=3500) return {mi:Math.round(t.miles),src:'odómetro'};
   return {mi:0,src:''};
 }
+// Último viaje terminado del camión con odómetro final capturado
+function lastOdoForTruck(truckId, excludeId){
+  if(truckId==null||truckId==='') return null;
+  return loadTrips().filter(t=>t.tripStatus==='completed' && parseFloat(t.miEnd)>0 && String(t.id)!==String(excludeId)
+      && (function(){ const r=tripTruck(t); return r.truck && String(r.truck.id)===String(truckId); })())
+    .sort((a,b)=>(parseFloat(b.miEnd)||0)-(parseFloat(a.miEnd)||0))[0]||null;
+}
+function updateOdoHint(){
+  const el=document.getElementById('h-odo-admin'); if(!el) return;
+  const truckId=document.getElementById('f-truck-admin')?.value;
+  const miStart=parseFloat(document.getElementById('f-mi-start-admin')?.value);
+  const tr=truckId?loadTrucks().find(t=>String(t.id)===String(truckId)):null;
+  if(!tr){ el.innerHTML='Selecciona el camión para revisar el odómetro.'; el.style.color=''; return; }
+  const last=lastOdoForTruck(truckId);
+  const ref=last?parseFloat(last.miEnd):(parseFloat(tr.mileage)||0);
+  if(!ref){ el.innerHTML='Sin odómetro anterior de '+tr.name+'.'; el.style.color=''; return; }
+  let txt='Último odómetro de <b>'+tr.name+'</b>: '+Math.round(ref).toLocaleString('en-US')+' mi'
+    +(last?' (terminó en '+(last.city2||last.z2||'—')+', '+(last.state2||'')+' el '+fmtDate(repTripDate(last))+')':' (de mantenimiento/inspección)');
+  let color='';
+  if(!isNaN(miStart)&&miStart>0){
+    const gap=miStart-ref;
+    if(gap<0){ txt+='<br><b>El odómetro inicial es menor que el último registrado. Revisa el número.</b>'; color='var(--red)'; }
+    else if(gap>1500){ txt+='<br><b>'+Math.round(gap).toLocaleString('en-US')+' mi desde el último viaje. ¿Falta registrar un viaje o hay un error de dedo?</b>'; color='var(--orange)'; }
+    else { txt+='<br>Millas muertas para llegar al pick up: <b>'+Math.round(gap).toLocaleString('en-US')+' mi</b>'; color='var(--green)'; }
+  }
+  el.innerHTML=txt; el.style.color=color;
+  calcDeadAdmin();
+}
+let _deadCalcTok=0;
+async function calcDeadAdmin(){
+  const inp=document.getElementById('f-dead-admin'), h=document.getElementById('h-dead-admin'); if(!inp||!h) return;
+  if(inp.dataset.manual==='1'){ h.textContent='Capturadas a mano.'; return; }
+  const tok=++_deadCalcTok;
+  const zs=(document.getElementById('f-zs-admin')?.value||'').trim(), z1=(document.getElementById('f-z1-admin')?.value||'').trim();
+  const miStart=parseFloat(document.getElementById('f-mi-start-admin')?.value);
+  const truckId=document.getElementById('f-truck-admin')?.value;
+  const last=truckId?lastOdoForTruck(truckId):null;
+  const set=(v,msg)=>{ if(tok!==_deadCalcTok) return; inp.value=v==null?'':Math.round(v); h.textContent=msg; };
+  // 1) Odómetro: inicial de este − final del último viaje del camión
+  if(last && miStart>0){ const gap=miStart-parseFloat(last.miEnd); if(gap>=0 && gap<2000){ set(gap,'Por odómetro: desde '+(last.city2||last.z2||'el último delivery')+' hasta el pick up.'); return; } }
+  // 2) Carretera desde el ZIP de origen (o el último delivery) hasta el pick up
+  const from=(zs.length===5)?zs:(last&&last.z2?String(last.z2):'');
+  if(from.length===5 && z1.length===5){
+    if(from===z1){ set(0,'Mismo ZIP: sin millas muertas.'); return; }
+    h.textContent='Calculando millas por carretera…';
+    const a=ZC[from]||await fetchZip(from), b=ZC[z1]||await fetchZip(z1);
+    if(!a||!b){ set(null,'No se encontró uno de los ZIP.'); return; }
+    let mi=await fetchRoadMiles(a.lat,a.lon,b.lat,b.lon), how='por carretera';
+    if(mi==null){ mi=haversineKm(a.lat,a.lon,b.lat,b.lon)*0.621371*1.2; how='estimadas'; }
+    set(mi,'Millas '+how+' desde '+a.city+', '+a.abbr+' hasta el pick up.'); return;
+  }
+  set(null,'Pon el ZIP de origen y el de pick up, o el odómetro inicial.');
+}
+// Compara millas reales (odómetro) contra ZIP a ZIP; devuelve texto de alerta o ''
+function odoCheck(t, miles){
+  const ref=t.gpsMiles||t.routeMiles||t.roadMiles; const refLbl=t.gpsMiles?'el GPS / ruta marca':'la ruta ZIP a ZIP es de';
+  if(miles>3500) return 'El viaje marca '+Math.round(miles).toLocaleString('en-US')+' millas por odómetro, es demasiado para un solo viaje.';
+  if(ref && (miles>ref*1.35+50 || miles<ref*0.8)) return 'El odómetro marca '+Math.round(miles).toLocaleString('en-US')+' mi y '+refLbl+' '+Math.round(ref).toLocaleString('en-US')+' mi ('+(miles>=ref?'+':'')+Math.round((miles/ref-1)*100)+'%).';
+  return '';
+}
 // Millas de odómetro que no cuadran (ej. faltó un dígito en millas iniciales)
 function tripOdoSuspect(t){
   const m=parseFloat(t.miles)||0; if(!(m>0)) return false;
   if(m>3500) return true;
-  const ref=t.routeMiles||t.roadMiles; return !!(ref && (m>ref*2.2+150 || m<ref*0.45));
+  const ref=t.gpsMiles||t.routeMiles||t.roadMiles; return !!(ref && (m>ref*2.2+150 || m<ref*0.45));
 }
 // ===== Detección de viajes duplicados (mismo chofer, misma ruta ZIP, pick up a ≤3 días) =====
 function tripDupKey(t){ const n=((t.driverName||'').trim().split(' ')[0]||t.driverUser||'').toLowerCase(); return [n,String(t.z1||''),String(t.z2||'')].join('|'); }
 function tripDaysApart(a,b){ const x=Date.parse((tripPickupDate(a)||'')+'T12:00:00'), y=Date.parse((tripPickupDate(b)||'')+'T12:00:00'); return (isNaN(x)||isNaN(y))?99:Math.abs(x-y)/86400000; }
 function findSimilarTrip(t, list){ return (list||loadTrips()).find(x=>String(x.id)!==String(t.id) && tripDupKey(x)===tripDupKey(t) && tripDaysApart(x,t)<=3); }
 function findTripDuplicates(trips){ const out=[]; for(let i=0;i<trips.length;i++) for(let j=i+1;j<trips.length;j++){ const a=trips[i], b=trips[j]; if(tripDupKey(a)===tripDupKey(b) && tripDaysApart(a,b)<=3) out.push([a,b]); } return out; }
-function tripRatePerMile(t){ const d=tripDistance(t); const lv=parseFloat(t.loadVal)||0; return (d.mi>0&&lv>0)?lv/d.mi:null; }
+// Millas muertas del viaje: las capturadas a mano ganan; si no, las calculadas (odómetro / ZIP)
+let _dhByTrip={};
+function tripDeadMiles(t){
+  if(t.deadMiles!=null && t.deadMiles!=='' && !isNaN(parseFloat(t.deadMiles))) return parseFloat(t.deadMiles);
+  const v=_dhByTrip[String(t.id)]; return v==null?null:v;
+}
+// Rate total = pago ÷ (millas cargadas + millas muertas)
+function tripRatePerMile(t){ const d=tripDistance(t); const lv=parseFloat(t.loadVal)||0; const dm=tripDeadMiles(t)||0; return (d.mi>0&&lv>0)?lv/(d.mi+dm):null; }
+function tripTotalMiles(t){ return Math.round((tripDistance(t).mi||0)+(tripDeadMiles(t)||0)); }
+// Una sola vez: guarda en cada viaje anterior sus millas muertas calculadas y el flete separado de adicionales
+let _deadBackfillRun=false;
+function backfillDeadMilesOld(){
+  if(_deadBackfillRun || !currentUser || currentUser.role!=='admin') return;
+  if(_cachedTrips===null && typeof fbReady!=='undefined' && fbReady){ setTimeout(backfillDeadMilesOld,3000); return; }
+  _deadBackfillRun=true;
+  const done=()=>{
+    const trips=loadTrips(); let n=0;
+    trips.forEach(t=>{
+      if(t.tripStatus!=='completed') return;
+      let ch=false;
+      if((t.deadMiles==null||t.deadMiles==='') && _dhByTrip[String(t.id)]!=null){ t.deadMiles=Math.round(_dhByTrip[String(t.id)]); t.deadMilesSrc='calculado'; ch=true; }
+      if(t.lineHaul==null && parseFloat(t.loadVal)>0){ t.lineHaul=parseFloat(t.loadVal); if(!t.accessorials) t.accessorials=[]; ch=true; }
+      if(ch) n++;
+    });
+    if(n){ _logMute=true; storeTrips(trips).finally(()=>{ _logMute=false; }); console.log('Millas muertas guardadas en '+n+' viajes anteriores'); }
+  };
+  try{ const ml=mlRange('1900-01-01','2999-12-31','all'); if(ml.missing.length) mlResolveMissing(ml.missing,()=>{ mlRange('1900-01-01','2999-12-31','all'); done(); }); else done(); }catch(e){ console.warn('backfill millas muertas',e); }
+}
+function tripLoadedRate(t){ const d=tripDistance(t); const lv=parseFloat(t.loadVal)||0; return (d.mi>0&&lv>0)?lv/d.mi:null; }
+// Llena el mapa de millas muertas de todos los viajes; vuelve a dibujar cuando termina de calcular
+function ensureDeadMap(rerender){
+  try{ const ml=mlRange('1900-01-01','2999-12-31','all'); if(ml.missing.length && rerender) mlResolveMissing(ml.missing,rerender); }catch(e){ console.warn('millas muertas',e); }
+}
 function fmtDateShort(d){ if(!d) return ''; const [y,m,dd]=d.split('-'); return m+'/'+dd+'/'+y.slice(2); }
 
 // Fecha de entrega del viaje (para asignarlo a la semana): fecha de delivery → endTime → inicio+duración → fecha del viaje
@@ -8684,6 +9002,7 @@ function renderAdminReport(){
   if(!window._pendingEmailsChecked){ window._pendingEmailsChecked=true; setTimeout(()=>{ try{ sendPendingTripEmails(); }catch(e){} },8000); }
   if(!window._truckAssignDone && !(typeof fbReady!=='undefined'&&fbReady)){ window._truckAssignDone=true; applyDefaultTruckAssignments().then(()=>applyTruckToPastTrips()); }
   setTimeout(backfillZipMiles,1500);
+  setTimeout(backfillDeadMilesOld,9000);
   if(!el('admin-full-report')) return;
   const trips=loadTrips();
   const r=rpGetRange();
@@ -12664,7 +12983,7 @@ function renderMiViaje(){
   const histEl = document.getElementById('mv-history');
 
   // Summary strip
-  const totalHistMiles = prevTrips.reduce(function(a,t){return a+(t.miles||0);},0);
+  const totalHistMiles = prevTrips.reduce(function(a,t){return a+tripTotalMiles(t);},0);
   const totalHistDiesel = prevTrips.reduce(function(a,t){return a+(t.totalCost||0);},0);
   const summary = document.getElementById('mv-hist-summary');
   if(summary && prevTrips.length){
@@ -12688,7 +13007,7 @@ function renderMiViaje(){
 
     histEl.innerHTML = sortedDates.map(function(date){
       const dayTrips = grouped[date];
-      const dayMiles = dayTrips.reduce(function(a,t){return a+(t.miles||0);},0);
+      const dayMiles = dayTrips.reduce(function(a,t){return a+tripTotalMiles(t);},0);
       const dayDiesel = dayTrips.reduce(function(a,t){return a+(t.totalCost||0);},0);
 
       const rows = dayTrips.map(function(t){
@@ -12720,7 +13039,7 @@ function renderMiViaje(){
           '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:' + (gastosBadges?'10px':'0') + ';">' +
             '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px;text-align:center;">' +
               '<div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.3px;margin-bottom:4px;">🛣️ Millas</div>' +
-              '<div style="font-size:17px;font-weight:800;color:var(--text);">' + fmtNum(t.miles||0) + '</div>' +
+              '<div style="font-size:17px;font-weight:800;color:var(--text);">' + fmtNum(tripTotalMiles(t)) + '</div>' +
             '</div>' +
             '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px;text-align:center;">' +
               '<div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.3px;margin-bottom:4px;">⛽ Galones</div>' +
@@ -14179,7 +14498,7 @@ function renderMisGanancias(){
   }).sort(function(a,b){ return (b.date||'').localeCompare(a.date||''); });
 
   const total   = mine.filter(t=>t.profitSet).reduce((a,t)=>a+(t.driver||0),0);
-  const miles   = mine.reduce((a,t)=>a+(t.miles||0),0);
+  const miles   = mine.reduce((a,t)=>a+tripTotalMiles(t),0);
   const paid    = mine.filter(t=>t.profitSet && (t.driverPayStatus||'paid')==='paid').reduce((a,t)=>a+(t.driver||0),0);
   const pending = mine.filter(t=>t.profitSet && (t.driverPayStatus||'paid')!=='paid').reduce((a,t)=>a+(t.driver||0),0);
 
@@ -14207,7 +14526,7 @@ function renderMisGanancias(){
         paidBadge+
       '</div>'+
       '<div style="display:flex;justify-content:space-between;align-items:center;">'+
-        '<span style="font-size:11px;color:var(--text3);">'+fmtNum(t.miles||0)+' mi</span>'+
+        '<span style="font-size:11px;color:var(--text3);">'+fmtNum(tripTotalMiles(t))+' mi</span>'+
         '<span style="font-size:18px;font-weight:800;color:var(--green);">'+(t.profitSet?'$'+(t.driver||0).toFixed(2):'—')+'</span>'+
       '</div>'+
     '</div>';
@@ -14341,7 +14660,7 @@ function renderReporte(){
   // Tiles
   const m2=v=>'$'+(v||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
   const adjList=adjFor(driverF,fromF,toF), adjTotal=adjList.reduce((a,x)=>a+adjSigned(x),0);
-  const totalMiles=filtered.reduce((a,t)=>a+(tripDistance(t).mi||0),0);
+  const totalMiles=filtered.reduce((a,t)=>a+tripTotalMiles(t),0);
   document.getElementById('rep-tiles').innerHTML = `
     <div class="rep-tile main"><div class="l">Pago neto</div><div class="v">${m2(totalPay+adjTotal)}</div><div class="s">${totalTrips} carga${totalTrips!==1?'s':''} · ${totalMiles.toLocaleString('en-US')} mi${adjList.length?' · pago bruto '+m2(totalPay)+(adjTotal<0?' − ':' + ')+m2(Math.abs(adjTotal))+' en ajustes':''}</div></div>
     <div class="rep-tile"><div class="l">Liquidado</div><div class="v" style="color:var(--green)">${m2(paidTotal)}</div><div class="s">${paidTrips.length} viaje${paidTrips.length!==1?'s':''}</div></div>
@@ -14356,7 +14675,7 @@ function renderReporte(){
       <td style="padding:10px 12px;white-space:nowrap;font-weight:600;">${repTripDate(t)?fmtDate(repTripDate(t)):'—'}</td>
       <td style="padding:10px 12px;">${t.city1||t.z1||'—'}${t.state1?', '+t.state1:''}</td>
       <td style="padding:10px 12px;">${t.city2||t.z2||'—'}${t.state2?', '+t.state2:''}</td>
-      <td style="padding:10px 12px;text-align:right;white-space:nowrap;">${tripDistance(t).mi?tripDistance(t).mi.toLocaleString('en-US'):'—'}</td>
+      <td style="padding:10px 12px;text-align:right;white-space:nowrap;">${tripTotalMiles(t)?tripTotalMiles(t).toLocaleString('en-US'):'—'}${tripDeadMiles(t)?`<div style="font-size:10.5px;color:var(--text3);">${(tripDistance(t).mi||0).toLocaleString('en-US')} carg. + ${Math.round(tripDeadMiles(t)).toLocaleString('en-US')} muertas</div>`:''}</td>
       <td style="padding:10px 12px;text-align:right;font-weight:700;color:${t.profitSet?'var(--green)':'var(--text3)'};">
         ${t.profitSet?m2(t.driver):'—'}
       </td>

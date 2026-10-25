@@ -501,6 +501,8 @@
       .page{max-width:1560px;}
     }
   </style>
+<style id="no-odometro">/* La empresa no usa odómetro en los viajes: campos ocultos, las millas salen de la ruta ZIP a ZIP */
+.field:has(#f-mi-start),.field:has(#f-mi-end),.field:has(#f-mi-start-admin),.field:has(#f-mi-end-admin),.field:has(#mv-mi-end),.field:has(#edit-mi-start),.field:has(#edit-mi-end),div:has(> #mv-mi-start),#h-odo-admin{display:none!important}</style>
 </head>
 <body>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -3538,9 +3540,19 @@ async function saveUsers(u){
 }
 
 // TRIPS — real-time listener from Firestore
+// Sin odómetro: millas del viaje = GPS/ruta capturada o ruta ZIP a ZIP. Se aplica a todos los viajes al leerlos,
+// así todas las pantallas (tarjetas, historial, reportes, MPG, Excel) usan el mismo número.
+function routeMilesOf(t){ return Math.round(parseFloat(t.gpsMiles)||parseFloat(t.roadMiles)||parseFloat(t.routeMiles)||0); }
+function normTripMiles(list){
+  (list||[]).forEach(t=>{ if(!t) return; const m=routeMilesOf(t); if(!m) return;
+    if(t.miles!==m) t.miles=m;
+    const g=parseFloat(t.totalGal)||0; const mpg=g>0?parseFloat((m/g).toFixed(2)):0; if(t.mpgReal!==mpg) t.mpgReal=mpg;
+    const c=parseFloat(t.totalCost)||0; const cpm=c>0?parseFloat((c/m).toFixed(4)):0; if(t.cpm!=null && t.cpm!==cpm) t.cpm=cpm; });
+  return list;
+}
 function loadTrips(){
-  if(_cachedTrips !== null) return _cachedTrips;
-  try{return JSON.parse(localStorage.getItem(TRIPS_KEY))||[];}catch(e){return[];}
+  if(_cachedTrips !== null) return normTripMiles(_cachedTrips);
+  try{return normTripMiles(JSON.parse(localStorage.getItem(TRIPS_KEY))||[]);}catch(e){return[];}
 }
 
 const TRIP_PHOTO_KINDS = ['loaded','unloaded','bol','pod'];
@@ -4362,7 +4374,8 @@ function calcAll(){
   const miStart=parseFloat(document.getElementById(isAdmin?'f-mi-start-admin':'f-mi-start')?.value);
   const miEnd=parseFloat(document.getElementById(isAdmin?'f-mi-end-admin':'f-mi-end')?.value);
   const miles=(!isNaN(miStart)&&!isNaN(miEnd)&&miEnd>miStart)?(miEnd-miStart):null;
-  document.getElementById('c-miles').textContent=miles!==null?miles.toLocaleString('en-US')+' mi':'—';
+  { const _at=(typeof _adminActiveTrip!=='undefined'&&_adminActiveTrip)?_adminActiveTrip:null; const _m=_at?Math.round(parseFloat(_at.gpsMiles)||parseFloat(_at.roadMiles)||parseFloat(_at.routeMiles)||0):0;
+    document.getElementById('c-miles').textContent=_m?_m.toLocaleString('en-US')+' mi':'—'; }
   const rows=getFuelBlocks();
   const totalGal=rows.reduce((a,r)=>a+(r.gal||0),0);
   const totalCost=rows.reduce((a,r)=>a+(r.cost||0),0);
@@ -4432,7 +4445,6 @@ async function adminStartTrip(){
   if(!driverUsername){ showErr('Selecciona un driver.'); return; }
   if(!z1||z1.length<5){ showErr('Ingresa el ZIP de origen (5 dígitos).'); return; }
   if(!z2||z2.length<5){ showErr('Ingresa el ZIP de destino (5 dígitos).'); return; }
-  if(!miStart){ showErr('Ingresa las millas iniciales.'); return; }
 
   if(btn){ btn.disabled=true; btn.textContent='⏳ Iniciando...'; }
 
@@ -4514,13 +4526,12 @@ async function adminFinishTrip(){
 
   function showErr(t){ msg.className='msg err'; msg.textContent=t; msg.style.display='block'; }
 
-  if(!miEnd){ showErr('Ingresa las millas finales.'); return; }
-  if(miEnd <= _adminActiveTrip.miStart){ showErr('Las millas finales deben ser mayores a las iniciales.'); return; }
 
   const validRows = getFuelBlocks().filter(r=>r.gal>0&&r.price>0);
   const totalGal = parseFloat(validRows.reduce((a,r)=>a+(r.gal||0),0).toFixed(2));
   const totalCost = parseFloat(validRows.reduce((a,r)=>a+(r.cost||0),0).toFixed(2));
-  const miles = miEnd - _adminActiveTrip.miStart;
+  // Sin odómetro: millas del viaje = GPS/ruta capturada o ruta ZIP a ZIP
+  const miles = Math.round(parseFloat(_adminActiveTrip.gpsMiles)||parseFloat(_adminActiveTrip.roadMiles)||parseFloat(_adminActiveTrip.routeMiles)||0) || null;
   const payPct = _adminActiveTrip.payPct || 0;
   const brokerFeePct = (_adminActiveTrip.brokerFeePct!=null && !isNaN(_adminActiveTrip.brokerFeePct)) ? _adminActiveTrip.brokerFeePct : 13;
   const fee = loadVal ? parseFloat((loadVal * brokerFeePct/100).toFixed(2)) : 0;
@@ -4635,7 +4646,7 @@ function renderEnTransito(){
         <div>
           <div style="font-size:14px;font-weight:800;color:var(--text);">${t.driverName||'—'}</div>
           <div style="font-size:12px;color:var(--text2);margin-top:2px;">${t.city1||t.z1||'—'}, ${t.state1||''} → ${t.city2||t.z2||'—'}, ${t.state2||''}</div>
-          <div style="font-size:11px;color:var(--text3);margin-top:4px;">🏢 ${t.broker||'—'} · 🛣️ ${(t.miStart||0).toLocaleString()} mi iniciales</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:4px;">🏢 ${t.broker||'—'} · 🛣️ ${Math.round(parseFloat(t.roadMiles)||parseFloat(t.routeMiles)||0).toLocaleString()} mi</div>
         </div>
         <div style="text-align:right;flex-shrink:0;">
           <div style="display:inline-flex;align-items:center;gap:5px;background:var(--green-bg);color:var(--green);padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;">
@@ -4661,7 +4672,7 @@ function openTripDetail(tripId){
      ${t.pickupAddress?`<b>📍 Pickup:</b> ${t.pickupAddress}<br>`:''}
      ${t.deliveryAddress?`<b>📍 Delivery:</b> ${t.deliveryAddress}<br>`:''}
      ${t.routeMiles?`<b>Ruta real:</b> ${t.routeMiles.toLocaleString()} mi (por carretera)<br>`:''}
-     <b>Millas iniciales:</b> ${(t.miStart||0).toLocaleString()}<br>
+     <b>Millas del viaje:</b> ${routeMilesOf(t).toLocaleString()} mi<br>
      <b>% de pago:</b> ${t.payPct||'—'}%<br>
      <b>Dispatcher:</b> ${t.broker||'—'} (${t.brokerFeePct!=null?t.brokerFeePct:13}%)<br>
      <b>Broker:</b> ${t.brokerName||'—'}<br>
@@ -4973,9 +4984,7 @@ async function addTrip(){
   const rows=getFuelBlocks(),validRows=rows.filter(r=>r.gal>0&&r.price>0);
   // For drivers: millas finales and diesel are optional (can add later)
   if(!isAdmin){
-    if(isNaN(miStart)){showFMsg('Ingresa las millas iniciales del odómetro.','err');return;}
   } else {
-    if(isNaN(miStart)||isNaN(miEnd)||miEnd<=miStart){showFMsg('Las millas finales deben ser mayores que las iniciales.','err');return;}
     if(!validRows.length){showFMsg('Agrega al menos una carga de diesel.','err');return;}
   }
   btn.disabled=true;showFMsg('Guardando viaje...','');
@@ -4999,13 +5008,13 @@ async function addTrip(){
 
   btn.disabled=false;
   if(!p1||!p2){showFMsg('No se encontró uno o ambos ZIP codes.','err');return;}
-  const miles=(!isNaN(miEnd)&&miEnd>miStart)?(miEnd-miStart):0;
   // Calcular millas exactas por carretera usando OSRM
   let roadMiles = null;
   if(p1.lat&&p1.lon&&p2.lat&&p2.lon){
     showFMsg('Calculando millas por carretera...','');
     roadMiles = await fetchRoadMiles(p1.lat,p1.lon,p2.lat,p2.lon);
   }
+  const miles=Math.round(parseFloat(roadMiles)||0); // sin odómetro: ruta ZIP a ZIP
   const totalGal=parseFloat(validRows.reduce((a,r)=>a+(r.gal||0),0).toFixed(2));
   const totalCost=parseFloat(validRows.reduce((a,r)=>a+(r.cost||0),0).toFixed(2));
   const payPct = parseFloat(document.getElementById('f-pay-pct')?.value)||0;
@@ -5209,7 +5218,8 @@ async function saveEditModal(){
   const newState2=(document.getElementById('edit-state2').value||t.state2||'').toUpperCase();
   const newMiStart=parseFloat(document.getElementById('edit-mi-start').value)||t.miStart||0;
   const newMiEnd=parseFloat(document.getElementById('edit-mi-end').value)||t.miEnd||0;
-  const newMiles=newMiEnd&&newMiStart&&newMiEnd>newMiStart?newMiEnd-newMiStart:(parseFloat(document.getElementById('edit-mi-start').value)?null:t.miles||0);
+  // Sin odómetro: millas del viaje = GPS/ruta o ruta ZIP a ZIP
+  const newMiles=Math.round(parseFloat(t.roadMiles)||parseFloat(t.routeMiles)||0)||null;
   const newMpg=parseFloat(document.getElementById('edit-mpg').value)||t.mpg||8;
   const newGallons=parseFloat(document.getElementById('edit-gallons').value)||t.totalGal||0;
   const newDiesel=parseFloat(document.getElementById('edit-diesel').value)||t.totalCost||0;
@@ -5748,8 +5758,6 @@ function renderLog(){
         ${t.profitSet?`<span style="font-size:12px;font-weight:700;color:var(--text2);">${fmtD(t.driver)}</span>`:''}
       </div>
       <div class="trip-grid">
-        <div class="trip-stat"><div class="trip-stat-lbl">Mi. iniciales</div><div class="trip-stat-val">${fmtNum(t.miStart||0)}</div><div class="trip-stat-unit">odóm.</div></div>
-        <div class="trip-stat"><div class="trip-stat-lbl">Mi. finales</div><div class="trip-stat-val">${fmtNum(t.miEnd||0)}</div><div class="trip-stat-unit">odóm.</div></div>
         <div class="trip-stat"><div class="trip-stat-lbl">Millas viaje</div><div class="trip-stat-val">${fmtNum(t.miles||0)}</div><div class="trip-stat-unit">mi</div></div>
         <div class="trip-stat"><div class="trip-stat-lbl">MPG real</div><div class="trip-stat-val">${t.mpgReal||'—'}</div><div class="trip-stat-unit">mi/gal</div></div>
         <div class="trip-stat"><div class="trip-stat-lbl">Total galones</div><div class="trip-stat-val">${t.totalGal||0}</div><div class="trip-stat-unit">gal</div></div>
@@ -6058,10 +6066,10 @@ function clearAll(){
 
 function exportCSV(){
   const trips=filterTrips(loadTrips());if(!trips.length){alert('No hay viajes para exportar.');return;}
-  const h=['Fecha','Driver','ZIP Orig','Ciudad Orig','Estado','ZIP Dest','Ciudad Dest','Estado','Mi.Iniciales','Mi.Finales','Millas','MPG Real','Total Galones','Costo Diesel($)','Load Value($)','Fee($)','Driver Pay($)','Ganancia Neta($)','Estado Pago','Notas','Gasolineras'];
+  const h=['Fecha','Driver','ZIP Orig','Ciudad Orig','Estado','ZIP Dest','Ciudad Dest','Estado','Millas','MPG Real','Total Galones','Costo Diesel($)','Load Value($)','Fee($)','Driver Pay($)','Ganancia Neta($)','Estado Pago','Notas','Gasolineras'];
   const rows=trips.map(t=>{
     const stations=(t.fuelLoads||[]).map(f=>f.station||'').filter(Boolean).join(' | ');
-    return [t.date,t.driverName||'—',t.z1,t.city1,t.state1,t.z2,t.city2,t.state2,t.miStart,t.miEnd,t.miles,t.mpgReal,t.totalGal,t.totalCost,t.profitSet?t.loadVal:'—',t.profitSet?t.fee:'—',t.profitSet?t.driver:'—',t.profitSet?t.net:'—',t.payStatus==='paid'?'Pagado':'Pendiente',t.payNotes||'',stations];
+    return [t.date,t.driverName||'—',t.z1,t.city1,t.state1,t.z2,t.city2,t.state2,t.miles,t.mpgReal,t.totalGal,t.totalCost,t.profitSet?t.loadVal:'—',t.profitSet?t.fee:'—',t.profitSet?t.driver:'—',t.profitSet?t.net:'—',t.payStatus==='paid'?'Pagado':'Pendiente',t.payNotes||'',stations];
   });
   const csv=[h,...rows].map(r=>r.map(v=>'"'+(String(v||'').replace(/"/g,'""'))+'"').join(',')).join('\n');
   const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
@@ -6433,7 +6441,7 @@ function renderHome(){
 
   // ── Load all trips once
   const trips = loadTrips();
-  const totalMiles   = trips.reduce((a,t)=>a+(t.miles||0),0);
+  const totalMiles   = trips.reduce((a,t)=>a+(routeMilesOf(t)),0);
   const totalIncome  = trips.filter(t=>t.profitSet).reduce((a,t)=>a+(t.loadVal||0),0);
 
   // ── Hero KPI row
@@ -6452,7 +6460,7 @@ function renderHome(){
         </div>`;
     } else {
       const myTrips = trips.filter(t=>t.driverUser===currentUser.username||t.driverName===currentUser.name);
-      const myMiles = myTrips.reduce((a,t)=>a+(t.miles||0),0);
+      const myMiles = myTrips.reduce((a,t)=>a+(routeMilesOf(t)),0);
       kpiRow.style.gridTemplateColumns = '1fr 1fr';
       kpiRow.innerHTML = `
         <div style="background:rgba(255,255,255,.13);border-radius:12px;padding:14px 10px;text-align:center;">
@@ -10899,21 +10907,20 @@ async function uploadFuelReceiptInBackground(tripId, loadId, file){
 function finalizarViaje(){
   const tripId = parseInt(document.getElementById('mv-trip-id').value);
   const miEnd = parseFloat(document.getElementById('mv-mi-end').value);
-  if(isNaN(miEnd) || miEnd <= 0){ alert('Ingresa las millas finales del odómetro.'); return; }
 
   const trips = loadTrips();
   const idx = trips.findIndex(function(t){ return t.id === tripId; });
   if(idx < 0) return;
 
   const t = trips[idx];
-  if(t.miStart && miEnd <= t.miStart){ alert('Las millas finales deben ser mayores que las iniciales (' + t.miStart + ').'); return; }
 
-  const miles = t.miStart ? (miEnd - t.miStart) : 0;
+  // Sin odómetro: las millas del viaje salen de la ruta (GPS/ruta capturada o ZIP a ZIP)
+  const miles = routeMilesOf(t);
   const totalGal = t.totalGal || 0;
   const totalCost = t.totalCost || 0;
 
   trips[idx] = Object.assign({}, t, {
-    miEnd: miEnd,
+    miEnd: isNaN(miEnd)?(t.miEnd||null):miEnd,
     miles: miles,
     tripStatus: 'completed',
     mpgReal: (miles && totalGal) ? parseFloat((miles/totalGal).toFixed(2)) : 0,

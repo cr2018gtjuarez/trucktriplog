@@ -930,6 +930,8 @@
     @media(max-width:1100px){ .wd-grid{grid-template-columns:1fr 1fr;} .wd-hdr{grid-template-columns:1fr;text-align:center;} .wd-brand{justify-content:center;} .wd-tot{grid-template-columns:1fr 1fr;} .wd-tot .t0{grid-column:1/-1;justify-content:center;} .wd-tot .t5{grid-column:1/-1;} }
     @media(max-width:600px){ .wd-grid{grid-template-columns:1fr;} .wd-foot{grid-template-columns:1fr;} .wd-h1{font-size:21px;} }
   </style>
+<style id="no-odometro">/* La empresa no usa odómetro en los viajes: campos ocultos, las millas salen de la ruta ZIP a ZIP */
+.field:has(#f-mi-start),.field:has(#f-mi-end),.field:has(#f-mi-start-admin),.field:has(#f-mi-end-admin),.field:has(#mv-mi-end),.field:has(#edit-mi-start),.field:has(#edit-mi-end),div:has(> #mv-mi-start),#h-odo-admin{display:none!important}</style>
 </head>
 <body>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -1434,7 +1436,7 @@
             <div class="field"><label>ZIP de origen (de dónde sale el camión)</label><input type="text" id="f-zs-admin" maxlength="5" inputmode="numeric" placeholder="00000" oninput="onZipAdmin(this,'hsa');calcDeadAdmin()"/><div class="hint" id="hsa">Opcional. Se usa para las millas muertas hasta el pick up.</div></div>
             <div class="field"><label>ZIP pick up</label><input type="text" id="f-z1-admin" maxlength="5" inputmode="numeric" placeholder="00000" oninput="onZipAdmin(this,'h1a');calcDeadAdmin()"/><div class="hint" id="h1a"></div></div>
             <div class="field"><label>ZIP destino (delivery)</label><input type="text" id="f-z2-admin" maxlength="5" inputmode="numeric" placeholder="00000" oninput="onZipAdmin(this,'h2a')"/><div class="hint" id="h2a"></div></div>
-            <div class="field"><label>Millas muertas (para llegar al pick up)</label><input type="number" id="f-dead-admin" placeholder="Se calcula sola" min="0" step="0.1" oninput="this.dataset.manual=this.value?'1':''"/><div class="hint" id="h-dead-admin">Pon el ZIP de origen y el de pick up, o el odómetro inicial.</div></div>
+            <div class="field"><label>Millas muertas (para llegar al pick up)</label><input type="number" id="f-dead-admin" placeholder="Se calcula sola" min="0" step="0.1" oninput="this.dataset.manual=this.value?'1':''"/><div class="hint" id="h-dead-admin">Se calcula sola: del delivery del último viaje finalizado del camión al pick up.</div></div>
             <div class="field"><label>Millas GPS / ruta</label><input type="number" id="f-gpsmi-admin" placeholder="Ej. 780" min="0" step="0.1"/><div class="hint">Manual. Las que marca el GPS o el RC.</div></div>
           </div>
           <!-- DIRECCIONES EXACTAS (opcional, para ruta real y ETA preciso) -->
@@ -3642,6 +3644,11 @@
       <div class="mk-bar mk-bar2" style="grid-template-columns:1fr;">
         <div class="field" style="margin:0;"><label>Driver</label><select id="ml-driver" onchange="ML.driver=this.value;renderMillas()"><option value="all">Todos los drivers</option></select></div>
       </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 12px;">
+        <button class="btn" id="ml-recalc-btn" onclick="recalcAllDeadMiles()" style="width:auto;">Recalcular millas muertas de todos los viajes</button>
+        <button class="btn" id="ml-undo-btn" onclick="undoRecalcDeadMiles()" style="width:auto;background:var(--bg2,#eee);color:inherit;">Deshacer recálculo</button>
+        <span class="rp-muted" id="ml-recalc-msg"></span>
+      </div>
       <div class="mk-kpis" id="ml-kpis"></div>
       <div class="card rp-card">
         <div class="rp-card-h"><span>Por driver</span><span class="rp-muted" id="ml-status"></span></div>
@@ -4402,9 +4409,19 @@ async function saveUsers(u){
 }
 
 // TRIPS — real-time listener from Firestore
+// Sin odómetro: millas del viaje = GPS/ruta capturada o ruta ZIP a ZIP. Se aplica a todos los viajes al leerlos,
+// así todas las pantallas (tarjetas, historial, reportes, MPG, Excel) usan el mismo número.
+function routeMilesOf(t){ return Math.round(parseFloat(t.gpsMiles)||parseFloat(t.roadMiles)||parseFloat(t.routeMiles)||0); }
+function normTripMiles(list){
+  (list||[]).forEach(t=>{ if(!t) return; const m=routeMilesOf(t); if(!m) return;
+    if(t.miles!==m) t.miles=m;
+    const g=parseFloat(t.totalGal)||0; const mpg=g>0?parseFloat((m/g).toFixed(2)):0; if(t.mpgReal!==mpg) t.mpgReal=mpg;
+    const c=parseFloat(t.totalCost)||0; const cpm=c>0?parseFloat((c/m).toFixed(4)):0; if(t.cpm!=null && t.cpm!==cpm) t.cpm=cpm; });
+  return list;
+}
 function loadTrips(){
-  if(_cachedTrips !== null) return _cachedTrips;
-  try{return JSON.parse(localStorage.getItem(TRIPS_KEY))||[];}catch(e){return[];}
+  if(_cachedTrips !== null) return normTripMiles(_cachedTrips);
+  try{return normTripMiles(JSON.parse(localStorage.getItem(TRIPS_KEY))||[]);}catch(e){return[];}
 }
 
 const TRIP_PHOTO_KINDS = ['loaded','unloaded','bol','pod'];
@@ -5423,7 +5440,8 @@ function calcAll(){
   const miEnd=parseFloat(document.getElementById(isAdmin?'f-mi-end-admin':'f-mi-end')?.value);
   const miles=(!isNaN(miStart)&&!isNaN(miEnd)&&miEnd>miStart)?(miEnd-miStart):null;
   { const cm=document.getElementById('c-miles');
-    if(cm){ let h=miles!==null?miles.toLocaleString('en-US')+' mi reales':'—';
+    if(cm){ const _at=(typeof _adminActiveTrip!=='undefined'&&_adminActiveTrip)?_adminActiveTrip:null; const _g=parseFloat(document.getElementById('f-gpsmi-end-admin')?.value)||0;
+      let h=(_g||(_at&&tripDistance(_at).mi))?Math.round(_g||tripDistance(_at).mi).toLocaleString('en-US')+' mi ('+(_g?'GPS / ruta':'ZIP a ZIP')+')':'—';
       const at=(typeof _adminActiveTrip!=='undefined'&&_adminActiveTrip)?_adminActiveTrip:null;
       const gpsIn=parseFloat(document.getElementById('f-gpsmi-end-admin')?.value)||null;
       const at2=at?{...at,gpsMiles:gpsIn||at.gpsMiles}:null;
@@ -5435,7 +5453,7 @@ function calcAll(){
     if(ct && isAdmin){
       const at=(typeof _adminActiveTrip!=='undefined'&&_adminActiveTrip)?_adminActiveTrip:null;
       const gpsIn=parseFloat(document.getElementById('f-gpsmi-end-admin')?.value)||0;
-      const loaded=miles!==null?miles:(gpsIn||(at?tripDistance(at).mi:0));
+      const loaded=gpsIn||(at?tripDistance(at).mi:0);
       const dead=parseFloat(document.getElementById('f-dead-end-admin')?.value)||0;
       const lv=(parseFloat(document.getElementById('f-load')?.value)||0)+(at?accTotals(readAcc('fe-acc',at.payPct)).total:0);
       const tot=loaded+dead;
@@ -5503,6 +5521,7 @@ async function adminStartTrip(){
   const gpsMiles = parseFloat(document.getElementById('f-gpsmi-admin')?.value)||null;
   const deadRaw = document.getElementById('f-dead-admin')?.value;
   const deadMiles = (deadRaw!==''&&deadRaw!=null&&!isNaN(parseFloat(deadRaw)))?Math.round(parseFloat(deadRaw)):null;
+  const deadMilesSrc = document.getElementById('f-dead-admin')?.dataset.manual==='1' ? 'manual' : 'calculado';
   const mpg = parseFloat(document.getElementById('f-mpg-admin').value)||8;
   const driverSel = document.getElementById('f-driver-select');
   const driverUsername = driverSel ? driverSel.value : '';
@@ -5523,12 +5542,9 @@ async function adminStartTrip(){
   if(zStart && zStart.length!==5){ showErr('El ZIP de origen debe tener 5 dígitos.'); return; }
   if(!z1||z1.length<5){ showErr('Ingresa el ZIP de pick up (5 dígitos).'); return; }
   if(!z2||z2.length<5){ showErr('Ingresa el ZIP de destino (5 dígitos).'); return; }
-  if(!miStart){ showErr('Ingresa las millas iniciales.'); return; }
   { const tv=document.getElementById('f-truck-admin')?.value;
-    if(!tv){ showErr('Selecciona el camión (se usa para controlar el odómetro).'); return; }
-    const last=lastOdoForTruck(tv);
-    if(last && miStart<parseFloat(last.miEnd) && !confirm('El odómetro inicial ('+miStart.toLocaleString('en-US')+') es menor que el último registrado de este camión ('+parseFloat(last.miEnd).toLocaleString('en-US')+').\n\n¿Seguro que está bien?')) return;
-    if(last && miStart-parseFloat(last.miEnd)>1500 && !confirm('Hay '+Math.round(miStart-parseFloat(last.miEnd)).toLocaleString('en-US')+' millas desde el último viaje de este camión.\n\n¿Seguro que está bien el odómetro?')) return; }
+    if(!tv){ showErr('Selecciona el camión (se usa para las millas muertas).'); return; }
+    }
 
   { const du=getUsers().find(u=>u.username===driverUsername)||{};
     const twin=findSimilarTrip({id:'nuevo',driverUser:driverUsername,driverName:(du.firstName&&du.lastName)?du.firstName+' '+du.lastName:(du.name||driverUsername),z1,z2,date});
@@ -5582,7 +5598,7 @@ async function adminStartTrip(){
       pickupAddress: pickupAddress||null, deliveryAddress: deliveryAddress||null,
       routeMiles, routeDurationSec, origLat, origLon, destLat, destLon,
       zStart: zStart||null, cityStart: zStart&&ZC[zStart]?ZC[zStart].city:null, stateStart: zStart&&ZC[zStart]?ZC[zStart].abbr:null,
-      gpsMiles, deadMiles,
+      gpsMiles, deadMiles, deadMilesSrc: deadMiles==null?null:deadMilesSrc,
       accessorials: readAcc('f-acc', payPct),
       tripStatus: 'active',
       startTime: new Date().toISOString(),
@@ -5618,18 +5634,15 @@ async function adminFinishTrip(){
 
   function showErr(t){ msg.className='msg err'; msg.textContent=t; msg.style.display='block'; }
 
-  if(!miEnd){ showErr('Ingresa las millas finales.'); return; }
-  if(miEnd <= _adminActiveTrip.miStart){ showErr('El odómetro final debe ser mayor al inicial.'); return; }
   _adminActiveTrip.gpsMiles = parseFloat(document.getElementById('f-gpsmi-end-admin')?.value)||_adminActiveTrip.gpsMiles||null;
-  { const v=document.getElementById('f-dead-end-admin')?.value; if(v!==''&&v!=null&&!isNaN(parseFloat(v))) _adminActiveTrip.deadMiles=Math.round(parseFloat(v)); }
-  { const bad=odoCheck(_adminActiveTrip, miEnd-_adminActiveTrip.miStart);
-    if(bad && !confirm(bad+'\n\nRevisa las millas inicial y final. ¿Guardar así de todos modos?')) return; }
+  { const dEl=document.getElementById('f-dead-end-admin'), v=dEl?.value; if(v!==''&&v!=null&&!isNaN(parseFloat(v))){ _adminActiveTrip.deadMiles=Math.round(parseFloat(v)); _adminActiveTrip.deadMilesSrc=deadSrcFor(_adminActiveTrip.deadMiles, dEl.dataset.prefill, _adminActiveTrip.deadMilesSrc||'calculado'); } }
 
   const validRows = getFuelBlocks().filter(fuelRowValid);
   { const e=dieselRowsError(validRows); if(e){ showErr(e); return; } }
   const totalGal = parseFloat(validRows.reduce((a,r)=>a+(r.gal||0),0).toFixed(2));
   const totalCost = parseFloat(validRows.reduce((a,r)=>a+(r.cost||0),0).toFixed(2));
-  const miles = miEnd - _adminActiveTrip.miStart;
+  // Sin odómetro: millas del viaje = GPS/ruta capturada o ruta ZIP a ZIP
+  const miles = Math.round(parseFloat(_adminActiveTrip.gpsMiles)||parseFloat(_adminActiveTrip.roadMiles)||parseFloat(_adminActiveTrip.routeMiles)||0) || null;
   const payPct = _adminActiveTrip.payPct || 0;
   const brokerFeePct = (_adminActiveTrip.brokerFeePct!=null && !isNaN(_adminActiveTrip.brokerFeePct)) ? _adminActiveTrip.brokerFeePct : 13;
   const factoringFeePct = (_adminActiveTrip.factoringFeePct!=null && !isNaN(_adminActiveTrip.factoringFeePct)) ? _adminActiveTrip.factoringFeePct : 0;
@@ -5686,6 +5699,7 @@ async function adminSaveProgress(){
     gpsMiles: parseFloat(document.getElementById('f-gpsmi-end-admin')?.value)||_adminActiveTrip.gpsMiles||null,
     accessorials: readAcc('fe-acc', _adminActiveTrip.payPct),
     deadMiles: (function(){ const v=document.getElementById('f-dead-end-admin')?.value; return (v!==''&&v!=null&&!isNaN(parseFloat(v)))?Math.round(parseFloat(v)):(_adminActiveTrip.deadMiles??null); })(),
+    deadMilesSrc: (function(){ const dEl=document.getElementById('f-dead-end-admin'), v=dEl?.value; if(v!==''&&v!=null&&!isNaN(parseFloat(v))) return deadSrcFor(Math.round(parseFloat(v)), dEl.dataset.prefill, _adminActiveTrip.deadMilesSrc||'calculado'); return _adminActiveTrip.deadMilesSrc||null; })(),
     miEnd: parseFloat(document.getElementById('f-mi-end-admin')?.value)||_adminActiveTrip.miEnd||null,
     lastSaved: new Date().toISOString()
   };
@@ -5694,7 +5708,7 @@ async function adminSaveProgress(){
   const trips = loadTrips();
   const idx = trips.findIndex(t => t.id === _adminActiveTrip.id);
   if(idx>=0){
-    trips[idx] = {...trips[idx], fuelLoads:validRows, totalGal, totalCost, gpsMiles:_adminActiveTrip.gpsMiles, deadMiles:_adminActiveTrip.deadMiles, accessorials:_adminActiveTrip.accessorials, miEnd:_adminActiveTrip.miEnd, lastSaved:_adminActiveTrip.lastSaved};
+    trips[idx] = {...trips[idx], fuelLoads:validRows, totalGal, totalCost, gpsMiles:_adminActiveTrip.gpsMiles, deadMiles:_adminActiveTrip.deadMiles, deadMilesSrc:_adminActiveTrip.deadMilesSrc||null, accessorials:_adminActiveTrip.accessorials, miEnd:_adminActiveTrip.miEnd, lastSaved:_adminActiveTrip.lastSaved};
     await storeTrips(trips);
   }
 
@@ -5798,7 +5812,7 @@ function openTripDetail(tripId){
      ${t.pickupAddress?`<b>📍 Pickup:</b> ${t.pickupAddress}<br>`:''}
      ${t.deliveryAddress?`<b>📍 Delivery:</b> ${t.deliveryAddress}<br>`:''}
      ${t.routeMiles?`<b>Ruta real:</b> ${t.routeMiles.toLocaleString()} mi (por carretera)<br>`:''}
-     <b>Millas iniciales:</b> ${(t.miStart||0).toLocaleString()}<br>
+     <b>Millas del viaje:</b> ${routeMilesOf(t).toLocaleString()} mi<br>
      <b>% de pago:</b> ${t.payPct||'—'}%<br>
      <b>Dispatcher:</b> ${t.broker||'—'} (${t.brokerFeePct!=null?t.brokerFeePct:13}%)<br>
      <b>Broker:</b> ${t.brokerName||'—'}<br>
@@ -5812,7 +5826,7 @@ function openTripDetail(tripId){
 
   document.getElementById('f-mi-end-admin').value = t.miEnd||'';
   { const g=document.getElementById('f-gpsmi-end-admin'); if(g) g.value = t.gpsMiles||''; }
-  { const dEl=document.getElementById('f-dead-end-admin'); if(dEl){ const dm=tripDeadMiles(t); dEl.value = dm==null?'':Math.round(dm); } }
+  { const dEl=document.getElementById('f-dead-end-admin'); if(dEl){ const dm=tripDeadMiles(t); dEl.value = dm==null?'':Math.round(dm); dEl.dataset.prefill=dEl.value; } }
   document.getElementById('f-load').value = t.loadVal ? tripLineHaul(t) : '';
   fillAcc('fe-acc', t.accessorials||[]);
   const msg=document.getElementById('f-msg-admin'); if(msg) msg.style.display='none';
@@ -6131,9 +6145,7 @@ async function addTrip(){
   { const e=dieselRowsError(validRows); if(e){ showFMsg(e,'err'); return; } }
   // For drivers: millas finales and diesel are optional (can add later)
   if(!isAdmin){
-    if(isNaN(miStart)){showFMsg('Ingresa las millas iniciales del odómetro.','err');return;}
   } else {
-    if(isNaN(miStart)||isNaN(miEnd)||miEnd<=miStart){showFMsg('Las millas finales deben ser mayores que las iniciales.','err');return;}
     if(!validRows.length){showFMsg('Agrega al menos una carga de diesel.','err');return;}
   }
   if(!isAdmin && currentUser){
@@ -6161,13 +6173,13 @@ async function addTrip(){
 
   btn.disabled=false;
   if(!p1||!p2){showFMsg('No se encontró uno o ambos ZIP codes.','err');return;}
-  const miles=(!isNaN(miEnd)&&miEnd>miStart)?(miEnd-miStart):0;
   // Calcular millas exactas por carretera usando OSRM
   let roadMiles = null;
   if(p1.lat&&p1.lon&&p2.lat&&p2.lon){
     showFMsg('Calculando millas por carretera...','');
     roadMiles = await fetchRoadMiles(p1.lat,p1.lon,p2.lat,p2.lon);
   }
+  const miles=Math.round(parseFloat(roadMiles)||0); // sin odómetro: ruta ZIP a ZIP
   const totalGal=parseFloat(validRows.reduce((a,r)=>a+(r.gal||0),0).toFixed(2));
   const totalCost=parseFloat(validRows.reduce((a,r)=>a+(r.cost||0),0).toFixed(2));
   const payPct = parseFloat(document.getElementById('f-pay-pct')?.value)||0;
@@ -6289,7 +6301,7 @@ function openEditModal(tripId){
   document.getElementById('edit-mi-start').value=t.miStart||'';
   document.getElementById('edit-mi-end').value=t.miEnd||'';
   document.getElementById('edit-gpsmi').value=t.gpsMiles||'';
-  document.getElementById('edit-dead').value=(t.deadMiles!=null&&t.deadMiles!=='')?t.deadMiles:'';
+  { const dm=tripDeadMiles(t); const el=document.getElementById('edit-dead'); el.value=dm==null?'':Math.round(dm); el.dataset.prefill=el.value; }
   document.getElementById('edit-zs').value=t.zStart||'';
   document.getElementById('edit-mpg').value=t.mpg||'';
   document.getElementById('edit-load').value=t.loadVal?tripLineHaul(t):'';
@@ -6382,7 +6394,8 @@ async function saveEditModal(){
   const newState2=(document.getElementById('edit-state2').value||t.state2||'').toUpperCase();
   const newMiStart=parseFloat(document.getElementById('edit-mi-start').value)||t.miStart||0;
   const newMiEnd=parseFloat(document.getElementById('edit-mi-end').value)||t.miEnd||0;
-  const newMiles=newMiEnd&&newMiStart&&newMiEnd>newMiStart?newMiEnd-newMiStart:(parseFloat(document.getElementById('edit-mi-start').value)?null:t.miles||0);
+  // Sin odómetro: millas del viaje = GPS/ruta o ruta ZIP a ZIP
+  const newMiles=Math.round(parseFloat(document.getElementById('edit-gpsmi')?.value)||parseFloat(t.roadMiles)||parseFloat(t.routeMiles)||0)||null;
   const newMpg=parseFloat(document.getElementById('edit-mpg').value)||t.mpg||8;
   const newGallons=parseFloat(document.getElementById('edit-gallons').value)||t.totalGal||0;
   const newDiesel=parseFloat(document.getElementById('edit-diesel').value)||t.totalCost||0;
@@ -6419,7 +6432,7 @@ async function saveEditModal(){
     ...t, ...profitFields,
     z1:newZ1, z2:newZ2,
     truckId:(function(){ const v=document.getElementById('edit-truck')?.value; return v?parseFloat(v):(t.truckId!=null?t.truckId:null); })(),
-    ...(zipChanged?{roadMiles:null}:{}),
+    ...(zipChanged?{roadMiles:null,routeMiles:null}:{}),
     date:newDate,
     deliveryDate:newDeliveryDate,
     city1:newCity1, state1:newState1,
@@ -6427,6 +6440,7 @@ async function saveEditModal(){
     miStart:newMiStart, miEnd:newMiEnd,
     gpsMiles: parseFloat(document.getElementById('edit-gpsmi').value)||null,
     deadMiles: (function(){ const v=document.getElementById('edit-dead').value; return (v!==''&&!isNaN(parseFloat(v)))?Math.round(parseFloat(v)):null; })(),
+    deadMilesSrc: (function(){ const v=document.getElementById('edit-dead').value; if(v===''||isNaN(parseFloat(v))) return null; return deadSrcFor(Math.round(parseFloat(v)), document.getElementById('edit-dead').dataset.prefill, dhFixed(t)?(t.deadMilesSrc||'manual'):'calculado'); })(),
     zStart: (function(){ const z=(document.getElementById('edit-zs').value||'').trim(); return z.length===5?z:null; })(),
     cityStart: (function(){ const z=(document.getElementById('edit-zs').value||'').trim(); return z===t.zStart?(t.cityStart||null):(ZC[z]?ZC[z].city:null); })(),
     stateStart: (function(){ const z=(document.getElementById('edit-zs').value||'').trim(); return z===t.zStart?(t.stateStart||null):(ZC[z]?ZC[z].abbr:null); })(),
@@ -6792,8 +6806,16 @@ function renderMpgCard(cur, mlr){
 
 // ===== MILLAS Y MILLAS MUERTAS (deadhead) =====
 const ML={anchor:null,driver:'all'};
-let _dhFail={}; let _dhCache={}; try{ _dhCache=JSON.parse(localStorage.getItem('trucklog_deadhead_cache')||'{}'); }catch(e){}
-function dhSaveCache(){ try{ localStorage.setItem('trucklog_deadhead_cache',JSON.stringify(_dhCache)); }catch(e){} }
+let _dhFail={}; let _dhCache={}; try{ localStorage.removeItem('trucklog_deadhead_cache'); _dhCache=JSON.parse(localStorage.getItem('trucklog_deadhead_cache2')||'{}'); }catch(e){}
+function dhSaveCache(){ try{ localStorage.setItem('trucklog_deadhead_cache2',JSON.stringify(_dhCache)); }catch(e){} }
+// Llave del caché: ruta entre ZIPs (así no queda viejo si cambia el viaje anterior o se edita un ZIP)
+function dhKey(prev,t){ return (prev.z2&&t.z1)?('z'+prev.z2+'>'+t.z1):(prev.id+'>'+t.id+'|'+(prev.z2||'')+'>'+(t.z1||'')); }
+// Millas muertas fijas = capturadas a mano. Las calculadas automáticamente se recalculan siempre.
+// Origen de las millas muertas al guardar: si el número es el mismo que la app puso sola, sigue siendo 'calculado'
+function deadSrcFor(val, prefill, oldSrc){ if(val==null) return null; if(prefill!=null && prefill!=='' && Math.round(parseFloat(prefill))===Math.round(val)) return oldSrc||'calculado'; return 'manual'; }
+function dhFixed(t){ return t.deadMiles!=null && t.deadMiles!=='' && !isNaN(parseFloat(t.deadMiles)) && t.deadMilesSrc!=='calculado'; }
+// Secuencia para millas muertas: por CAMIÓN (de dónde quedó el camión), si no se sabe el camión, por driver
+function mlSeqKey(t){ try{ const r=tripTruck(t); if(r.truck) return 'truck:'+r.truck.id; }catch(e){} return 'drv:'+mlDriverKey(t); }
 function mlJump(n){ ML.anchor=new Date(); ML.anchor.setDate(ML.anchor.getDate()+7*n); renderMillas(); }
 function mlShift(d){ ML.anchor=new Date(ML.anchor||new Date()); ML.anchor.setDate(ML.anchor.getDate()+7*d); renderMillas(); }
 function mlDriverKey(t){ return t.driverUser||t.driverName||'—'; }
@@ -6813,28 +6835,26 @@ function mlPoint(t,end){ // coordenadas de pick up (end=false) o delivery (end=t
 }
 // Punto de salida: el ZIP de origen capturado gana sobre el delivery del viaje anterior
 function mlPrevFor(t, prevOf){
-  if(t.deadMiles!=null && t.deadMiles!=='' && !t.zStart && !prevOf[t.id]) return {id:'dm', z2:'', city2:'salida', state2:'', _dm:1};
+  if(dhFixed(t) && !t.zStart && !prevOf[t.id]) return {id:'dm', z2:'', city2:'salida', state2:'', _dm:1};
   if(t.zStart && String(t.zStart).length===5) return {id:'zs'+t.zStart, z2:t.zStart, city2:t.cityStart||(ZC[t.zStart]||{}).city||t.zStart, state2:t.stateStart||(ZC[t.zStart]||{}).abbr||'', _zs:1};
   return prevOf[t.id];
 }
 // Devuelve {mi,src} o null si hay que calcular por red
 function dhQuick(prev,t){
-  if(t.deadMiles!=null && t.deadMiles!=='' && !isNaN(parseFloat(t.deadMiles))) return {mi:Math.round(parseFloat(t.deadMiles)),src:'capturado'};
-  const a=parseFloat(prev.miEnd), b=parseFloat(t.miStart);
-  if(a>0 && b>0 && b>=a && b-a<2000) return {mi:Math.round(b-a),src:'odómetro'};
-  const k=prev.id+'>'+t.id; if(_dhCache[k]) return _dhCache[k]; if(_dhFail[k]) return {mi:0,src:'sin ubicación',fail:true};
+  if(dhFixed(t)) return {mi:Math.round(parseFloat(t.deadMiles)),src:'capturado'};
   if((prev.z2&&t.z1&&prev.z2===t.z1)) return {mi:0,src:'mismo ZIP'};
+  const k=dhKey(prev,t); if(_dhCache[k]) return _dhCache[k]; if(_dhFail[k]) return {mi:0,src:'sin ubicación',fail:true};
   return null;
 }
 async function dhCompute(prev,t){
-  const k=prev.id+'>'+t.id; if(_dhCache[k]) return _dhCache[k];
+  const k=dhKey(prev,t); if(_dhCache[k]) return _dhCache[k];
   let p1=mlPoint(prev,true), p2=mlPoint(t,false);
   if(!p1 && prev.z2){ const z=await fetchZip(prev.z2); if(z&&z.lat) p1={lat:z.lat,lon:z.lon}; }
   if(!p2 && t.z1){ const z=await fetchZip(t.z1); if(z&&z.lat) p2={lat:z.lat,lon:z.lon}; }
   if(!p1||!p2){ _dhFail[k]=1; return null; }
   let mi=await fetchRoadMiles(p1.lat,p1.lon,p2.lat,p2.lon), src='carretera';
   if(mi==null){ mi=haversineKm(p1.lat,p1.lon,p2.lat,p2.lon)*0.621371*1.2; src='estimado'; }
-  const r={mi:Math.round(mi),src}; _dhCache[k]=r; dhSaveCache(); return r;
+  const r={mi:Math.round(mi),src}; _dhCache[k]=r; if(src==='carretera') dhSaveCache(); return r;
 }
 let _mlPending=false;
 // Calcula millas cargadas / muertas para un rango (lo usan Inicio y la pestaña de millas)
@@ -6855,8 +6875,8 @@ function rateTxt(r,which){ const v=r[which]; if(v==null) return '—'; return '$
 function rateNote(r){ return r.skipped?r.skipped+' viaje'+(r.skipped!==1?'s':'')+' sin pago o sin millas no cuenta'+(r.skipped!==1?'n':''):''; }
 function mlRange(from,to,driver){
   const all=mlTrips();
-  const byDrv={}; all.forEach(t=>{ (byDrv[mlDriverKey(t)]=byDrv[mlDriverKey(t)]||[]).push(t); });
-  const prevOf={}; Object.values(byDrv).forEach(list=>{ list.sort((a,b)=>mlTripTime(a)-mlTripTime(b)); list.forEach((t,i)=>{ if(i>0) prevOf[t.id]=list[i-1]; }); });
+  const byDrv={}; all.forEach(t=>{ (byDrv[mlSeqKey(t)]=byDrv[mlSeqKey(t)]||[]).push(t); });
+  const prevOf={}; Object.values(byDrv).forEach(list=>{ list.sort((a,b)=>mlTripTime(a)-mlTripTime(b)); let lastDone=null; list.forEach(t=>{ if(lastDone) prevOf[t.id]=lastDone; if(t.tripStatus==='completed') lastDone=t; }); });
   const inR=all.filter(t=>{ const d=repTripDate(t); return d>=from && d<=to && (!driver||driver==='all'||mlDriverKey(t)===driver); }).sort((a,b)=>mlTripTime(a)-mlTripTime(b));
   const rows=[], missing=[];
   inR.forEach(t=>{ const prev=mlPrevFor(t,prevOf); let dh=null; if(prev){ dh=dhQuick(prev,t); if(!dh) missing.push([prev,t]); }
@@ -6892,8 +6912,8 @@ function renderMillas(){
   dSel.value=names[ML.driver]?ML.driver:'all'; if(dSel.value==='all') ML.driver='all';
 
   // Secuencia por driver: viaje anterior de cada viaje
-  const byDrv={}; all.forEach(t=>{ (byDrv[mlDriverKey(t)]=byDrv[mlDriverKey(t)]||[]).push(t); });
-  const prevOf={}; Object.values(byDrv).forEach(list=>{ list.sort((a,b)=>mlTripTime(a)-mlTripTime(b)); list.forEach((t,i)=>{ if(i>0) prevOf[t.id]=list[i-1]; }); });
+  const byDrv={}; all.forEach(t=>{ (byDrv[mlSeqKey(t)]=byDrv[mlSeqKey(t)]||[]).push(t); });
+  const prevOf={}; Object.values(byDrv).forEach(list=>{ list.sort((a,b)=>mlTripTime(a)-mlTripTime(b)); let lastDone=null; list.forEach(t=>{ if(lastDone) prevOf[t.id]=lastDone; if(t.tripStatus==='completed') lastDone=t; }); });
 
   const inWeek=all.filter(t=>{ const d=repTripDate(t); return d>=from && d<=to && (ML.driver==='all'||mlDriverKey(t)===ML.driver); })
     .sort((a,b)=>mlTripTime(a)-mlTripTime(b));
@@ -7797,8 +7817,6 @@ function logTripDetailHTML(t){ return `
         ${t.profitSet?`<span style="font-size:12px;font-weight:700;color:var(--text2);">${fmtD(t.driver)}</span>`:''}
       </div>
       <div class="trip-grid">
-        <div class="trip-stat"><div class="trip-stat-lbl">Mi. iniciales</div><div class="trip-stat-val">${fmtNum(t.miStart||0)}</div><div class="trip-stat-unit">odóm.</div></div>
-        <div class="trip-stat"><div class="trip-stat-lbl">Mi. finales</div><div class="trip-stat-val">${fmtNum(t.miEnd||0)}</div><div class="trip-stat-unit">odóm.</div></div>
         <div class="trip-stat"><div class="trip-stat-lbl">Millas GPS / ruta</div><div class="trip-stat-val">${t.gpsMiles?fmtNum(Math.round(t.gpsMiles)):'—'}</div><div class="trip-stat-unit">manual</div></div>
         ${(t.accessorials||[]).length?`<div class="trip-stat" style="grid-column:span 2;"><div class="trip-stat-lbl">Pagos adicionales</div><div class="trip-stat-val" style="font-size:12px;">${t.accessorials.map(a=>a.label+' $'+fmt(a.amount)+' ('+a.pct+'% chofer)').join(' · ')}</div><div class="trip-stat-unit">flete $${fmt(tripLineHaul(t))}</div></div>`:''}
         <div class="trip-stat"><div class="trip-stat-lbl">Millas muertas</div><div class="trip-stat-val">${tripDeadMiles(t)==null?'—':fmtNum(Math.round(tripDeadMiles(t)))}</div><div class="trip-stat-unit">${t.deadMiles!=null&&t.deadMiles!==''&&t.deadMilesSrc!=='calculado'?'capturadas':'calculadas'}</div></div>
@@ -8202,10 +8220,10 @@ async function clearAll(){
 
 function exportCSV(){
   const trips=filterTrips(loadTrips());if(!trips.length){alert('No hay viajes para exportar.');return;}
-  const h=['Fecha','Driver','ZIP Orig','Ciudad Orig','Estado','ZIP Dest','Ciudad Dest','Estado','Mi.Iniciales','Mi.Finales','Millas cargadas','Millas muertas','Millas totales','Rate total ($/mi)','MPG Real','Total Galones','Costo Diesel($)','Load Value($)','Fee($)','Driver Pay($)','Ganancia Neta($)','Estado Pago','Notas','Gasolineras'];
+  const h=['Fecha','Driver','ZIP Orig','Ciudad Orig','Estado','ZIP Dest','Ciudad Dest','Estado','Millas cargadas','Millas muertas','Millas totales','Rate total ($/mi)','MPG Real','Total Galones','Costo Diesel($)','Load Value($)','Fee($)','Driver Pay($)','Ganancia Neta($)','Estado Pago','Notas','Gasolineras'];
   const rows=trips.map(t=>{
     const stations=(t.fuelLoads||[]).map(f=>f.station||'').filter(Boolean).join(' | ');
-    return [t.date,t.driverName||'—',t.z1,t.city1,t.state1,t.z2,t.city2,t.state2,t.miStart,t.miEnd,tripDistance(t).mi||0,Math.round(tripDeadMiles(t)||0),tripTotalMiles(t),tripRatePerMile(t)!=null?tripRatePerMile(t).toFixed(2):'—',t.mpgReal,t.totalGal,t.totalCost,t.profitSet?t.loadVal:'—',t.profitSet?t.fee:'—',t.profitSet?t.driver:'—',t.profitSet?t.net:'—',t.payStatus==='paid'?'Pagado':'Pendiente',t.payNotes||'',stations];
+    return [t.date,t.driverName||'—',t.z1,t.city1,t.state1,t.z2,t.city2,t.state2,tripDistance(t).mi||0,Math.round(tripDeadMiles(t)||0),tripTotalMiles(t),tripRatePerMile(t)!=null?tripRatePerMile(t).toFixed(2):'—',t.mpgReal,t.totalGal,t.totalCost,t.profitSet?t.loadVal:'—',t.profitSet?t.fee:'—',t.profitSet?t.driver:'—',t.profitSet?t.net:'—',t.payStatus==='paid'?'Pagado':'Pendiente',t.payNotes||'',stations];
   });
   const csv=[h,...rows].map(r=>r.map(v=>'"'+(String(v||'').replace(/"/g,'""'))+'"').join(',')).join('\n');
   const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
@@ -8589,7 +8607,7 @@ function renderHome(){
 
   // ── Load all trips once
   const trips = loadTrips();
-  const totalMiles   = trips.reduce((a,t)=>a+(t.miles||0),0);
+  const totalMiles   = trips.reduce((a,t)=>a+(tripDistance(t).mi||0),0);
   const totalIncome  = trips.filter(t=>t.profitSet).reduce((a,t)=>a+(t.loadVal||0),0);
 
   // ── Hero KPI row
@@ -8608,7 +8626,7 @@ function renderHome(){
         </div>`;
     } else {
       const myTrips = trips.filter(t=>t.driverUser===currentUser.username||t.driverName===currentUser.name);
-      const myMiles = myTrips.reduce((a,t)=>a+(t.miles||0),0);
+      const myMiles = myTrips.reduce((a,t)=>a+(tripDistance(t).mi||0),0);
       kpiRow.style.gridTemplateColumns = '1fr 1fr';
       kpiRow.innerHTML = `
         <div style="background:rgba(255,255,255,.13);border-radius:12px;padding:14px 10px;text-align:center;">
@@ -8805,11 +8823,9 @@ function tripPickupDate(t){ return t.pickupDate||t.date||''; }
 function tripDeliveryDate(t){ return (t.deliveryDate) || (t.tripStatus==='completed' ? rpTripDate(t) : ''); }
 function tripDistance(t){
   // Millas reales: odómetro (final − inicial) cuando el viaje terminó y el número cuadra
-  if(t.tripStatus==='completed' && t.miles>0 && !tripOdoSuspect(t)) return {mi:Math.round(t.miles),src:'odómetro'};
   if(t.gpsMiles>0)   return {mi:Math.round(t.gpsMiles),src:'GPS / ruta'};
   if(t.roadMiles>0)  return {mi:Math.round(t.roadMiles),src:'ZIP a ZIP'};
   if(t.routeMiles>0) return {mi:Math.round(t.routeMiles),src:'ruta'};
-  if(t.miles>0 && t.miles<=3500) return {mi:Math.round(t.miles),src:'odómetro'};
   return {mi:0,src:''};
 }
 // Último viaje terminado del camión con odómetro final capturado
@@ -8835,7 +8851,7 @@ function updateOdoHint(){
     const gap=miStart-ref;
     if(gap<0){ txt+='<br><b>El odómetro inicial es menor que el último registrado. Revisa el número.</b>'; color='var(--red)'; }
     else if(gap>1500){ txt+='<br><b>'+Math.round(gap).toLocaleString('en-US')+' mi desde el último viaje. ¿Falta registrar un viaje o hay un error de dedo?</b>'; color='var(--orange)'; }
-    else { txt+='<br>Millas muertas para llegar al pick up: <b>'+Math.round(gap).toLocaleString('en-US')+' mi</b>'; color='var(--green)'; }
+    else { txt+='<br>Diferencia con el último odómetro: <b>'+Math.round(gap).toLocaleString('en-US')+' mi</b>'; color='var(--green)'; }
   }
   el.innerHTML=txt; el.style.color=color;
   calcDeadAdmin();
@@ -8846,14 +8862,13 @@ async function calcDeadAdmin(){
   if(inp.dataset.manual==='1'){ h.textContent='Capturadas a mano.'; return; }
   const tok=++_deadCalcTok;
   const zs=(document.getElementById('f-zs-admin')?.value||'').trim(), z1=(document.getElementById('f-z1-admin')?.value||'').trim();
-  const miStart=parseFloat(document.getElementById('f-mi-start-admin')?.value);
   const truckId=document.getElementById('f-truck-admin')?.value;
-  const last=truckId?lastOdoForTruck(truckId):null;
   const set=(v,msg)=>{ if(tok!==_deadCalcTok) return; inp.value=v==null?'':Math.round(v); h.textContent=msg; };
-  // 1) Odómetro: inicial de este − final del último viaje del camión
-  if(last && miStart>0){ const gap=miStart-parseFloat(last.miEnd); if(gap>=0 && gap<2000){ set(gap,'Por odómetro: desde '+(last.city2||last.z2||'el último delivery')+' hasta el pick up.'); return; } }
-  // 2) Carretera desde el ZIP de origen (o el último delivery) hasta el pick up
-  const from=(zs.length===5)?zs:(last&&last.z2?String(last.z2):'');
+  // Último viaje FINALIZADO del camión (por fecha de pick up) → su ZIP de delivery
+  const last=truckId?loadTrips().filter(t=>t.tripStatus==='completed' && t.z2 && (function(){ const r=tripTruck(t); return r.truck && String(r.truck.id)===String(truckId); })())
+      .sort((x,y)=>mlTripTime(y)-mlTripTime(x))[0]:null;
+  const from=(zs.length===5)?zs:(last?String(last.z2):'');
+  const desde=(zs.length===5)?'el ZIP de origen':('el delivery del último viaje finalizado'+(last?' ('+(last.city2||last.z2)+(last.state2?', '+last.state2:'')+')':''));
   if(from.length===5 && z1.length===5){
     if(from===z1){ set(0,'Mismo ZIP: sin millas muertas.'); return; }
     h.textContent='Calculando millas por carretera…';
@@ -8861,19 +8876,23 @@ async function calcDeadAdmin(){
     if(!a||!b){ set(null,'No se encontró uno de los ZIP.'); return; }
     let mi=await fetchRoadMiles(a.lat,a.lon,b.lat,b.lon), how='por carretera';
     if(mi==null){ mi=haversineKm(a.lat,a.lon,b.lat,b.lon)*0.621371*1.2; how='estimadas'; }
-    set(mi,'Millas '+how+' desde '+a.city+', '+a.abbr+' hasta el pick up.'); return;
+    set(mi,'Millas '+how+' desde '+desde+' hasta el pick up.'); return;
   }
-  set(null,'Pon el ZIP de origen y el de pick up, o el odómetro inicial.');
+  set(null, !truckId?'Selecciona el camión y pon el ZIP de pick up.': !last?'Este camión no tiene viajes finalizados. Pon el ZIP de origen.':'Pon el ZIP de pick up.');
 }
 // Compara millas reales (odómetro) contra ZIP a ZIP; devuelve texto de alerta o ''
-function odoCheck(t, miles){
+function odoCheck(t, miles){ return ''; // sin odómetro
+}
+function _odoCheckOld(t, miles){
   const ref=t.gpsMiles||t.routeMiles||t.roadMiles; const refLbl=t.gpsMiles?'el GPS / ruta marca':'la ruta ZIP a ZIP es de';
   if(miles>3500) return 'El viaje marca '+Math.round(miles).toLocaleString('en-US')+' millas por odómetro, es demasiado para un solo viaje.';
   if(ref && (miles>ref*1.35+50 || miles<ref*0.8)) return 'El odómetro marca '+Math.round(miles).toLocaleString('en-US')+' mi y '+refLbl+' '+Math.round(ref).toLocaleString('en-US')+' mi ('+(miles>=ref?'+':'')+Math.round((miles/ref-1)*100)+'%).';
   return '';
 }
 // Millas de odómetro que no cuadran (ej. faltó un dígito en millas iniciales)
-function tripOdoSuspect(t){
+function tripOdoSuspect(t){ return false; // sin odómetro
+}
+function _tripOdoSuspectOld(t){
   const m=parseFloat(t.miles)||0; if(!(m>0)) return false;
   if(m>3500) return true;
   const ref=t.gpsMiles||t.routeMiles||t.roadMiles; return !!(ref && (m>ref*2.2+150 || m<ref*0.45));
@@ -8886,12 +8905,54 @@ function findTripDuplicates(trips){ const out=[]; for(let i=0;i<trips.length;i++
 // Millas muertas del viaje: las capturadas a mano ganan; si no, las calculadas (odómetro / ZIP)
 let _dhByTrip={};
 function tripDeadMiles(t){
-  if(t.deadMiles!=null && t.deadMiles!=='' && !isNaN(parseFloat(t.deadMiles))) return parseFloat(t.deadMiles);
-  const v=_dhByTrip[String(t.id)]; return v==null?null:v;
+  if(dhFixed(t)) return parseFloat(t.deadMiles);
+  const v=_dhByTrip[String(t.id)]; if(v!=null) return v;
+  return (t.deadMiles!=null && t.deadMiles!=='' && !isNaN(parseFloat(t.deadMiles)))?parseFloat(t.deadMiles):null;
 }
 // Rate total = pago ÷ (millas cargadas + millas muertas)
 function tripRatePerMile(t){ const d=tripDistance(t); const lv=parseFloat(t.loadVal)||0; const dm=tripDeadMiles(t)||0; return (d.mi>0&&lv>0)?lv/(d.mi+dm):null; }
 function tripTotalMiles(t){ return Math.round((tripDistance(t).mi||0)+(tripDeadMiles(t)||0)); }
+// Recalcula TODOS los viajes terminados con la regla: delivery del último viaje finalizado del camión → pick up.
+// Respeta solo las capturadas a mano después de este cambio (deadMilesSrc='manual'). Guarda el número viejo en deadMilesPrev.
+async function recalcAllDeadMiles(){
+  if(!currentUser || currentUser.role!=='admin') return;
+  if(!confirm('Se van a recalcular las millas muertas de TODOS los viajes terminados:\n\ndel delivery del último viaje finalizado del camión hasta el pick up (por carretera).\n\nEl número anterior se guarda por si quieres deshacer. ¿Continuar?')) return;
+  const msg=document.getElementById('ml-recalc-msg'), btn=document.getElementById('ml-recalc-btn');
+  const say=t=>{ if(msg) msg.textContent=t; };
+  if(btn) btn.disabled=true;
+  try{
+    let trips=loadTrips();
+    trips.forEach(t=>{ if(t.tripStatus!=='completed' || t.deadMilesSrc==='manual') return;
+      if(t.deadMilesPrev===undefined){ t.deadMilesPrev=(t.deadMiles===undefined||t.deadMiles==='')?null:t.deadMiles; t.deadMilesSrcPrev=t.deadMilesSrc||null; }
+      t.deadMilesSrc='calculado'; });
+    _cachedTrips=trips; _dhByTrip={};
+    say('Calculando rutas…');
+    const ml=mlRange('1900-01-01','2999-12-31','all');
+    if(ml.missing.length){ say('Calculando '+ml.missing.length+' rutas por carretera…'); for(const [a,b] of ml.missing){ await dhCompute(a,b); } }
+    _dhByTrip={}; const ml2=mlRange('1900-01-01','2999-12-31','all');
+    const failed={}; ml2.rows.forEach(r=>{ if(r.dh&&r.dh.fail) failed[String(r.t.id)]=1; });
+    trips=loadTrips(); let n=0, sin=0, noZip=0;
+    trips.forEach(t=>{ if(t.tripStatus!=='completed' || t.deadMilesSrc==='manual') return;
+      const v=_dhByTrip[String(t.id)];
+      if(v!=null){ t.deadMiles=Math.round(v); t.deadMilesSrc='calculado'; n++; }
+      else if(failed[String(t.id)]){ t.deadMiles=null; t.deadMilesSrc='calculado'; noZip++; } // no dejar un 0 viejo si no se pudo calcular
+      else sin++; });
+    _logMute=true; await storeTrips(trips).finally(()=>{ _logMute=false; });
+    say(n+' viajes recalculados'+(sin?' · '+sin+' sin viaje anterior (se quedan igual)':'')+(noZip?' · '+noZip+' sin calcular porque no se encontró un ZIP (revísalos)':'')+'.');
+    try{ renderMillas(); }catch(e){}
+  }catch(e){ console.error(e); say('Error al recalcular: '+e.message); }
+  if(btn) btn.disabled=false;
+}
+async function undoRecalcDeadMiles(){
+  if(!currentUser || currentUser.role!=='admin') return;
+  const trips=loadTrips(); const list=trips.filter(t=>t.deadMilesPrev!==undefined);
+  if(!list.length){ alert('No hay recálculo que deshacer.'); return; }
+  if(!confirm('Regresar '+list.length+' viajes a las millas muertas que tenían antes del recálculo?')) return;
+  list.forEach(t=>{ t.deadMiles=t.deadMilesPrev; if(t.deadMilesSrcPrev) t.deadMilesSrc=t.deadMilesSrcPrev; else delete t.deadMilesSrc; delete t.deadMilesPrev; delete t.deadMilesSrcPrev; });
+  _logMute=true; await storeTrips(trips).finally(()=>{ _logMute=false; });
+  _dhByTrip={}; const m=document.getElementById('ml-recalc-msg'); if(m) m.textContent=list.length+' viajes regresados a como estaban.';
+  try{ renderMillas(); }catch(e){}
+}
 // Una sola vez: guarda en cada viaje anterior sus millas muertas calculadas y el flete separado de adicionales
 let _deadBackfillRun=false;
 function backfillDeadMilesOld(){
@@ -8903,7 +8964,8 @@ function backfillDeadMilesOld(){
     trips.forEach(t=>{
       if(t.tripStatus!=='completed') return;
       let ch=false;
-      if((t.deadMiles==null||t.deadMiles==='') && _dhByTrip[String(t.id)]!=null){ t.deadMiles=Math.round(_dhByTrip[String(t.id)]); t.deadMilesSrc='calculado'; ch=true; }
+      const calc=_dhByTrip[String(t.id)];
+      if(!dhFixed(t) && calc!=null && String(t.deadMiles)!==String(Math.round(calc))){ t.deadMiles=Math.round(calc); t.deadMilesSrc='calculado'; ch=true; }
       if(t.lineHaul==null && parseFloat(t.loadVal)>0){ t.lineHaul=parseFloat(t.loadVal); if(!t.accessorials) t.accessorials=[]; ch=true; }
       if(ch) n++;
     });
@@ -13271,21 +13333,20 @@ async function uploadFuelReceiptInBackground(tripId, loadId, file){
 function finalizarViaje(){
   const tripId = parseInt(document.getElementById('mv-trip-id').value);
   const miEnd = parseFloat(document.getElementById('mv-mi-end').value);
-  if(isNaN(miEnd) || miEnd <= 0){ alert('Ingresa las millas finales del odómetro.'); return; }
 
   const trips = loadTrips();
   const idx = trips.findIndex(function(t){ return t.id === tripId; });
   if(idx < 0) return;
 
   const t = trips[idx];
-  if(t.miStart && miEnd <= t.miStart){ alert('Las millas finales deben ser mayores que las iniciales (' + t.miStart + ').'); return; }
 
-  const miles = t.miStart ? (miEnd - t.miStart) : 0;
+  // Sin odómetro: las millas del viaje salen de la ruta (GPS/ruta capturada o ZIP a ZIP)
+  const miles = routeMilesOf(t);
   const totalGal = t.totalGal || 0;
   const totalCost = t.totalCost || 0;
 
   trips[idx] = Object.assign({}, t, {
-    miEnd: miEnd,
+    miEnd: isNaN(miEnd)?(t.miEnd||null):miEnd,
     miles: miles,
     tripStatus: 'completed',
     endTime: t.endTime || new Date().toISOString(),

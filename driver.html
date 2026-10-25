@@ -502,7 +502,7 @@
     }
   </style>
 <style id="no-odometro">/* La empresa no usa odómetro en los viajes: campos ocultos, las millas salen de la ruta ZIP a ZIP */
-.field:has(#f-mi-start),.field:has(#f-mi-end),.field:has(#f-mi-start-admin),.field:has(#f-mi-end-admin),.field:has(#mv-mi-end),.field:has(#edit-mi-start),.field:has(#edit-mi-end),div:has(> #mv-mi-start),#h-odo-admin{display:none!important}</style>
+.field:has(#f-mi-start),.field:has(#f-mi-end),.field:has(#f-mi-start-admin),.field:has(#f-mi-end-admin),.field:has(#mv-mi-end),.field:has(#edit-mi-start),.field:has(#edit-mi-end),div:has(> #mv-mi-start),#h-odo-admin,.field:has(#f-gpsmi-admin),.field:has(#f-gpsmi-end-admin),.field:has(#edit-gpsmi){display:none!important}</style>
 </head>
 <body>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -3542,7 +3542,7 @@ async function saveUsers(u){
 // TRIPS — real-time listener from Firestore
 // Sin odómetro: millas del viaje = GPS/ruta capturada o ruta ZIP a ZIP. Se aplica a todos los viajes al leerlos,
 // así todas las pantallas (tarjetas, historial, reportes, MPG, Excel) usan el mismo número.
-function routeMilesOf(t){ return Math.round(parseFloat(t.gpsMiles)||parseFloat(t.roadMiles)||parseFloat(t.routeMiles)||0); }
+function routeMilesOf(t){ if(!t) return 0; if(t.pickupAddress && t.deliveryAddress && parseFloat(t.routeMiles)>0) return Math.round(parseFloat(t.routeMiles)); return Math.round(parseFloat(t.roadMiles)||parseFloat(t.routeMiles)||0); }
 function normTripMiles(list){
   (list||[]).forEach(t=>{ if(!t) return; const m=routeMilesOf(t); if(!m) return;
     if(t.miles!==m) t.miles=m;
@@ -4374,7 +4374,7 @@ function calcAll(){
   const miStart=parseFloat(document.getElementById(isAdmin?'f-mi-start-admin':'f-mi-start')?.value);
   const miEnd=parseFloat(document.getElementById(isAdmin?'f-mi-end-admin':'f-mi-end')?.value);
   const miles=(!isNaN(miStart)&&!isNaN(miEnd)&&miEnd>miStart)?(miEnd-miStart):null;
-  { const _at=(typeof _adminActiveTrip!=='undefined'&&_adminActiveTrip)?_adminActiveTrip:null; const _m=_at?Math.round(parseFloat(_at.gpsMiles)||parseFloat(_at.roadMiles)||parseFloat(_at.routeMiles)||0):0;
+  { const _at=(typeof _adminActiveTrip!=='undefined'&&_adminActiveTrip)?_adminActiveTrip:null; const _m=_at?routeMilesOf(_at):0;
     document.getElementById('c-miles').textContent=_m?_m.toLocaleString('en-US')+' mi':'—'; }
   const rows=getFuelBlocks();
   const totalGal=rows.reduce((a,r)=>a+(r.gal||0),0);
@@ -4531,7 +4531,7 @@ async function adminFinishTrip(){
   const totalGal = parseFloat(validRows.reduce((a,r)=>a+(r.gal||0),0).toFixed(2));
   const totalCost = parseFloat(validRows.reduce((a,r)=>a+(r.cost||0),0).toFixed(2));
   // Sin odómetro: millas del viaje = GPS/ruta capturada o ruta ZIP a ZIP
-  const miles = Math.round(parseFloat(_adminActiveTrip.gpsMiles)||parseFloat(_adminActiveTrip.roadMiles)||parseFloat(_adminActiveTrip.routeMiles)||0) || null;
+  const miles = routeMilesOf(_adminActiveTrip) || null;
   const payPct = _adminActiveTrip.payPct || 0;
   const brokerFeePct = (_adminActiveTrip.brokerFeePct!=null && !isNaN(_adminActiveTrip.brokerFeePct)) ? _adminActiveTrip.brokerFeePct : 13;
   const fee = loadVal ? parseFloat((loadVal * brokerFeePct/100).toFixed(2)) : 0;
@@ -5219,7 +5219,7 @@ async function saveEditModal(){
   const newMiStart=parseFloat(document.getElementById('edit-mi-start').value)||t.miStart||0;
   const newMiEnd=parseFloat(document.getElementById('edit-mi-end').value)||t.miEnd||0;
   // Sin odómetro: millas del viaje = GPS/ruta o ruta ZIP a ZIP
-  const newMiles=Math.round(parseFloat(t.roadMiles)||parseFloat(t.routeMiles)||0)||null;
+  const newMiles=routeMilesOf(t)||null;
   const newMpg=parseFloat(document.getElementById('edit-mpg').value)||t.mpg||8;
   const newGallons=parseFloat(document.getElementById('edit-gallons').value)||t.totalGal||0;
   const newDiesel=parseFloat(document.getElementById('edit-diesel').value)||t.totalCost||0;
@@ -10114,6 +10114,8 @@ function initGoogleDriveAuth(){
 
 function getGoogleDriveToken(){
   return new Promise(function(resolve, reject){
+    // Google solo deja entrar a Drive desde la página publicada (https://cr2018gtjuarez.github.io), no desde un archivo abierto en la computadora
+    if(location.protocol==='file:'){ const en=window.TL_LANG==='en'; reject(new Error(en?'Google Drive only works when the app is opened from https://cr2018gtjuarez.github.io/trucktriplog/ (not from a file saved on the computer). Upload the files to GitHub and open the app from that address.':'Google Drive solo funciona cuando la app se abre desde https://cr2018gtjuarez.github.io/trucktriplog/ (no desde un archivo guardado en la computadora). Sube los archivos a GitHub y abre la app desde esa dirección.')); return; }
     if(_gDriveAccessToken && Date.now() < _gDriveTokenExpiry - 60000){
       resolve(_gDriveAccessToken);
       return;

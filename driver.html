@@ -6,7 +6,12 @@
   <title>Truck Trip Log — Driver</title>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
-  <meta name="apple-mobile-web-app-title" content="TruckLog Driver"/>
+  <meta name="apple-mobile-web-app-title" content="YENAVI Driver"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
+  <meta name="application-name" content="YENAVI Driver"/>
+  <link rel="manifest" href="driver.webmanifest"/>
+  <link rel="apple-touch-icon" href="driver-apple-touch-icon.png"/>
+  <link rel="icon" type="image/png" sizes="192x192" href="driver-icon-192.png"/>
   <meta name="theme-color" content="#ffffff"/>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
@@ -77,6 +82,29 @@
     .hamburger-btn{width:36px;height:36px;border-radius:10px;border:1px solid var(--border2);background:var(--bg3);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;flex-shrink:0;-webkit-tap-highlight-color:transparent;transition:background .2s;}
     .hamburger-btn:hover{background:var(--bg4);}
     .hamburger-btn span{display:block;width:16px;height:1.5px;background:var(--text2);border-radius:2px;transition:all .25s;}
+
+
+    /* ── MENÚ MÁS FÁCIL DE VER EN EL CELULAR ── */
+    .hamburger-btn{width:44px!important;height:44px!important;border-radius:12px!important;background:#1E3A8A!important;border-color:transparent!important;gap:5px;}
+    .hamburger-btn span{width:20px!important;height:2.5px!important;background:#fff!important;}
+    .hamburger-btn:hover{background:#1E3A8A!important;filter:brightness(1.15);}
+    .sidebar:not(.open){box-shadow:none!important;}
+
+    .sidebar-item{padding:12px 12px;font-size:15px;}
+    .sb-foot-row{display:flex;gap:8px;margin-bottom:8px;}
+    .sb-foot-row button{flex:1;min-width:0;padding:9px 6px!important;margin:0!important;font-size:12px!important;}
+    /* Barra de abajo con lo más usado (solo en celular/tablet) */
+    #bottom-nav{display:none;}
+    @media(max-width:1023px){
+      #bottom-nav.on{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:150;background:#10162B;border-top:1px solid #232B4D;padding:6px 4px calc(6px + env(safe-area-inset-bottom,0px));box-shadow:0 -6px 20px rgba(0,0,0,.18);}
+      body.has-bottom-nav{--bn-h:calc(70px + env(safe-area-inset-bottom,0px));}
+      body.has-bottom-nav .app-wrap{padding-bottom:calc(74px + env(safe-area-inset-bottom,0px));}
+      .bn-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:none;color:#9AA6D1;font-family:inherit;font-size:10.5px;font-weight:700;padding:4px 2px;cursor:pointer;-webkit-tap-highlight-color:transparent;border-radius:10px;}
+      .bn-item .bn-ic{font-size:20px;line-height:22px;height:22px;display:flex;align-items:center;justify-content:center;}
+      .bn-item .bn-ic svg{width:22px;height:22px;}
+      .bn-item.active{color:#fff;background:#1D2A5E;}
+      .bn-item.menu .bn-ic{background:#2563EB;color:#fff;border-radius:8px;width:34px;}
+    }
 
     /* ── SIDEBAR OVERLAY ── */
     .sidebar-overlay{display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.65);backdrop-filter:blur(2px);-webkit-tap-highlight-color:transparent;}
@@ -546,12 +574,13 @@
         <button onclick="toggleLang()" style="flex:1;padding:10px;border-radius:10px;border:1px solid var(--border2);background:var(--bg3);font-size:13px;font-weight:600;cursor:pointer;color:var(--text2);font-family:inherit;" id="lang-toggle">ES</button>
         <button onclick="toggleDark()" style="flex:1;padding:10px;border-radius:10px;border:1px solid var(--border2);background:var(--bg3);font-size:16px;cursor:pointer;" id="dark-toggle">🌙</button>
       </div>
-      <button id="btn-company-settings" onclick="openCompanyModal();closeSidebar();" style="width:100%;padding:11px;border-radius:12px;border:1.5px solid var(--border2);background:var(--bg3);font-size:13px;font-weight:700;cursor:pointer;color:var(--text2);font-family:inherit;margin-bottom:8px;display:flex;align-items:center;justify-content:center;gap:8px;">
-        <span>🏢</span> <span>Configurar empresa</span>
+      <div class="sb-foot-row"><button id="btn-company-settings" onclick="openCompanyModal();closeSidebar();" style="width:100%;padding:11px;border-radius:12px;border:1.5px solid var(--border2);background:var(--bg3);font-size:13px;font-weight:700;cursor:pointer;color:var(--text2);font-family:inherit;margin-bottom:8px;display:flex;align-items:center;justify-content:center;gap:8px;">
+        <span>🏢</span> <span>Empresa</span>
       </button>
       <button onclick="startTutorial();closeSidebar();" style="width:100%;padding:11px;border-radius:12px;border:1.5px solid #BFDBFE;background:#EFF6FF;font-size:13px;font-weight:700;cursor:pointer;color:#2563EB;font-family:inherit;margin-bottom:8px;display:flex;align-items:center;justify-content:center;gap:8px;">
         <span>🎓</span> <span>Ver tutorial</span>
       </button>
+      </div>
       <button class="sidebar-logout" id="btn-logout" onclick="doLogout()">
         <span style="font-size:18px;">🚪</span>
         <span id="sb-logout-txt">Cerrar sesión</span>
@@ -830,10 +859,7 @@
             <label>Fecha</label>
             <input type="date" id="f-date" onchange="calcFuelEstimate()"/>
           </div>
-          <div class="field">
-            <label>Millas iniciales del odómetro</label>
-            <input type="number" id="f-mi-start" placeholder="Ej. 125000" min="0" oninput="calcAll()"/>
-          </div>
+          <input type="hidden" id="f-mi-start" value=""/>
         </div>
         <!-- campos ocultos que addTrip necesita pero no usa el driver -->
         <input type="hidden" id="f-mpg" value="8"/>
@@ -962,10 +988,8 @@
           <!-- Millas finales + Finalizar -->
           <div style="border-top:1px solid #f0f0ec;padding-top:1rem;margin-top:1rem;">
             <div style="font-size:11px;font-weight:700;color:#aaa;letter-spacing:.8px;text-transform:uppercase;margin-bottom:10px;">&#x1F3C1; Finalizar viaje</div>
-            <div class="field" style="margin-bottom:12px;">
-              <label>Millas finales del odómetro</label>
-              <input type="number" id="f-mi-end" placeholder="Ej. 125800" min="0"/>
-            </div>
+            <input type="hidden" id="f-mi-end" value=""/>
+            <div id="sw-finish-req" data-no-tr="1" style="font-size:12.5px;line-height:1.5;margin-bottom:10px;"></div>
             <button onclick="stopTrip()" style="width:100%;padding:13px;background:#c0392b;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;">
               <span style="font-size:20px;">&#x25A0;</span> Finalizar viaje
             </button>
@@ -2197,7 +2221,7 @@
               <div id="mv-bol-preview" style="margin-top:6px;"></div>
             </div>
             <div>
-              <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:4px;">📄 <span id="mv-pod-label">Subir POD (entrega)</span></div>
+              <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:4px;">📄 <span id="mv-pod-label">Subir POD firmado (entrega)</span></div>
               <div style="display:flex;gap:6px;">
                 <input type="file" id="mv-pod-input-cam" accept="image/*" capture="environment" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;" onchange="handleBolUpload('pod',this)"/>
                 <label for="mv-pod-input-cam" class="btn-sm" style="flex:1;text-align:center;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);cursor:pointer;">📷 Cámara</label>
@@ -2212,15 +2236,10 @@
         <!-- Finalizar viaje -->
         <div style="background:#F0FDF4;border:1.5px solid #BBF7D0;border-radius:14px;padding:14px;margin-bottom:1rem;">
           <div style="font-size:11px;font-weight:700;color:#16A34A;letter-spacing:.8px;text-transform:uppercase;margin-bottom:10px;">🏁 Finalizar viaje</div>
-          <div class="g2">
-            <div class="field">
-              <label>Millas finales del odómetro</label>
-              <input type="number" id="mv-mi-end" placeholder="Ej. 125800" min="0"/>
-            </div>
-            <div style="display:flex;align-items:flex-end;">
-              <button class="btn-save" onclick="finalizarViaje()" style="background:#16A34A;margin:0;">✔ Finalizar viaje</button>
-            </div>
-          </div>
+          <input type="hidden" id="mv-mi-end"/>
+          <div id="mv-finish-req" data-no-tr="1" style="font-size:12.5px;line-height:1.5;margin-bottom:10px;"></div>
+          <button class="btn-save" onclick="finalizarViaje()" style="background:#16A34A;margin:0 0 8px;">✔ Finalizar viaje</button>
+          <button type="button" class="btn-sm" id="mv-share-docs" data-no-tr="1" onclick="shareTripDocs(document.getElementById('mv-trip-id').value)" style="width:100%;padding:11px;font-weight:700;">📤 Mandar fotos del POD firmado y descarga</button>
           <div style="font-size:11px;color:var(--text3);margin-top:8px;">Al finalizar se calcularán las millas recorridas y el MPG real.</div>
         </div>
 
@@ -3346,6 +3365,7 @@
 
     <!-- CAMPOS DIESEL / DEF -->
     <div id="gasto-fields-galones">
+      <div class="field" style="margin-bottom:12px;"><label>📅 Fecha de compra</label><input type="date" id="gasto-date"/></div>
       <!-- Nombre gasolinera (solo visible en diesel/def) -->
       <div class="field" style="margin-bottom:12px;" id="gasto-station-field">
         <label>⛽ Nombre de la gasolinera</label>
@@ -3377,7 +3397,7 @@
 
     <!-- FOTO RECIBO -->
     <div style="margin-bottom:12px;">
-      <div style="font-size:11px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">📷 Foto del recibo (opcional)</div>
+      <div style="font-size:11px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;"><span id="gasto-ticket-lbl" data-no-tr="1">📷 Foto del ticket <span style="color:#DC2626;">(obligatoria en diésel)</span></span></div>
       <div id="gasto-img-btns" style="display:flex;gap:8px;flex-wrap:wrap;">
         <label for="gasto-img-cam" style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border:1.5px dashed var(--border3);border-radius:9px;cursor:pointer;font-size:13px;font-weight:600;color:var(--text2);background:var(--bg3);">
           📷 Cámara
@@ -3393,6 +3413,7 @@
         <button class="btn-sm btn-red-sm" onclick="removeGastoImg()" style="margin-top:4px;font-size:11px;">Quitar foto</button>
       </div>
     </div>
+    <div id="gasto-extra-photos" data-no-tr="1" style="margin-bottom:12px;"></div>
 
     <div class="modal-actions">
       <button class="btn-modal-cancel" onclick="closeGastoModal()">Cancelar</button>
@@ -3446,6 +3467,7 @@ function initFirebase(){
     firebase.initializeApp(firebaseConfig);
     db = firebase.firestore();
     fbReady = true;
+    setTimeout(()=>{ try{ nobFlush(); }catch(e){} }, 1500);
     console.log('Firebase conectado ✓');
   }catch(e){
     console.warn('Firebase error, usando localStorage:', e);
@@ -3470,7 +3492,7 @@ function showSyncBanner(msg, type){
   if(!banner){
     banner = document.createElement('div');
     banner.id = 'sync-banner';
-    banner.style.cssText = 'position:fixed;bottom:16px;right:16px;z-index:9999;padding:10px 16px;border-radius:10px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px;box-shadow:0 4px 12px rgba(0,0,0,.15);transition:opacity .3s;';
+    banner.style.cssText = 'position:fixed;bottom:calc(var(--bn-h,0px) + 16px);right:16px;z-index:9999;padding:10px 16px;border-radius:10px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px;box-shadow:0 4px 12px rgba(0,0,0,.15);transition:opacity .3s;';
     document.body.appendChild(banner);
   }
   banner.style.opacity='1';
@@ -3586,7 +3608,19 @@ function sanitizeForFirestore(obj){
   return obj;
 }
 
+// ===== VIAJES PROGRAMADOS: pasan a "en tránsito" solos cuando termina el viaje que va antes =====
+function promoteScheduled(trips){
+  const promoted=[];
+  (trips||[]).forEach(t=>{
+    if(!t||t.tripStatus!=='scheduled') return;
+    const prev=t.afterTripId!=null?trips.find(x=>String(x.id)===String(t.afterTripId)):null;
+    if(!prev || prev.tripStatus==='completed'){ t.tripStatus='active'; t.startTime=new Date().toISOString(); t.promotedAt=t.startTime; promoted.push(t); }
+  });
+  return promoted;
+}
 async function storeTrips(trips){
+  const _promoted=promoteScheduled(trips);
+  if(_promoted.length && typeof fireKeyMoment==='function') setTimeout(()=>{ _promoted.forEach(t=>{ try{ fireKeyMoment(t,'start',{scheduled:true}); }catch(e){} }); },500);
   _cachedTrips = trips;
   localStorage.setItem(TRIPS_KEY, JSON.stringify(trips));
   if(fbReady){
@@ -3858,6 +3892,53 @@ async function doLogin(){
 // ===== COMPANY SETTINGS =====
 const COMPANY_KEY = 'trucklog_company';
 
+
+// ===== AVISOS POR TELEGRAM: cada aviso que se guarda en la app también se manda al bot de YENAVI =====
+const TG_KEY='yenavi-tg-7Qm2';
+const TG_URL_DEFAULT='';
+function tgUrl(){ try{ const co=loadCompany()||{}; return (co.tgUrl||TG_URL_DEFAULT||'').trim(); }catch(e){ return TG_URL_DEFAULT; } }
+function tgSend(n){
+  const url=tgUrl(); if(!url||!n) return Promise.resolve(false);
+  let t=null; try{ if(n.tripId!=null) t=loadTrips().find(x=>String(x.id)===String(n.tripId)); }catch(e){}
+  const body={key:TG_KEY,n:{...n,
+    rc:n.rc||(t&&t.rc)||'', deliveryDate:n.deliveryDate||(t&&t.deliveryDate)||'',
+    city1:n.city1||(t&&t.city1)||'', state1:n.state1||(t&&t.state1)||'', city2:n.city2||(t&&t.city2)||'', state2:n.state2||(t&&t.state2)||'',
+    driverName:n.driverName||(t&&t.driverName)||''}};
+  return fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(body)}).then(()=>true).catch(()=>false);
+}
+// ===== AVISOS: bandeja de salida. Si no hay señal o Firebase no ha cargado, el aviso se guarda en el celular
+// y se manda solo después (a Telegram y a la campanita de la app). Antes se perdía.
+const NOB_KEY='trucklog_notif_outbox';
+function nobLoad(){ try{ return JSON.parse(localStorage.getItem(NOB_KEY)||'[]'); }catch(e){ return []; } }
+function nobSave(a){ try{ localStorage.setItem(NOB_KEY, JSON.stringify(a)); }catch(e){} }
+function tgAddNotif(obj){
+  const a=nobLoad(); a.push({id:Date.now()+'_'+Math.random().toString(36).slice(2,7), obj, tg:!tgUrl(), fs:false, at:Date.now()}); nobSave(a);
+  return nobFlush();
+}
+async function nobFlush(){
+  if(window._nobRun){ window._nobAgain=true; return window._nobRun; }
+  window._nobRun=(async()=>{
+    do{
+      window._nobAgain=false;
+      const a=nobLoad(); if(!a.length) break;
+      const online=!(typeof navigator!=='undefined' && navigator.onLine===false);
+      window._nobTab=window._nobTab||Math.random().toString(36).slice(2);
+      for(const it of a){
+        // si la app está abierta en 2 pestañas, solo una manda cada aviso
+        { const cur=nobLoad(), me=cur.find(x=>x.id===it.id); if(!me) continue; if(me.claim && Date.now()-me.claim<45000 && me.claimBy!==window._nobTab) continue; me.claim=Date.now(); me.claimBy=window._nobTab; nobSave(cur); }
+        if(!it.tg && online){ try{ if(await tgSend(it.obj)) it.tg=true; }catch(e){} }
+        if(!it.fs && typeof fbReady!=='undefined' && fbReady && typeof db!=='undefined' && db){ try{ await db.collection('notifications').add(it.obj); it.fs=true; }catch(e){ console.warn('aviso',e); } }
+      }
+      // guardar lo que falta (sin pisar avisos nuevos que llegaron mientras tanto)
+      const done={}; a.forEach(x=>done[x.id]=x);
+      nobSave(nobLoad().map(x=>done[x.id]?{...x,tg:done[x.id].tg,fs:done[x.id].fs}:x).filter(x=>!(x.tg&&x.fs) && Date.now()-x.at<3*86400000));
+    } while(window._nobAgain);
+  })().finally(()=>{ window._nobRun=null; });
+  return window._nobRun;
+}
+if(typeof window!=='undefined'){ window.addEventListener('online',()=>{ try{ nobFlush(); }catch(e){} }); setInterval(()=>{ try{ if(nobLoad().length) nobFlush(); }catch(e){} }, 60000); setTimeout(()=>{ try{ if(nobLoad().length) nobFlush(); }catch(e){} }, 8000); }
+
+
 function loadCompany(){
   try{ return JSON.parse(localStorage.getItem(COMPANY_KEY))||{}; }catch(e){ return {}; }
 }
@@ -3945,12 +4026,13 @@ function saveCompanySettings(){
   saveCompanyData(data);
   closeCompanyModal();
   const toast=document.createElement('div');
-  toast.style.cssText='position:fixed;bottom:24px;right:16px;z-index:9999;background:#16A34A;color:#fff;padding:12px 20px;border-radius:12px;font-size:13px;font-weight:700;box-shadow:0 4px 16px rgba(0,0,0,.15);';
+  toast.style.cssText='position:fixed;bottom:calc(var(--bn-h,0px) + 24px);right:16px;z-index:9999;background:#16A34A;color:#fff;padding:12px 20px;border-radius:12px;font-size:13px;font-weight:700;box-shadow:0 4px 16px rgba(0,0,0,.15);';
   toast.textContent='✓ Empresa guardada';
   document.body.appendChild(toast); setTimeout(()=>toast.remove(),2500);
 }
 
 function doLogout(){
+  try{ hideBottomNav(); }catch(e){}
   stopDriverTracking();
   stopAdminTripGpsPanel();
   if(_tripsListener){_tripsListener();_tripsListener=null;}
@@ -4118,7 +4200,7 @@ function saveEditUser(){
   if(pass) users[idx].password=pass;
   saveUsers(users);closeEditUserModal();renderUsers();
   const toast=document.createElement('div');
-  toast.style.cssText='position:fixed;bottom:24px;right:16px;z-index:9999;background:#16A34A;color:#fff;padding:12px 20px;border-radius:12px;font-size:13px;font-weight:700;box-shadow:0 4px 16px rgba(0,0,0,.15);';
+  toast.style.cssText='position:fixed;bottom:calc(var(--bn-h,0px) + 24px);right:16px;z-index:9999;background:#16A34A;color:#fff;padding:12px 20px;border-radius:12px;font-size:13px;font-weight:700;box-shadow:0 4px 16px rgba(0,0,0,.15);';
   toast.textContent='✓ Usuario actualizado';
   document.body.appendChild(toast);setTimeout(()=>toast.remove(),2500);
 }
@@ -4341,6 +4423,7 @@ function handleInvoice(n,input){
     const prev=document.getElementById('inv-preview-'+n);
     prev.innerHTML=`<img src="${e.target.result}" onclick="openLightbox('${e.target.result.replace(/'/g,"\\'")}')"/><div style="display:flex;align-items:center;gap:8px;margin-top:4px;"><span style="font-size:11px;color:#888;">&#x2714; ${file.name}</span><button class="btn-sm btn-red-sm" onclick="removeInvoice(${n})" style="padding:2px 8px;font-size:11px;">Quitar</button></div>`;
     prev.style.display='block';document.getElementById('inv-btn-'+n).style.display='none';
+    if(document.getElementById('fgal-'+n) && document.getElementById('fgal-'+n).type!=='hidden') ticketAutoFill(e.target.result, {host:'inv-preview-'+n,gal:'fgal-'+n,price:'fprice-'+n,station:'fstation-'+n,date:'fdate-'+n,after:calcAll});
   };reader.readAsDataURL(file);
 }
 function removeInvoice(n){
@@ -5277,7 +5360,7 @@ async function saveEditModal(){
   if(document.getElementById('page-dispatcherpay')?.classList.contains('active'))renderDispatcherPay();
 
   const toast=document.createElement('div');
-  toast.style.cssText='position:fixed;bottom:24px;right:16px;z-index:9999;background:#16A34A;color:#fff;padding:12px 20px;border-radius:12px;font-size:13px;font-weight:700;box-shadow:0 4px 16px rgba(0,0,0,.15);';
+  toast.style.cssText='position:fixed;bottom:calc(var(--bn-h,0px) + 24px);right:16px;z-index:9999;background:#16A34A;color:#fff;padding:12px 20px;border-radius:12px;font-size:13px;font-weight:700;box-shadow:0 4px 16px rgba(0,0,0,.15);';
   toast.textContent='✓ Viaje actualizado';
   document.body.appendChild(toast);
   setTimeout(()=>toast.remove(),2500);
@@ -5589,6 +5672,7 @@ function hasExtraLogFilters(){
 }
 function filterTrips(trips){
   return trips.filter(t=>{
+    if(t.tripStatus==='scheduled') return false;
     if(activeFilter.from&&t.date<activeFilter.from)return false;
     if(activeFilter.to&&t.date>activeFilter.to)return false;
     if(activeFilter.driver&&activeFilter.driver!=='all'&&(t.driverName||'—')!==activeFilter.driver)return false;
@@ -5784,7 +5868,7 @@ function renderLog(){
             <span style="display:flex;align-items:center;gap:6px;"><span class="fuel-item-cost">$${fl.cost.toFixed(2)}</span>
             <button onclick="deleteDieselFromTrip(${t.id},${fi})" style="font-size:10px;color:var(--red);background:none;border:none;cursor:pointer;font-family:inherit;">✕</button>
             </span></div>
-            ${fl.image?`<div class="fuel-item-img"><img src="${fl.image}" onclick="openLightbox('${fl.image.replace(/'/g,"\\'")}')"/><div style="font-size:11px;color:#aaa;margin-top:3px;">Toca para ampliar</div></div>`:'<div style="font-size:11px;color:#ccc;margin-top:4px;">Sin recibo adjunto</div>'}
+            ${fl.image?`<div class="fuel-item-img"><img src="${fl.image}" onclick="openLightbox('${fl.image.replace(/'/g,"\\'")}')"/><div style="font-size:11px;color:#aaa;margin-top:3px;">Toca para ampliar</div></div>`:'<div style="font-size:11px;color:#ccc;margin-top:4px;">Sin recibo adjunto</div>'}${fuelExtraThumbs(fl)}
           </div>`).join('')}
       </div>
       <!-- ANÁLISIS POR MILLA -->
@@ -5927,6 +6011,7 @@ function renderSummary(){
 let _addDieselImgData = null;
 
 function openAddDieselModal(tripId){
+  { const o=document.getElementById('add-diesel-img-preview-ocr'); if(o) o.remove(); if(window._ocrAddD) window._ocrAddD._run=(window._ocrAddD._run||0)+1; }
   const trip = loadTrips().find(t=>t.id===tripId);
   if(!trip) return;
   document.getElementById('add-diesel-trip-id').value = tripId;
@@ -5978,11 +6063,13 @@ function handleAddDieselImg(input){
     document.getElementById('add-diesel-img-thumb').src = e.target.result;
     document.getElementById('add-diesel-img-preview').style.display = 'block';
     document.getElementById('add-diesel-img-btns').style.display = 'none';
+    ticketAutoFill(e.target.result, window._ocrAddD={host:'add-diesel-img-preview',gal:'add-diesel-gal',price:'add-diesel-price',station:'add-diesel-station',date:'add-diesel-date',after:calcAddDiesel});
   };
   reader.readAsDataURL(input.files[0]);
 }
 
 function removeAddDieselImg(){
+  { const o=document.getElementById('add-diesel-img-preview-ocr'); if(o) o.remove(); if(window._ocrAddD) window._ocrAddD._run=(window._ocrAddD._run||0)+1; }
   _addDieselImgData = null;
   document.getElementById('add-diesel-img-preview').style.display = 'none';
   document.getElementById('add-diesel-img-btns').style.display = 'flex';
@@ -6971,11 +7058,12 @@ async function logLocationHistoryPoint(username, point){
 }
 
 async function fireDriverAlert(type, extra){
-  if(!fbReady || !db) return;
+  if(!currentUser) return;
   try{
-    await db.collection('notifications').add(sanitizeForFirestore({
+    await tgAddNotif(sanitizeForFirestore({
       driverName: currentUser.name,
       type: type,
+      ...(function(){ try{ const t=loadTrips().find(x=>x.tripStatus==='active'&&x.driverUser===currentUser.username); return t?{tripId:t.id}:{}; }catch(e){ return {}; } })(),
       ...extra,
       ts: new Date().toISOString(),
       read: false
@@ -8723,7 +8811,7 @@ function saveEditMaint(){
   renderMantenimiento();
 
   const toast=document.createElement('div');
-  toast.style.cssText='position:fixed;bottom:24px;right:16px;z-index:9999;background:#16A34A;color:#fff;padding:12px 20px;border-radius:12px;font-size:13px;font-weight:700;box-shadow:0 4px 16px rgba(0,0,0,.15);';
+  toast.style.cssText='position:fixed;bottom:calc(var(--bn-h,0px) + 24px);right:16px;z-index:9999;background:#16A34A;color:#fff;padding:12px 20px;border-radius:12px;font-size:13px;font-weight:700;box-shadow:0 4px 16px rgba(0,0,0,.15);';
   toast.textContent='✓ Gasto actualizado';
   document.body.appendChild(toast);
   setTimeout(()=>toast.remove(),2500);
@@ -9575,7 +9663,7 @@ function renderBusiness(){
 
 // ===== LANGUAGE SYSTEM =====
 const LANG_KEY='trucklog_lang';
-let currentLang=localStorage.getItem(LANG_KEY)||'es';
+let currentLang=localStorage.getItem(LANG_KEY)||'es'; window.TL_LANG=currentLang;
 
 const T={
   es:{
@@ -9899,6 +9987,9 @@ function toggleLang(){
 }
 
 function applyLang(){
+  window.TL_LANG=currentLang;
+  try{ if(currentUser && document.getElementById('bottom-nav')) buildBottomNav(currentUser.role); }catch(e){}
+  try{ const _t=loadTrips().find(x=>String(x.id)===String((document.getElementById('mv-trip-id')||{}).value)); if(_t) renderMiFinishReq(_t); }catch(e){}
   const btn=document.getElementById('lang-toggle');
   if(btn)btn.textContent=currentLang==='es'?'ES':'EN';
 
@@ -9991,6 +10082,11 @@ function startTrip(){
 }
 
 function stopTrip(){
+  // Mismas reglas que "Mi Viaje": para finalizar se necesita el POD firmado y la foto de la descarga
+  { const _u=currentUser?currentUser.username:null, _n=currentUser?currentUser.name:null;
+    const _t=loadTrips().find(function(t){ return (t.driverUser===_u||t.driverName===_n)&&t.tripStatus==='active'; });
+    const miss=_t?tripFinishMissing(_t):[];
+    if(miss.length){ const en=window.TL_LANG==='en'; alert((en?'To finish the trip, upload first (in "My trip"):\n\n• ':'Para finalizar el viaje primero sube (en "Mi Viaje"):\n\n• ')+miss.join('\n• ')); try{ const el=document.getElementById('sw-finish-req'); if(el){ el.innerHTML='<div style="color:#DC2626;font-weight:700;">❌ '+miss.join('<br>❌ ')+'</div>'; } }catch(e){} return; } }
   if(timerInterval){clearInterval(timerInterval);timerInterval=null;}
   const endTime=new Date();
   timerDuration=Math.floor((endTime-timerStartTime)/1000);
@@ -10018,9 +10114,11 @@ function stopTrip(){
       tripDuration:timerDuration,
       tripDurationFmt:hh+'h '+String(mm).padStart(2,'0')+'min',
       mpgReal:(miles&&totalGal)?parseFloat((miles/totalGal).toFixed(2)):t.mpgReal||0,
-      cpm:(miles&&totalCost)?parseFloat((totalCost/miles).toFixed(4)):t.cpm||0
+      cpm:(miles&&totalCost)?parseFloat((totalCost/miles).toFixed(4)):t.cpm||0,
+      endTime:t.endTime||new Date().toISOString()
     });
     storeTrips(trips);
+    try{ fireKeyMoment(trips[idx],'completed',{rc:trips[idx].rc||''}); }catch(e){}
   }
 
   document.getElementById('timer-running').style.display='none';
@@ -10070,6 +10168,8 @@ function refreshRunningFuelList(){
     let imgHtml = '';
     if(fl.driveStatus==='done' && fl.driveThumb){
       imgHtml = '<div style="margin-top:5px;"><img src="'+fl.driveThumb+'" style="max-height:60px;border-radius:6px;border:1px solid var(--border2);cursor:pointer;" onclick="window.open(\''+fl.driveLink+'\',\'_blank\')" /><div style="font-size:10px;color:var(--green);font-weight:700;margin-top:2px;">☁️ En Drive ✓</div></div>';
+    } else if(fl.driveStatus==='pending'){
+      imgHtml = '<div style="margin-top:5px;font-size:10px;color:#C2410C;">📤 Recibo guardado en el celular · se sube a Drive al conectar</div>';
     } else if(fl.driveStatus==='uploading'){
       imgHtml = '<div style="margin-top:5px;font-size:10px;color:var(--text3);">☁️ Subiendo recibo a Drive...</div>';
     } else if(fl.driveStatus==='error'){
@@ -10080,7 +10180,7 @@ function refreshRunningFuelList(){
     return '<div style="display:flex;justify-content:space-between;align-items:center;background:var(--bg3);border-radius:8px;padding:10px 14px;margin-bottom:6px;">'
       +'<div>'
       +'<div style="font-size:13px;font-weight:600;color:var(--text);">'+stationLabel+'Carga #'+(i+1)+' &nbsp;·&nbsp; '+fl.gal+' gal @ $'+fl.price+'/gal</div>'
-      +imgHtml
+      +imgHtml+fuelExtraThumbs(fl)
       +'</div>'
       +'<div style="font-size:15px;font-weight:700;color:var(--text);">$'+fl.cost.toFixed(2)+'</div>'
       +'</div>';
@@ -10099,6 +10199,43 @@ const GOOGLE_DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
 let _gisTokenClient = null;
 let _gDriveAccessToken = null;
 let _gDriveTokenExpiry = 0;
+let _gisOnError = null;
+// El permiso de Google dura ~1 hora: se guarda en el celular para no pedirlo cada vez que se abre la app
+try{ const _gt=JSON.parse(localStorage.getItem('trucklog_gdrive_tok')||'null'); if(_gt && _gt.exp>Date.now()+120000){ _gDriveAccessToken=_gt.t; _gDriveTokenExpiry=_gt.exp; } }catch(e){}
+// ===== SERVICIO DE FOTOS (Apps Script): las fotos se mandan a un script del dueño y él las guarda en SU Drive =====
+// Así los drivers no tienen que entrar a Google ni dar permisos que se vencen. Si no hay URL configurada, se usa Google Drive directo como antes.
+const PH_KEY='yenavi-fotos-4Rk8';
+function photoUrl(){ try{ return ((loadCompany()||{}).photoUrl||'').trim(); }catch(e){ return ''; } }
+function scriptMode(){ return /^https:\/\/script\.google(usercontent)?\.com\//.test(photoUrl()); }
+async function scriptPost(body, url){
+  url=url||photoUrl();
+  if(typeof navigator!=='undefined' && navigator.onLine===false) throw new Error(window.TL_LANG==='en'?'No signal':'Sin señal');
+  // Si el servicio no contesta en 90 s (señal muy mala), se corta para que no se quede "Enviando…" para siempre
+  const ctl=(typeof AbortController!=='undefined')?new AbortController():null; const tmo=setTimeout(()=>{ try{ ctl&&ctl.abort(); }catch(e){} },90000);
+  let r; try{ r=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(Object.assign({},body,{key:PH_KEY})),signal:ctl?ctl.signal:undefined}); }
+  catch(e){ throw new Error((e&&e.name==='AbortError')?(window.TL_LANG==='en'?'The photo service took too long. Try again.':'El servicio de fotos tardó demasiado. Intenta otra vez.'):((e&&e.message)||String(e))); }
+  finally{ clearTimeout(tmo); }
+  const txt=await r.text(); let j=null; try{ j=JSON.parse(txt); }catch(e){}
+  if(!j) throw new Error('El servicio de fotos no respondió bien ('+r.status+').');
+  if(!j.ok) throw new Error('Servicio de fotos: '+(j.error||'error'));
+  return j;
+}
+function tripFolderName(trip){ const driverCode = trip.driverUser || (trip.driverName||'driver').replace(/\s+/g,'').toLowerCase(); return driverCode+'_'+(trip.date||'')+'_'+(trip.city1||'')+'-'+(trip.city2||'')+'_'+trip.id; }
+async function scriptUpload(dataUrl, name, extra){
+  const m=/^data:([^;,]+)[;,]/.exec(dataUrl||''); const mime=(m&&m[1])||'image/jpeg';
+  return await scriptPost(Object.assign({action:'upload', name, mime, b64:String(dataUrl).split(',')[1]||''}, extra||{}));
+}
+async function photoTest(){
+  const L=(es,en)=>window.TL_LANG==='en'?en:es;
+  const u=(document.getElementById('co-photo-url')?.value||'').trim(), m=document.getElementById('co-photo-msg');
+  const say=(c,t)=>{ if(m){ m.style.color=c; m.textContent=t; } };
+  if(!/^https:\/\/script\.google\.com\//.test(u)){ say('#DC2626', L('Pega la URL que termina en /exec','Paste the URL ending in /exec')); return; }
+  say('var(--text3)','⏳');
+  try{ await scriptPost({action:'ping'}, u); say('#16A34A', L('✓ Conectado. Toca Guardar.','✓ Connected. Tap Save.')); }
+  catch(e){ say('#DC2626', L('No funcionó: ','Did not work: ')+(e.message||e)); }
+}
+function driveTokenValid(){ if(scriptMode()) return true; return !!(_gDriveAccessToken && Date.now() < _gDriveTokenExpiry - 60000); }
+function driveAuthError(msg){ const e=new Error(msg); e.auth=true; return e; }
 
 function initGoogleDriveAuth(){
   if(!window.google || !window.google.accounts || !window.google.accounts.oauth2){
@@ -10108,37 +10245,63 @@ function initGoogleDriveAuth(){
   _gisTokenClient = google.accounts.oauth2.initTokenClient({
     client_id: GOOGLE_DRIVE_CLIENT_ID,
     scope: GOOGLE_DRIVE_SCOPE,
-    callback: function(){}
+    callback: function(){},
+    // Si el celular bloquea la ventana de Google o la cierran, avisar de inmediato (antes se quedaba esperando 90 s)
+    error_callback: function(err){ if(typeof _gisOnError==='function') _gisOnError(err); }
   });
 }
 
-function getGoogleDriveToken(){
+// Si ya se está pidiendo el permiso de Google, todas las fotos esperan esa misma respuesta (antes la 2ª pisaba a la 1ª y la 1ª se quedaba esperando 60 s)
+let _gTokInflight=null;
+function getGoogleDriveToken(opts){
+  opts=opts||{};
+  if(scriptMode()) return Promise.resolve('SCRIPT');
+  if(opts.silent || driveTokenValid()) return _getGoogleDriveToken0(opts);
+  if(_gTokInflight) return _gTokInflight;
+  const p=_getGoogleDriveToken0(opts); _gTokInflight=p;
+  const clear=()=>{ if(_gTokInflight===p) _gTokInflight=null; }; p.then(clear,clear);
+  return p;
+}
+function _getGoogleDriveToken0(opts){
+  opts=opts||{};
   return new Promise(function(resolve, reject){
     // Google solo deja entrar a Drive desde la página publicada (https://cr2018gtjuarez.github.io), no desde un archivo abierto en la computadora
     if(location.protocol==='file:'){ const en=window.TL_LANG==='en'; reject(new Error(en?'Google Drive only works when the app is opened from https://cr2018gtjuarez.github.io/trucktriplog/ (not from a file saved on the computer). Upload the files to GitHub and open the app from that address.':'Google Drive solo funciona cuando la app se abre desde https://cr2018gtjuarez.github.io/trucktriplog/ (no desde un archivo guardado en la computadora). Sube los archivos a GitHub y abre la app desde esa dirección.')); return; }
-    if(_gDriveAccessToken && Date.now() < _gDriveTokenExpiry - 60000){
+    if(driveTokenValid()){
       resolve(_gDriveAccessToken);
       return;
     }
-    if(!_gisTokenClient){ reject(new Error('Google Identity Services no ha cargado todavía. Intenta de nuevo en unos segundos.')); return; }
+    // Modo silencioso (subidas automáticas): no abrir la ventana de Google sin que la persona toque un botón
+    if(opts.silent){ reject(driveAuthError('Falta conectar Google Drive.')); return; }
+    if(!_gisTokenClient){ reject(driveAuthError('Google todavía está cargando. Intenta de nuevo en unos segundos.')); return; }
 
     let settled = false;
     const timeoutId = setTimeout(function(){
       if(settled) return;
-      settled = true;
-      reject(new Error('No se completó el inicio de sesión con Google (tiempo agotado). Intenta subir la foto de nuevo.'));
-    }, 90000);
+      settled = true; _gisOnError=null;
+      reject(driveAuthError('No se completó el inicio de sesión con Google (tiempo agotado).'));
+    }, 60000);
+    _gisOnError = function(err){
+      if(settled) return;
+      settled = true; clearTimeout(timeoutId); _gisOnError=null;
+      const t=(err&&err.type)||'';
+      reject(driveAuthError(t==='popup_failed_to_open'?'El celular bloqueó la ventana de Google.':t==='popup_closed'?'Se cerró la ventana de Google antes de terminar.':'No se pudo conectar con Google Drive.'));
+    };
 
     _gisTokenClient.callback = function(resp){
       if(settled) return;
       settled = true;
       clearTimeout(timeoutId);
-      if(resp.error){ reject(resp); return; }
+      _gisOnError=null;
+      if(resp.error){ reject(driveAuthError('Google no dio permiso: '+(resp.error_description||resp.error))); return; }
       _gDriveAccessToken = resp.access_token;
       _gDriveTokenExpiry = Date.now() + (resp.expires_in*1000);
+      try{ localStorage.setItem('trucklog_gdrive_tok', JSON.stringify({t:_gDriveAccessToken, exp:_gDriveTokenExpiry})); localStorage.setItem('trucklog_gdrive_ok','1'); }catch(e){}
       resolve(_gDriveAccessToken);
+      setTimeout(()=>{ try{ processUploadQueue(); }catch(e){} },300);
     };
-    _gisTokenClient.requestAccessToken({prompt: _gDriveAccessToken ? '' : 'consent'});
+    let _ok=false; try{ _ok=localStorage.getItem('trucklog_gdrive_ok')==='1'; }catch(e){}
+    _gisTokenClient.requestAccessToken({prompt: (_gDriveAccessToken||_ok) ? '' : 'consent'});
   });
 }
 
@@ -10216,6 +10379,7 @@ async function getOrCreateReceiptsFolder(token){
 
 // Sube un recibo/factura (imagen o PDF) a la carpeta de Recibos en Drive
 async function uploadReceiptToDrive(categoryLabel, dataUrl){
+  if(scriptMode()){ const j=await scriptUpload(dataUrl, categoryLabel+'_'+todayStr()+'_'+Date.now()+(/^data:application\/pdf/.test(dataUrl)?'.pdf':'.jpg'), {root:'recibos'}); return {id:j.id, webViewLink:j.webViewLink}; }
   const token = await getGoogleDriveToken();
   const folderId = await getOrCreateReceiptsFolder(token);
   const blob = dataURLtoBlob(dataUrl);
@@ -10369,8 +10533,13 @@ async function getOrCreateTripDriveFolder(trip, token){
   }
 }
 
-async function uploadPhotoToDrive(trip, kind, dataUrl){
-  const token = await getGoogleDriveToken();
+async function uploadPhotoToDrive(trip, kind, dataUrl, opts){
+  if(scriptMode()){
+    const _e=/^data:application\/pdf/.test(dataUrl)?'.pdf':(/^data:image\/png/.test(dataUrl)?'.png':'.jpg');
+    const j=await scriptUpload(dataUrl, kind+'_'+Date.now()+_e, {folder:tripFolderName(trip)});
+    return {id:j.id, webViewLink:j.webViewLink};
+  }
+  const token = await getGoogleDriveToken(opts);
   const folderId = await getOrCreateTripDriveFolder(trip, token);
   const blob = dataURLtoBlob(dataUrl);
   const metadata = {name: kind+'_'+Date.now()+'.jpg', parents:[folderId]};
@@ -10384,9 +10553,140 @@ async function uploadPhotoToDrive(trip, kind, dataUrl){
     body: form
   });
   const data = await res.json();
+  if(res.status===401){ _gDriveAccessToken=null; _gDriveTokenExpiry=0; try{ localStorage.removeItem('trucklog_gdrive_tok'); }catch(e){} throw driveAuthError('El permiso de Google Drive se venció.'); }
   if(!data.id) throw new Error('No se pudo subir la foto a Drive: '+(data.error?.message||'error desconocido'));
   return data;
 }
+
+
+// ===== FOTOS: se achican antes de subir (una foto del celular pesa 3–6 MB; así quedan en ~300 KB y suben rápido con mala señal) =====
+function shrinkDataUrl(dataUrl, maxDim, quality){
+  return new Promise(resolve=>{
+    if(!/^data:image\/(jpeg|jpg|png|webp|heic|heif)/i.test(dataUrl||'')){ resolve(dataUrl); return; }
+    const img=new Image();
+    img.onload=()=>{ try{
+      let w=img.naturalWidth||img.width, h=img.naturalHeight||img.height; if(!w||!h){ resolve(dataUrl); return; }
+      const k=Math.min(1,(maxDim||1600)/Math.max(w,h)); w=Math.round(w*k); h=Math.round(h*k);
+      const c=document.createElement('canvas'); c.width=w; c.height=h; const g=c.getContext('2d'); g.fillStyle='#fff'; g.fillRect(0,0,w,h); g.drawImage(img,0,0,w,h);
+      const out=c.toDataURL('image/jpeg',quality||0.75); resolve(out.length<dataUrl.length?out:dataUrl);
+    }catch(e){ resolve(dataUrl); } };
+    img.onerror=()=>resolve(dataUrl); img.src=dataUrl;
+  });
+}
+function fileToDataUrl0(file){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=e=>res(e.target.result); r.onerror=rej; r.readAsDataURL(file); }); }
+
+// ===== SUBIDAS PENDIENTES: nada se pierde si falla la señal o el permiso de Google =====
+// Cada foto/documento se guarda primero en el celular; se sube a Drive en cuanto se puede y se borra de la fila.
+const UPQ_KEY='trucklog_upload_queue';
+let _upq=null, _upqRunning=false;
+function upqLoad(){ if(_upq) return _upq; try{ _upq=JSON.parse(localStorage.getItem(UPQ_KEY)||'[]'); }catch(e){ _upq=[]; } return _upq; }
+function upqSave(){ try{ localStorage.setItem(UPQ_KEY, JSON.stringify(_upq||[])); }catch(e){ console.warn('Sin espacio para guardar la fila de subidas; queda en memoria',e); } try{ renderUploadBanner(); }catch(e){} }
+// Las fotos pendientes se guardan en la memoria GRANDE del celular (IndexedDB, cientos de MB).
+// En la fila (localStorage, solo ~5 MB) queda nada más la lista; así no se pierden fotos aunque se junten muchas sin señal.
+const UPQ_DB='trucklog_uploads'; const _upqData={};
+function upqDb(){ if(window._upqDbP) return window._upqDbP; window._upqDbP=new Promise((res,rej)=>{ try{ const r=indexedDB.open(UPQ_DB,1); r.onupgradeneeded=()=>{ try{ r.result.createObjectStore('files'); }catch(e){} }; r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }catch(e){ rej(e); } }); window._upqDbP.catch(()=>{ window._upqDbP=null; }); return window._upqDbP; }
+async function upqIdb(mode, fn){ const db=await upqDb(); return new Promise((res,rej)=>{ const tx=db.transaction('files',mode); const rq=fn(tx.objectStore('files')); tx.oncomplete=()=>res(rq&&rq.result); tx.onerror=()=>rej(tx.error); tx.onabort=()=>rej(tx.error); }); }
+function upqPutData(k,v){ return upqIdb('readwrite',st=>st.put(v,k)); }
+function upqGetData(k){ return upqIdb('readonly',st=>st.get(k)); }
+function upqDelData(k){ return upqIdb('readwrite',st=>st.delete(k)).catch(()=>{}); }
+async function upqDataOf(it){ if(it.dataUrl) return it.dataUrl; if(_upqData[it.qid]) return _upqData[it.qid]; if(it.idb){ try{ return await upqGetData(it.qid); }catch(e){} } return null; }
+function upqAdd(item){
+  upqLoad(); item.qid=Date.now()+'_'+Math.random().toString(36).slice(2,7); item.at=Date.now();
+  const rec={...item};
+  if(item.dataUrl && typeof indexedDB!=='undefined'){
+    _upqData[item.qid]=item.dataUrl; delete rec.dataUrl; rec.idb=true;
+    upqPutData(item.qid,item.dataUrl).catch(e=>{ console.warn('IndexedDB',e); const r=(_upq||[]).find(x=>x.qid===item.qid); if(r){ r.dataUrl=item.dataUrl; delete r.idb; upqSave(); } });
+  }
+  _upq.push(rec); upqSave(); return item.qid;
+}
+function upqRemove(qid){ upqLoad(); const had=_upq.some(x=>x.qid===qid&&x.idb); _upq=_upq.filter(x=>x.qid!==qid); delete _upqData[qid]; if(had) upqDelData(qid); upqSave(); }
+function upqLabel(k){ return ({bol:'BOL',pod:'POD',loaded:'foto de carga',unloaded:'foto de descarga',rc:'RC',rcsigned:'RC firmado',diesel:'recibo de diésel',dieseldash:'foto del Dashboard (millaje)',dieselodo:'foto del millaje',dieselpump:'foto de la bomba'})[k]||k; }
+// Aplica el resultado de Drive al viaje
+// Se hacen de uno en uno: si llegan varias fotos al mismo tiempo, no se pisan los cambios del viaje
+let _tripWriteChain=window._tripWriteChain||Promise.resolve(); window._tripWriteChain=_tripWriteChain;
+function applyUpload(item, res){ const p=window._tripWriteChain.then(()=>_applyUpload0(item, res)); window._tripWriteChain=p.catch(()=>{}); return p; }
+async function _applyUpload0(item, res){
+  const T=loadTrips(); const i=T.findIndex(t=>String(t.id)===String(item.tripId)); if(i<0) return false;
+  const thumb='https://drive.google.com/thumbnail?id='+res.id+'&sz=w800';
+  const k=item.kind; let t={...T[i]};
+  if(k==='diesel'){
+    let hit=false; t.fuelLoads=(t.fuelLoads||[]).map(l=>{ if(String(l.loadId)===String(item.loadId)){ hit=true; return {...l,image:null,driveFileId:res.id,driveLink:res.webViewLink,driveThumb:thumb,driveStatus:'done'}; } return l; });
+    if(!hit) return false;
+    try{ Object.keys(fuelMeta||{}).forEach(n=>{ if(fuelMeta[n]&&String(fuelMeta[n].loadId)===String(item.loadId)){ fuelDrive[n]={id:res.id,link:res.webViewLink,thumb}; delete invoiceImages[n]; } }); }catch(e){}
+  } else if(/^diesel(dash|odo|pump)$/.test(k)){
+    const x=k.slice(6); let hit=false;
+    t.fuelLoads=(t.fuelLoads||[]).map(l=>{ if(String(l.loadId)===String(item.loadId)){ hit=true; return {...l,[x+'DriveFileId']:res.id,[x+'DriveLink']:res.webViewLink,[x+'DriveThumb']:thumb,[x+'Status']:'done'}; } return l; });
+    if(!hit) return false;
+  } else if(k==='rc'||k==='rcsigned'){
+    const pre=k==='rcsigned'?'rcSigned':'rc';
+    t[pre+'DriveFileId']=res.id; t[pre+'DriveLink']=res.webViewLink; t[pre+'DriveThumb']=/^data:image\//.test(item.dataUrl||'')?thumb:null; t[pre+'UploadedAt']=new Date().toISOString();
+  } else {
+    t[k+'DriveFileId']=res.id; t[k+'DriveLink']=res.webViewLink; t[k+'DriveThumb']=thumb; t[k+'DriveStatus']='done';
+    if(k==='bol'||k==='pod'){ t[k+'Checklist']=item.checklist||null; t[k+'Approved']=false; t[k+'Rejected']=false; t[k+'RejectionNote']=null; }
+  }
+  T[i]=t; await storeTrips(T);
+  if(k==='bol'||k==='pod'){
+    try{ tgAddNotif(sanitizeForFirestore({tripId:t.id, driverName:t.driverName||(currentUser&&currentUser.name)||'', type:k+'_uploaded', city1:t.city1, city2:t.city2, ts:new Date().toISOString(), read:false})).catch(()=>{}); }catch(e){}
+  }
+  try{ if(typeof renderMiViaje==='function' && document.getElementById('page-miviaje')?.classList.contains('active')) renderMiViaje(); }catch(e){}
+  try{ if(typeof refreshRunningFuelList==='function') refreshRunningFuelList(); }catch(e){}
+  try{ if(typeof _adminActiveTrip!=='undefined' && _adminActiveTrip && String(_adminActiveTrip.id)===String(t.id)){ _adminActiveTrip=t; } }catch(e){}
+  return true;
+}
+// Marca el estado "pendiente" en el viaje para que se vea en pantalla
+function markPending(item){ const p=window._tripWriteChain.then(()=>_markPending0(item)); window._tripWriteChain=p.catch(()=>{}); return p; }
+async function _markPending0(item){
+  const T=loadTrips(); const i=T.findIndex(t=>String(t.id)===String(item.tripId)); if(i<0) return;
+  const t={...T[i]};
+  if(item.kind==='diesel') t.fuelLoads=(t.fuelLoads||[]).map(l=>String(l.loadId)===String(item.loadId)&&l.driveStatus!=='done'?{...l,driveStatus:'pending'}:l);
+  else if(/^diesel/.test(item.kind)){ const x=item.kind.slice(6); t.fuelLoads=(t.fuelLoads||[]).map(l=>String(l.loadId)===String(item.loadId)&&l[x+'Status']!=='done'?{...l,[x+'Status']:'pending'}:l); }
+  else if(item.kind!=='rc'&&item.kind!=='rcsigned') t[item.kind+'DriveStatus']='pending';
+  else return;
+  T[i]=t; await storeTrips(T);
+}
+// Sube lo pendiente. silent=true: solo si ya hay permiso de Google (no abre ventanas solo)
+async function processUploadQueue(opts){
+  opts=opts||{}; const silent=opts.silent!==false;
+  if(_upqRunning) return; if(!upqLoad().length){ renderUploadBanner(); return; }
+  if(silent && !driveTokenValid()){ renderUploadBanner(); return; }
+  if(typeof navigator!=='undefined' && navigator.onLine===false){ renderUploadBanner(); return; }
+  _upqRunning=true; renderUploadBanner();
+  try{
+    for(const it of [...upqLoad()]){
+      const trip=loadTrips().find(t=>String(t.id)===String(it.tripId));
+      if(!trip){ if(Date.now()-(it.at||0)>7*86400000) upqRemove(it.qid); continue; }
+      if(/^diesel/.test(it.kind) && !(trip.fuelLoads||[]).some(l=>String(l.loadId)===String(it.loadId))){ if(Date.now()-(it.at||0)>7*86400000) upqRemove(it.qid); continue; }
+      try{
+        const du=await upqDataOf(it);
+        if(!du){ console.warn('foto pendiente sin datos',it.kind); upqRemove(it.qid); continue; }
+        const res=await uploadPhotoToDrive(trip, it.kind, du, {silent:true});
+        await applyUpload({...it,dataUrl:du},res); upqRemove(it.qid);
+      }catch(e){ it.tries=(it.tries||0)+1; it.lastErr=String((e&&e.message)||e); upqSave(); if(e&&e.auth) break; }
+    }
+  } finally { _upqRunning=false; renderUploadBanner(); }
+}
+// Botón "Subir ahora": se toca → se pide el permiso de Google en ese mismo toque (así el celular no bloquea la ventana)
+function uploadNowClick(){
+  const p=getGoogleDriveToken();
+  const b=document.getElementById('upq-btn'); if(b){ b.disabled=true; b.textContent='⏳'; }
+  p.then(()=>processUploadQueue({silent:true})).catch(e=>{ alert('No se pudo conectar Google Drive: '+((e&&e.message)||e)+'\n\nSi el celular bloquea ventanas emergentes, permítelas para este sitio e intenta de nuevo.'); }).finally(()=>renderUploadBanner());
+}
+function renderUploadBanner(){
+  if(typeof document==='undefined'||!document.body) return;
+  const q=upqLoad(); let b=document.getElementById('upq-banner');
+  if(!q.length){ if(b) b.remove(); return; }
+  if(!b){ b=document.createElement('div'); b.id='upq-banner'; b.setAttribute('data-no-tr','');
+    b.style.cssText='position:fixed;left:12px;right:12px;bottom:calc(var(--bn-h,0px) + 76px + env(safe-area-inset-bottom));z-index:99990;background:#FFF7ED;border:1px solid #FDBA74;color:#9A3412;border-radius:14px;padding:10px 12px;display:flex;align-items:center;gap:10px;box-shadow:0 6px 18px rgba(0,0,0,.15);font-size:13px;font-weight:700;max-width:560px;margin:0 auto;';
+    document.body.appendChild(b); }
+  const kinds=[...new Set(q.map(x=>upqLabel(x.kind)))].join(', ');
+  const en=window.TL_LANG==='en';
+  b.innerHTML='<span style="font-size:18px;">📤</span><span style="flex:1;line-height:1.3;">'+(en?(q.length+' file'+(q.length!==1?'s':'')+' waiting to upload to Google Drive'):(q.length+' archivo'+(q.length!==1?'s':'')+' pendiente'+(q.length!==1?'s':'')+' de subir a Google Drive'))+'<br><span style="font-weight:500;font-size:12px;">'+kinds+(en?' · saved on this phone':' · guardado en este celular')+'</span></span>'+
+    (_upqRunning?'<span style="font-size:12px;">'+(en?'Uploading…':'Subiendo…')+'</span>':'<button id="upq-btn" onclick="uploadNowClick()" style="background:#9A3412;color:#fff;border:none;border-radius:10px;padding:8px 12px;font-weight:800;font-size:13px;cursor:pointer;white-space:nowrap;">'+(en?'Upload now':'Subir ahora')+'</button>');
+}
+// Reintentos automáticos: al abrir la app, al volver la señal y cada 2 minutos
+window.addEventListener('online',()=>{ try{ processUploadQueue(); }catch(e){} });
+setInterval(()=>{ try{ processUploadQueue(); }catch(e){} },120000);
+window.addEventListener('load',()=>setTimeout(()=>{ try{ renderUploadBanner(); processUploadQueue(); }catch(e){} },4000));
 
 let gastoImgData = null;
 let gastoImgFile = null;
@@ -10442,6 +10742,8 @@ async function confirmDocChecklist(){
   }
 
   const {kind, file, tripId, input} = _pendingDocUpload;
+  // Pedir el permiso de Google en este mismo toque (si se pide después, el iPhone bloquea la ventana)
+  if(!driveTokenValid()){ try{ window._driveWarm=getGoogleDriveToken(); window._driveWarm.catch(()=>{}); }catch(e){} }
   document.getElementById('doc-checklist-modal').classList.remove('open');
   _pendingDocUpload = null;
   await proceedWithDocUpload(kind, file, tripId, input, {signature:sig, date, name});
@@ -10453,58 +10755,25 @@ async function proceedWithDocUpload(kind, file, tripId, input, checklist){
   _localPhotoPreviews[kind] = localPreviewUrl;
   const preview = document.getElementById('mv-'+kind+'-preview');
   if(preview) preview.innerHTML = '<img src="'+localPreviewUrl+'" style="max-height:70px;border-radius:6px;border:1px solid var(--border2);" /><div style="font-size:10px;color:var(--text3);margin-top:3px;">☁️ Subiendo a Drive...</div>';
-
+  let item=null;
   try{
-    const reader = new FileReader();
-    const dataUrl = await new Promise(function(resolve, reject){
-      reader.onload = function(e){ resolve(e.target.result); };
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-
-    const trips = loadTrips();
-    const idx = trips.findIndex(t=>t.id===tripId);
-    if(idx<0){ alert('No se encontró el viaje. Recarga la página e intenta de nuevo.'); return; }
-    const trip = trips[idx];
-
-    // Subir directo a Google Drive — la foto NUNCA se guarda en Firestore, solo el link
+    const dataUrl = await shrinkDataUrl(await fileToDataUrl0(file), 1600, 0.75);
+    const trip = loadTrips().find(t=>t.id===tripId);
+    if(!trip){ alert('No se encontró el viaje. Recarga la página e intenta de nuevo.'); return; }
+    // 1) Primero se guarda en el celular (si se cierra la app o falla la señal, no se pierde)
+    item={tripId, kind, dataUrl, checklist:checklist||null};
+    item.qid=upqAdd(item);
+    // 2) Se sube a Drive (la foto NUNCA se guarda en Firestore, solo el link)
+    if(window._driveWarm){ try{ await window._driveWarm; }catch(e){} window._driveWarm=null; }
     const result = await uploadPhotoToDrive(trip, kind, dataUrl);
-    const driveThumb = 'https://drive.google.com/thumbnail?id='+result.id+'&sz=w800';
-
-    const trips2 = loadTrips();
-    const idx2 = trips2.findIndex(t=>t.id===tripId);
-    if(idx2>=0){
-      const update = {...trips2[idx2], [kind+'DriveFileId']: result.id, [kind+'DriveLink']: result.webViewLink, [kind+'DriveThumb']: driveThumb, [kind+'DriveStatus']: 'done'};
-      if(kind==='bol' || kind==='pod'){
-        update[kind+'Checklist'] = checklist||null;
-        update[kind+'Approved'] = false;
-        update[kind+'Rejected'] = false;
-        update[kind+'RejectionNote'] = null;
-      }
-      trips2[idx2] = update;
-      await storeTrips(trips2);
-      renderMiViaje();
-
-      // Avisar al admin que hay un documento nuevo para revisar
-      if((kind==='bol' || kind==='pod') && fbReady && db){
-        db.collection('notifications').add(sanitizeForFirestore({
-          tripId, driverName: trip.driverName || currentUser.name,
-          type: kind+'_uploaded',
-          city1: trip.city1, city2: trip.city2,
-          ts: new Date().toISOString(), read: false
-        })).catch(()=>{});
-      }
-    }
+    await applyUpload(item, result);
+    upqRemove(item.qid);
+    renderMiViaje();
   }catch(err){
-    console.error('proceedWithDocUpload error:', err);
-    const trips3 = loadTrips();
-    const idx3 = trips3.findIndex(t=>t.id===tripId);
-    if(idx3>=0){
-      trips3[idx3] = {...trips3[idx3], [kind+'DriveStatus']: 'error'};
-      await storeTrips(trips3);
-      renderMiViaje();
-    }
-    alert('No se pudo subir la foto a Google Drive: '+(err && err.message ? err.message : err));
+    console.warn('proceedWithDocUpload:', err);
+    if(item){ await markPending(item); renderMiViaje();
+      showSyncBanner('📤 '+upqLabel(kind)+': guardado en el celular. Toca "Subir ahora" abajo para mandarlo a Drive.', 'err'); }
+    else alert('No se pudo leer la foto: '+(err && err.message ? err.message : err));
   }
   input.value = '';
 }
@@ -10515,10 +10784,20 @@ function renderMiViaje(){
   const name = currentUser ? currentUser.name : null;
 
   // Find active trip for this driver (tripStatus=active OR unpaid with no miEnd)
-  const activeTrip = trips.find(function(t){
-    return (t.driverUser === username || t.driverName === name) &&
-           (t.tripStatus === 'active' || (!t.miEnd && t.payStatus !== 'paid'));
-  });
+  // Solo el viaje EN CURSO del driver (antes, sin odómetro, un viaje terminado y no cobrado se veía "en curso")
+  const _mine = function(t){ return t.driverUser === username || (!t.driverUser && t.driverName === name); };
+  const _actives = trips.filter(function(t){ return _mine(t) && t.tripStatus === 'active'; })
+    .sort(function(a,b){ return String(a.startTime||a.date||'').localeCompare(String(b.startTime||b.date||'')); });
+  // Si lleva 2 viajes a la vez (carga parcial), el driver escoge a cuál suben las fotos y gastos
+  const activeTrip = _actives.find(function(t){ return String(t.id)===String(window._mvSel); }) || _actives[0]
+    || trips.find(function(t){ return _mine(t) && !t.tripStatus && !t.miEnd && t.payStatus !== 'paid'; });
+  { let ch=document.getElementById('mv-trip-chooser'); const card=document.getElementById('mv-active-card');
+    if(_actives.length>1 && card){
+      if(!ch){ ch=document.createElement('div'); ch.id='mv-trip-chooser'; ch.setAttribute('data-no-tr','1'); card.parentNode.insertBefore(ch, card); }
+      const en=window.TL_LANG==='en';
+      ch.innerHTML='<div style="background:#FFF7ED;border:1.5px solid #FDBA74;border-radius:12px;padding:10px 12px;margin-bottom:10px;"><div style="font-size:12px;font-weight:800;color:#9A3412;margin-bottom:8px;">'+(en?'You have '+_actives.length+' trips in progress. Photos and expenses go to the one you choose:':'Tienes '+_actives.length+' viajes en curso. Las fotos y gastos van al que escojas:')+'</div><div style="display:flex;gap:6px;flex-wrap:wrap;">'+
+        _actives.map(function(t){ const on=activeTrip&&String(t.id)===String(activeTrip.id); return '<button type="button" onclick="window._mvSel=\''+t.id+'\';renderMiViaje();" style="flex:1;min-width:140px;padding:9px 10px;border-radius:10px;font-weight:800;font-size:12.5px;font-family:inherit;cursor:pointer;border:2px solid '+(on?'#EA580C':'#FED7AA')+';background:'+(on?'#EA580C':'#fff')+';color:'+(on?'#fff':'#9A3412')+';">'+(on?'✔ ':'')+(t.city1||t.z1||'—')+' → '+(t.city2||t.z2||'—')+(t.rc?'<div style="font-size:10.5px;font-weight:600;opacity:.85;">RC #'+t.rc+(t.loadType==='partial'?(en?' · partial':' · parcial'):'')+'</div>':'')+'</button>'; }).join('')+'</div></div>';
+    } else if(ch) ch.remove(); }
 
   const activeCard = document.getElementById('mv-active-card');
   const emptyCard = document.getElementById('mv-empty-card');
@@ -10527,6 +10806,7 @@ function renderMiViaje(){
     activeCard.style.display = 'block';
     emptyCard.style.display = 'none';
     document.getElementById('mv-trip-id').value = activeTrip.id;
+    try{ renderMiFinishReq(activeTrip); }catch(e){}
     document.getElementById('mv-city1').textContent = activeTrip.city1 + ', ' + activeTrip.state1;
     document.getElementById('mv-z1').textContent = activeTrip.z1;
     document.getElementById('mv-city2').textContent = activeTrip.city2 + ', ' + activeTrip.state2;
@@ -10548,14 +10828,15 @@ function renderMiViaje(){
         loaded:   done ? '✔ Foto de carga subida — cambiar' : 'Foto de carga (loaded)',
         unloaded: done ? '✔ Foto de descarga subida — cambiar' : 'Foto de descarga (unloaded)',
         bol:      done ? '✔ BOL subido — cambiar' : 'Subir BOL (pickup)',
-        pod:      done ? '✔ POD subido — cambiar' : 'Subir POD (entrega)'
+        pod:      done ? '✔ POD subido — cambiar' : 'Subir POD firmado (entrega)'
       };
       if(label) label.textContent = labels[kind];
 
       let driveBadge = '';
-      const stillUploading = localPreview && driveStatus!=='done' && driveStatus!=='error';
+      const stillUploading = localPreview && driveStatus!=='done' && driveStatus!=='error' && driveStatus!=='pending';
       if(stillUploading) driveBadge = '<div style="font-size:10px;color:var(--text3);margin-top:3px;">☁️ Subiendo a Drive...</div>';
       else if(done) driveBadge = '<div style="font-size:10px;margin-top:3px;"><a href="'+driveLink+'" target="_blank" style="color:var(--green);font-weight:700;text-decoration:none;">☁️ En Drive ✓</a></div>';
+      else if(driveStatus==='pending') driveBadge = '<div style="font-size:10px;color:#C2410C;font-weight:700;margin-top:3px;">📤 Guardada en el celular · toca "Subir ahora"</div>';
       else if(driveStatus==='error') driveBadge = '<div style="font-size:10px;color:var(--red);margin-top:3px;">☁️ No se pudo subir a Drive</div>';
 
       // Estatus de aprobación del admin (solo BOL/POD)
@@ -10588,6 +10869,8 @@ function renderMiViaje(){
         let fuelImgHtml = '';
         if(fl.driveStatus==='done' && fl.driveThumb){
           fuelImgHtml = '<div style="margin-top:6px;"><img src="'+fl.driveThumb+'" style="max-height:80px;border-radius:6px;border:1px solid var(--border2);cursor:pointer;" onclick="window.open(\''+fl.driveLink+'\',\'_blank\')" /><div style="font-size:10px;color:var(--green);font-weight:700;margin-top:2px;">☁️ En Drive ✓</div></div>';
+        } else if(fl.driveStatus==='pending'){
+          fuelImgHtml = '<div style="margin-top:6px;font-size:10px;color:#C2410C;">📤 Recibo guardado en el celular · se sube a Drive al conectar</div>';
         } else if(fl.driveStatus==='uploading'){
           fuelImgHtml = '<div style="margin-top:6px;font-size:10px;color:var(--text3);">☁️ Subiendo recibo a Drive...</div>';
         } else if(fl.driveStatus==='error'){
@@ -10599,7 +10882,7 @@ function renderMiViaje(){
           '<div>' +
           '<div style="font-size:13px;font-weight:600;color:var(--text);display:flex;align-items:center;">Gasto #' + (i+1) + tipoBadge + '</div>' +
           '<div style="font-size:12px;color:var(--text3);margin-top:3px;">' + desc + '</div>' +
-          fuelImgHtml +
+          fuelImgHtml + fuelExtraThumbs(fl) +
           '</div>' +
           '<div style="font-size:16px;font-weight:800;color:var(--text);">$' + fl.cost.toFixed(2) + '</div>' +
           '</div>';
@@ -10614,9 +10897,10 @@ function renderMiViaje(){
   }
 
   // Previous trips — grouped by date, no financials
+  // Viajes terminados (antes dependía del odómetro, que ya no se usa)
   const prevTrips = trips.filter(function(t){
-    return (t.driverUser === username || t.driverName === name) &&
-           t.tripStatus !== 'active' && (t.miEnd || t.payStatus === 'paid');
+    return (t.driverUser === username || (!t.driverUser && t.driverName === name)) &&
+           (t.tripStatus === 'completed' || (!t.tripStatus && (t.miEnd || t.payStatus === 'paid')));
   }).sort(function(a,b){ return (b.date||"").localeCompare(a.date||""); });
 
   const histEl = document.getElementById('mv-history');
@@ -10732,6 +11016,7 @@ function selectGastoTipo(tipo, btn){
   document.getElementById('gasto-fields-galones').style.display = isOtro ? 'none' : 'block';
   document.getElementById('gasto-fields-otro').style.display = isOtro ? 'block' : 'none';
   document.getElementById('gasto-station-field').style.display = isOtro ? 'none' : 'block';
+  try{ renderGastoExtras(); }catch(e){}
   // Update labels
   if(tipo === 'def'){
     document.getElementById('gasto-gal-label').textContent = 'Galones DEF';
@@ -10749,6 +11034,7 @@ function calcGastoSubtotalOtro(){
 }
 
 function openAddGastoModal(){
+  { const o=document.getElementById('gasto-img-preview-ocr'); if(o) o.remove(); if(window._ocrGasto) window._ocrGasto._run=(window._ocrGasto._run||0)+1; }
   gastoTipoActual = 'diesel';
   selectGastoTipo('diesel', document.getElementById('btn-tipo-diesel'));
   document.getElementById('gasto-gal').value = '';
@@ -10756,6 +11042,7 @@ function openAddGastoModal(){
   document.getElementById('gasto-monto').value = '';
   document.getElementById('gasto-desc').value = '';
   document.getElementById('gasto-station').value = '';
+  { const gd=document.getElementById('gasto-date'); if(gd) gd.value = todayStr(); }
   document.getElementById('gasto-subtotal').textContent = '$0.00';
   document.getElementById('gasto-img-preview').style.display = 'none';
   document.getElementById('gasto-img-btns').style.display = 'flex';
@@ -10763,6 +11050,7 @@ function openAddGastoModal(){
   document.getElementById('gasto-img-gal').value = '';
   gastoImgData = null;
   gastoImgFile = null;
+  gastoExtraFiles = {}; renderGastoExtras();
   document.getElementById('gasto-modal').classList.add('open');
   setTimeout(function(){ document.getElementById('gasto-station').focus(); }, 150);
 }
@@ -10777,6 +11065,187 @@ function calcGastoSubtotal(){
   document.getElementById('gasto-subtotal').textContent = '$' + (gal*price).toFixed(2);
 }
 
+// ===== Validación de cargas de diesel (igual que en la app principal) =====
+const DIESEL_PRICE_MIN=2.50, DIESEL_PRICE_MAX=7.50, DIESEL_GAL_MIN=5, DIESEL_GAL_MAX=400;
+function dieselLoadError(gal, price, tipo){
+  tipo=tipo||'diesel'; if(tipo==='otro') return null;
+  if(!(gal>0)||!(price>0)) return 'Ingresa los galones y el precio por galón del recibo.';
+  if(tipo==='def'){ if(price<1||price>15) return 'El precio por galón del DEF ($'+price.toFixed(2)+') no parece real. Revisa el recibo.'; return null; }
+  if(price<DIESEL_PRICE_MIN||price>DIESEL_PRICE_MAX) return 'El precio por galón ($'+price.toFixed(2)+') no es real: debe estar entre $'+DIESEL_PRICE_MIN.toFixed(2)+' y $'+DIESEL_PRICE_MAX.toFixed(2)+'. Pon los galones exactos que dice el recibo.';
+  if(gal<DIESEL_GAL_MIN||gal>DIESEL_GAL_MAX) return 'Los galones ('+gal+') no parecen reales: deben estar entre '+DIESEL_GAL_MIN+' y '+DIESEL_GAL_MAX+'. Pon los galones exactos que dice el recibo.';
+  return null;
+}
+
+// ===== LECTOR DE TICKETS DE DIÉSEL =====
+// Saca galones, precio por galón, total, fecha y gasolinera del texto del ticket (OCR).
+// Revisa que galones × precio = total; si no cuadra, lo marca para que la persona lo revise.
+const FUEL_BRANDS=[[/PILOT/,'Pilot'],[/FLYING\s*J/,'Flying J'],[/LOVE'?S/,"Love's"],[/\bTA\s*EXPRESS\b/,'TA Express'],[/TRAVEL\s*CENTERS?\s*OF\s*AMERICA|\bTA\b(?=.*(TRAVEL|PETRO|#))/,'TA'],[/PETRO\b/,'Petro'],[/CASEY'?S/,"Casey's"],
+  [/BUC-?EE'?S/,"Buc-ee's"],[/QUIK\s*TRIP|\bQT\b/,'QuikTrip'],[/SPEEDWAY/,'Speedway'],[/MAVERIK/,'Maverik'],[/SHEETZ/,'Sheetz'],[/WAWA/,'Wawa'],[/CIRCLE\s*K/,'Circle K'],[/KWIK\s*TRIP|KWIK\s*STAR/,'Kwik Trip'],
+  [/AMBEST/,'AmBest'],[/ROAD\s*RANGER/,'Road Ranger'],[/SINCLAIR/,'Sinclair'],[/VALERO/,'Valero'],[/CHEVRON/,'Chevron'],[/EXXON/,'Exxon'],[/MOBIL\b/,'Mobil'],[/SHELL\b/,'Shell'],[/PHILLIPS\s*66/,'Phillips 66'],[/CONOCO/,'Conoco'],[/MARATHON/,'Marathon'],[/BP\b/,'BP'],[/CITGO/,'Citgo'],[/SUNOCO/,'Sunoco'],[/GO\s*MART/,'GoMart'],[/STRIPES/,'Stripes'],[/7-?ELEVEN/,'7-Eleven'],[/PETE'?S\b/,"Pete's"]];
+const FUEL_STATES='AL|AK|AZ|AR|CA|CO|CT|DE|DC|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY';
+const FUEL_MONTHS={JAN:1,FEB:2,MAR:3,APR:4,MAY:5,JUN:6,JUL:7,AUG:8,SEP:9,SEPT:9,OCT:10,NOV:11,DEC:12};
+function fuelNums(line){ // números con decimales de un renglón (tolera "$ 6.199", "6,199", "125.00")
+  const out=[]; const rx=/\$?\s?(\d{1,4})[.,](\d{2,3})(?!\d)/g; let m;
+  while((m=rx.exec(line))){ out.push({v:parseFloat(m[1]+'.'+m[2]), d:m[2].length, i:m.index}); }
+  return out;
+}
+function parseFuelReceipt(text){
+  const R={gal:null,ppg:null,total:null,date:null,station:null,product:'diesel',check:null,raw:text};
+  if(!text) return R;
+  const T=String(text).toUpperCase().replace(/\r/g,'').replace(/[|]/g,' ');
+  const L=T.split('\n').map(x=>x.replace(/\s+/g,' ').trim()).filter(Boolean);
+  // ── Gasolinera + ciudad
+  let brand=null; for(const [rx,n] of FUEL_BRANDS){ if(rx.test(T)){ brand=n; break; } }
+  let city=null; const cr=new RegExp('^(?:\\d+\\s+.*?\\s)?([A-Z][A-Z .\'-]{1,25}?)\\s*,?\\s+('+FUEL_STATES+')\\.?\\s+\\d{5}');
+  for(const l of L.slice(0,14)){ const m=l.match(cr); if(m && !/\d/.test(m[1])){ city=m[1].replace(/\s+/g,' ').trim(); city=city.toLowerCase().replace(/(^|[\s.'-])([a-z])/g,(a,b,c)=>b+c.toUpperCase())+', '+m[2]; break; } }
+  if(!city){ const cr2=new RegExp('^([A-Z][A-Z .\'-]{1,25}?),?\\s+('+FUEL_STATES+')(?:\\s+\\d{5}(?:-\\d{4})?)?$'); for(const l of L.slice(0,8)){ const m=l.match(cr2); if(m){ city=m[1].trim().toLowerCase().replace(/(^|[\s.'-])([a-z])/g,(a,b,c)=>b+c.toUpperCase())+', '+m[2]; break; } } }
+  if(brand||city) R.station=[brand,city].filter(Boolean).join(' · ');
+  // ── Fecha
+  let m=T.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+  if(m){ let y=+m[3]; if(y<100) y+=2000; R.date=y+'-'+String(+m[1]).padStart(2,'0')+'-'+String(+m[2]).padStart(2,'0'); }
+  else if((m=T.match(/\b(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEPT?|OCT|NOV|DEC)[A-Z]*\.?\s+(\d{1,2}),?\s+(\d{4})/))) R.date=m[3]+'-'+String(FUEL_MONTHS[m[1]]).padStart(2,'0')+'-'+String(+m[2]).padStart(2,'0');
+  else if((m=T.match(/(20\d{2})-(\d{2})-(\d{2})/))) R.date=m[1]+'-'+m[2]+'-'+m[3];
+  if(R.date){ const d=new Date(R.date+'T12:00:00'); if(isNaN(d)||Math.abs(Date.now()-d)>400*86400000) R.date=null; }
+  // ── Producto
+  const hasDiesel=/DIESEL|DSL|ULSD|#2\b|NO\.?\s*2/.test(T), hasDef=/\bDEF\b|DIESEL EXHAUST/.test(T);
+  if(hasDef && !hasDiesel) R.product='def';
+  // ── Candidatos con su "etiqueta"
+  const G=[], P=[], TT=[];
+  const add=(arr,v,score)=>{ if(v!=null && !isNaN(v)) arr.push({v,score}); };
+  for(let i=0;i<L.length;i++){
+    const l=L[i], ns=fuelNums(l);
+    if(/GAL(LON)?S?\b|\bQTY\b|VOLUME|\bVOL\b/.test(l) && !/PRICE|\/\s*GAL|PPG/.test(l)) ns.forEach(n=>add(G,n.v,n.d===3?3:2));
+    if(/PRICE\s*\/?\s*GAL|\bPPG\b|\$\s*\/\s*G|\bP\/G\b|UNIT PRICE|@/.test(l)) ns.forEach(n=>add(P,n.v,3));
+    else if(/PRICE/.test(l)) ns.forEach(n=>add(P,n.v,n.d===3?2:1));
+    if(/TOTAL|SALE|AMOUNT|AMT|DEBIT|CREDIT|FUEL|DSL|DIESEL/.test(l) && !/TAX|DISCOUNT|SAVINGS|CHANGE/.test(l)) ns.forEach(n=>add(TT,n.v,/TOTAL/.test(l)?3:1));
+    // Encabezado en columnas ("PUMP GALLONS PRICE" y abajo los números)
+    if(/GALLON|GALS?\b|QTY/.test(l) && /PRICE/.test(l) && !ns.length && L[i+1]){
+      const hdr=l.split(' '), gi=hdr.findIndex(w=>/GAL|QTY/.test(w)), pi=hdr.findIndex(w=>/PRICE/.test(w));
+      const vals=fuelNums(L[i+1]); const offs=hdr.findIndex(w=>/PUMP|#/.test(w))>=0 && (L[i+1].match(/^\d{1,2}\s/)) ? 0 : 0;
+      if(vals.length>=2){ const o=gi<pi?[0,1]:[1,0]; add(G,vals[o[0]].v,4); add(P,vals[o[1]].v,4); }
+      if(vals.length===1) add(G,vals[0].v,2);
+    }
+  }
+  // Cualquier número con 3 decimales también puede ser galones o precio; los de 2 decimales, total
+  L.forEach(l=>fuelNums(l).forEach(n=>{ if(n.d===3){ add(G,n.v,0); add(P,n.v,0); } else add(TT,n.v,0); }));
+  const gOk=v=>v>=0.1&&v<=400, pOk=v=>v>=1&&v<=12, tOk=v=>v>=0.5&&v<=3000;
+  // ── Mejor combinación que cuadre: galones × precio ≈ total
+  let best=null;
+  for(const g of G) if(gOk(g.v)) for(const p of P) if(pOk(p.v) && p.v!==g.v) for(const t of TT) if(tOk(t.v)){
+    const diff=Math.abs(g.v*p.v-t.v); if(diff>Math.max(0.6,t.v*0.01)) continue;
+    const sc=g.score+p.score+t.score - diff;
+    if(!best||sc>best.sc) best={g:g.v,p:p.v,t:t.v,sc};
+  }
+  if(best){ R.gal=best.g; R.ppg=best.p; R.total=best.t; R.check='ok'; }
+  else {
+    const top=(arr,ok)=>{ const c=arr.filter(x=>ok(x.v)).sort((a,b)=>b.score-a.score); return c.length&&c[0].score>0?c[0].v:null; };
+    R.gal=top(G,gOk); R.ppg=top(P,pOk); R.total=top(TT,tOk);
+    if(R.gal&&R.ppg&&!R.total) R.total=Math.round(R.gal*R.ppg*100)/100;
+    else if(R.gal&&R.total&&!R.ppg) R.ppg=Math.round(R.total/R.gal*1000)/1000;
+    else if(R.ppg&&R.total&&!R.gal) R.gal=Math.round(R.total/R.ppg*1000)/1000;
+    R.check=(R.gal&&R.ppg&&R.total)?(Math.abs(R.gal*R.ppg-R.total)<=Math.max(0.6,R.total*0.01)?'calc':'mismatch'):'partial';
+  }
+  return R;
+}
+
+// ===== AUTO-LLENADO DESDE LA FOTO DEL TICKET DE DIÉSEL =====
+// Google Drive lee el texto de la foto (OCR gratis con la misma conexión de Drive), la app saca
+// galones, precio, total, fecha y gasolinera, y llena el formulario para que la persona solo revise.
+async function driveOcrText(dataUrl, token){
+  const small=await shrinkDataUrl(dataUrl,2000,0.85);
+  if(scriptMode()) return (await scriptPost({action:'ocr', mime:'image/jpeg', b64:small.split(',')[1]})).text||'';
+  const b64=small.split(',')[1], bin=atob(b64), u8=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u8[i]=bin.charCodeAt(i);
+  const boundary='ocr'+Date.now();
+  const meta={name:'ticket-ocr-temp-'+Date.now(), mimeType:'application/vnd.google-apps.document'};
+  const body=new Blob(['--'+boundary+'\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n'+JSON.stringify(meta)+'\r\n--'+boundary+'\r\nContent-Type: image/jpeg\r\n\r\n', u8, '\r\n--'+boundary+'--']);
+  const up=await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&ocrLanguage=en&fields=id',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'multipart/related; boundary='+boundary},body});
+  if(!up.ok) throw new Error('OCR subida '+up.status);
+  const id=(await up.json()).id;
+  try{
+    const ex=await fetch('https://www.googleapis.com/drive/v3/files/'+id+'/export?mimeType=text/plain',{headers:{Authorization:'Bearer '+token}});
+    if(!ex.ok) throw new Error('OCR lectura '+ex.status);
+    return await ex.text();
+  } finally { fetch('https://www.googleapis.com/drive/v3/files/'+id,{method:'DELETE',headers:{Authorization:'Bearer '+token}}).catch(()=>{}); }
+}
+function ticketOcrMsg(cfg, html, color){
+  const host=document.getElementById(cfg.host); if(!host) return null;
+  let el=document.getElementById(cfg.host+'-ocr');
+  if(!el){ el=document.createElement('div'); el.id=cfg.host+'-ocr'; el.setAttribute('data-no-tr','1'); el.style.cssText='font-size:12px;margin-top:6px;padding:7px 9px;border-radius:8px;line-height:1.35;'; host.appendChild(el); }
+  el.style.background=color==='ok'?'#DCFCE7':color==='warn'?'#FEF3C7':'var(--bg3)';
+  el.style.color=color==='ok'?'#166534':color==='warn'?'#92400E':'var(--text2)';
+  el.innerHTML=html; return el;
+}
+async function ticketAutoFill(dataUrl, cfg, fromClick){
+  const en=window.TL_LANG==='en', L2=(es,e)=>en?e:es;
+  if(cfg.skip && cfg.skip()) return;
+  const myRun=(cfg._run=(cfg._run||0)+1);
+  let token=null;
+  if(driveTokenValid()) token=_gDriveAccessToken||'SCRIPT';
+  else if(window._driveWarm){ try{ token=await window._driveWarm; }catch(e){} }
+  if(!token && fromClick){ try{ token=await getGoogleDriveToken(); }catch(e){} }
+  if(!token){
+    const el=ticketOcrMsg(cfg, L2('📖 ¿Quieres que llene los datos con la foto? ','📖 Fill in the data from the photo? ')+'<button type="button" class="btn-sm" style="margin-left:4px;">'+L2('Leer ticket','Read ticket')+'</button>');
+    if(el) el.querySelector('button').onclick=()=>ticketAutoFill(dataUrl,cfg,true);
+    return;
+  }
+  ticketOcrMsg(cfg, '⏳ '+L2('Leyendo el ticket…','Reading the ticket…'));
+  let r;
+  try{ r=parseFuelReceipt(await driveOcrText(dataUrl, token)); }
+  catch(e){ console.warn('OCR ticket',e); if(myRun===cfg._run) ticketOcrMsg(cfg, L2('No se pudo leer el ticket. Escribe los datos a mano.','Could not read the ticket. Type the data in.'),'warn'); return; }
+  if(myRun!==cfg._run) return;
+  if(!document.getElementById(cfg.host+'-ocr') || !document.getElementById(cfg.gal)) return; // quitaron la foto o cerraron
+  const set=(id,v,force)=>{ const el=document.getElementById(id); if(!el||v==null||v==='') return false; if(!force && el.value && el.value.trim()) return false; el.value=v; el.style.background='#FEF9C3'; el.style.transition='background 2s'; setTimeout(()=>{ el.style.background=''; },2500); return true; };
+  const got=[];
+  if(set(cfg.gal, r.gal, true)) got.push(L2('galones','gallons'));
+  if(set(cfg.price, r.ppg, true)) got.push(L2('precio','price'));
+  if(cfg.station && set(cfg.station, r.station, false)) got.push(L2('gasolinera','station'));
+  if(cfg.date && r.date && set(cfg.date, r.date, true)) got.push(L2('fecha','date'));
+  try{ cfg.after && cfg.after(); }catch(e){}
+  if(!r.gal && !r.ppg){ ticketOcrMsg(cfg, L2('No encontré galones ni precio en la foto. Escríbelos a mano.','No gallons or price found in the photo. Type them in.'),'warn'); return; }
+  const tot=r.total?' · Total $'+r.total.toFixed(2):'';
+  if(r.check==='ok' || r.check==='calc') ticketOcrMsg(cfg, '✅ '+L2('Datos leídos del ticket','Read from the ticket')+' ('+got.join(', ')+')'+tot+'. '+L2('Revisa que estén bien antes de guardar.','Check them before saving.'),'ok');
+  else ticketOcrMsg(cfg, '⚠️ '+L2('Leí el ticket pero los números no cuadran','Read the ticket but the numbers don\'t match')+(r.gal&&r.ppg?' ('+r.gal+' × $'+r.ppg+' = $'+(r.gal*r.ppg).toFixed(2)+tot.replace(' · ',' vs ')+')':'')+'. '+L2('Revisa galones y precio con el recibo.','Check gallons and price against the receipt.'),'warn');
+}
+
+// ===== FOTOS OBLIGATORIAS EN CADA CARGA DE DIÉSEL: ticket + Dashboard (millaje) + bomba =====
+const FUEL_EXTRA=[{k:'dash',es:'Dashboard con millaje',en:'Dashboard with mileage',ico:'📟'},{k:'pump',es:'Pantalla de la bomba',en:'Pump display',ico:'⛽'}];
+let gastoExtraFiles={};
+function renderGastoExtras(){
+  const box=document.getElementById('gasto-extra-photos'); if(!box) return;
+  const en=window.TL_LANG==='en';
+  box.style.display = gastoTipoActual==='diesel'?'block':'none';
+  { const tl=document.getElementById('gasto-ticket-lbl'); if(tl) tl.innerHTML=en?'📷 Ticket photo '+(gastoTipoActual==='diesel'?'<span style="color:#DC2626;">(required for diesel)</span>':'(optional)'):'📷 Foto del ticket '+(gastoTipoActual==='diesel'?'<span style="color:#DC2626;">(obligatoria en diésel)</span>':'(opcional)'); }
+  box.innerHTML='<div style="font-size:11px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin:4px 0 8px;">'+(en?'📸 Required photos':'📸 Fotos obligatorias')+'</div>'+
+   FUEL_EXTRA.map(function(x){ const f=gastoExtraFiles[x.k], name=en?x.en:x.es;
+     const btn='padding:7px 10px;border:1.5px solid var(--border3);border-radius:8px;cursor:pointer;font-size:14px;background:var(--bg2,#fff);';
+     return '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;margin-bottom:6px;border:1.5px '+(f?'solid #16A34A':'dashed #DC2626')+';border-radius:10px;background:var(--bg3);">'+
+      (f?'<img src="'+f.url+'" style="width:46px;height:46px;object-fit:cover;border-radius:6px;"/>':'<span style="font-size:22px;width:46px;text-align:center;">'+x.ico+'</span>')+
+      '<div style="flex:1;font-size:13px;font-weight:700;color:var(--text);">'+name+'<div style="font-size:11px;font-weight:600;color:'+(f?'#16A34A':'#DC2626')+';">'+(f?(en?'✓ Added':'✓ Agregada'):(en?'Missing':'Falta'))+'</div></div>'+
+      (f?'<button type="button" class="btn-sm btn-red-sm" onclick="removeGastoExtra(\''+x.k+'\')" style="font-size:11px;">'+(en?'Remove':'Quitar')+'</button>'
+        :'<label style="'+btn+'">📷<input type="file" accept="image/*" capture="environment" style="display:none" onchange="handleGastoExtra(\''+x.k+'\',this)"/></label><label style="'+btn+'">🖼️<input type="file" accept="image/*" style="display:none" onchange="handleGastoExtra(\''+x.k+'\',this)"/></label>')+
+     '</div>'; }).join('');
+}
+function handleGastoExtra(k,input){ if(!input.files||!input.files[0]) return; const file=input.files[0]; gastoExtraFiles[k]={file:file, url:URL.createObjectURL(file)}; renderGastoExtras(); }
+function removeGastoExtra(k){ delete gastoExtraFiles[k]; renderGastoExtras(); }
+function fuelPhotosMissing(){
+  if(gastoTipoActual!=='diesel') return null;
+  const en=window.TL_LANG==='en';
+  const miss=(gastoImgFile?[]:[en?'Ticket':'Ticket']).concat(FUEL_EXTRA.filter(function(x){return !gastoExtraFiles[x.k];}).map(function(x){return en?x.en:x.es;}));
+  return miss.length?(en?'Missing photos: ':'Faltan fotos: ')+miss.join(', ')+(en?'.\n\nEvery diesel load needs the ticket, dashboard (mileage) and pump photos.':'.\n\nEn cada carga de diésel hay que subir el ticket, el Dashboard con el millaje y la pantalla de la bomba.'):null;
+}
+// Miniaturas de las fotos extra (para las listas de cargas)
+function fuelExtraThumbs(fl){
+  if(!fl) return '';
+  const en=window.TL_LANG==='en';
+  const parts=FUEL_EXTRA.map(function(x){
+    const th=fl[x.k+'DriveThumb'], st=fl[x.k+'Status'], name=en?x.en:x.es;
+    if(th) return '<div style="text-align:center;"><img src="'+th+'" title="'+name+'" style="width:54px;height:54px;object-fit:cover;border-radius:6px;border:1px solid var(--border2);cursor:pointer;" onclick="window.open(\''+(fl[x.k+'DriveLink']||th)+'\',\'_blank\')"/><div style="font-size:9px;color:var(--text3);">'+x.ico+' '+name.split(' ')[0]+'</div></div>';
+    if(st==='pending') return '<div style="font-size:10px;color:#C2410C;">📤 '+name+'</div>';
+    if(st==='uploading') return '<div style="font-size:10px;color:var(--text3);">☁️ '+name+'…</div>';
+    return '';
+  }).filter(Boolean);
+  return parts.length?'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-top:6px;">'+parts.join('')+'</div>':'';
+}
 function handleGastoImg(input){
   if(!input.files || !input.files[0]) return;
   gastoImgFile = input.files[0];
@@ -10786,11 +11255,13 @@ function handleGastoImg(input){
     document.getElementById('gasto-img-thumb').src = e.target.result;
     document.getElementById('gasto-img-preview').style.display = 'block';
     document.getElementById('gasto-img-btns').style.display = 'none';
+    ticketAutoFill(e.target.result, window._ocrGasto={host:'gasto-img-preview',gal:'gasto-gal',price:'gasto-price',station:'gasto-station',date:'gasto-date',after:calcGastoSubtotal,skip:()=>gastoTipoActual==='otro'});
   };
   reader.readAsDataURL(input.files[0]);
 }
 
 function removeGastoImg(){
+  { const o=document.getElementById('gasto-img-preview-ocr'); if(o) o.remove(); if(window._ocrGasto) window._ocrGasto._run=(window._ocrGasto._run||0)+1; }
   gastoImgData = null;
   gastoImgFile = null;
   document.getElementById('gasto-img-preview').style.display = 'none';
@@ -10815,7 +11286,8 @@ function saveGasto(){
   const t = trips[idx];
   const loadId = Date.now();
   const pendingImageFile = gastoImgFile || null; // el archivo original, para subir a Drive en segundo plano
-  let newLoad = { loadId, tipo: gastoTipoActual, image: null, driveStatus: pendingImageFile ? 'uploading' : null };
+  if(pendingImageFile && !driveTokenValid()){ try{ window._driveWarm=getGoogleDriveToken(); window._driveWarm.catch(()=>{}); }catch(e){} }
+  let newLoad = { loadId, tipo: gastoTipoActual, date: (document.getElementById('gasto-date')||{}).value || todayStr(), image: null, driveStatus: pendingImageFile ? 'uploading' : null };
 
   if(gastoTipoActual === 'otro'){
     const monto = parseFloat(document.getElementById('gasto-monto').value)||0;
@@ -10830,7 +11302,8 @@ function saveGasto(){
     const gal = parseFloat(document.getElementById('gasto-gal').value)||0;
     const price = parseFloat(document.getElementById('gasto-price').value)||0;
     const station = document.getElementById('gasto-station').value.trim();
-    if(!gal||!price){alert('Ingresa los galones y el precio por galón.');return;}
+    { const e=dieselLoadError(gal,price,gastoTipoActual); if(e){ alert(e); return; } }
+    { const e=fuelPhotosMissing(); if(e){ alert(e); return; } }
     newLoad.gal = gal;
     newLoad.price = price;
     newLoad.cost = parseFloat((gal*price).toFixed(2));
@@ -10838,6 +11311,8 @@ function saveGasto(){
     newLoad.desc = gastoTipoActual === 'def' ? 'DEF' : 'Diesel';
   }
 
+  const extraFiles = gastoTipoActual==='diesel' ? Object.assign({}, gastoExtraFiles) : {};
+  Object.keys(extraFiles).forEach(function(k){ newLoad[k+'Status']='uploading'; });
   const updatedLoads = (t.fuelLoads||[]).concat([newLoad]);
   // Recalculate totals — diesel+DEF go to totalCost, otros go to otrosCost
   const dieselLoads = updatedLoads.filter(function(l){return l.tipo==='diesel'||!l.tipo;});
@@ -10861,51 +11336,107 @@ function saveGasto(){
   if(pendingImageFile){
     uploadFuelReceiptInBackground(tripId||trips[idx].id, loadId, pendingImageFile);
   }
+  if(newLoad.tipo!=='otro'){ try{ tgAddNotif(sanitizeForFirestore({tripId:trips[idx].id, driverName:trips[idx].driverName||(currentUser&&currentUser.name)||'', type:'fuel', gal:newLoad.gal, price:newLoad.price, cost:newLoad.cost, station:newLoad.station||'', city1:trips[idx].city1, city2:trips[idx].city2, rc:trips[idx].rc||'', ts:new Date().toISOString(), read:false})).catch(()=>{}); }catch(e){} }
+  Object.keys(extraFiles).forEach(function(k){ uploadFuelReceiptInBackground(tripId||trips[idx].id, loadId, extraFiles[k].file, 'diesel'+k); });
 }
 
-async function uploadFuelReceiptInBackground(tripId, loadId, file){
+async function uploadFuelReceiptInBackground(tripId, loadId, file, kind){
+  kind=kind||'diesel'; let item=null;
   try{
-    const reader = new FileReader();
-    const dataUrl = await new Promise(function(resolve, reject){
-      reader.onload = function(e){ resolve(e.target.result); };
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-
-    const trips1 = loadTrips();
-    const idx1 = trips1.findIndex(t=>t.id===tripId);
-    if(idx1<0) return;
-    const trip = trips1[idx1];
-
-    const result = await uploadPhotoToDrive(trip, 'diesel', dataUrl);
-    const driveThumb = 'https://drive.google.com/thumbnail?id='+result.id+'&sz=w800';
-
-    const trips2 = loadTrips();
-    const idx2 = trips2.findIndex(t=>t.id===tripId);
-    if(idx2<0) return;
-    const loads2 = (trips2[idx2].fuelLoads||[]).map(l=>{
-      if(l.loadId===loadId) return {...l, driveFileId: result.id, driveLink: result.webViewLink, driveThumb, driveStatus:'done'};
-      return l;
-    });
-    trips2[idx2] = {...trips2[idx2], fuelLoads: loads2};
-    await storeTrips(trips2);
-    refreshRunningFuelList();
-    if(document.getElementById('page-miviaje')&&document.getElementById('page-miviaje').classList.contains('active')){
-      renderMiViaje();
-    }
+    const dataUrl = await shrinkDataUrl(await fileToDataUrl0(file), 1600, 0.75);
+    item={tripId, kind, loadId, dataUrl}; item.qid=upqAdd(item);
+    const trip=loadTrips().find(t=>t.id===tripId); if(!trip) return;
+    if(window._driveWarm){ try{ await window._driveWarm; }catch(e){} window._driveWarm=null; }
+    const result = await uploadPhotoToDrive(trip, kind, dataUrl);
+    await applyUpload(item, result); upqRemove(item.qid);
+    if(document.getElementById('page-miviaje')&&document.getElementById('page-miviaje').classList.contains('active')) renderMiViaje();
   }catch(err){
-    console.warn('uploadFuelReceiptInBackground error:', err);
-    const trips3 = loadTrips();
-    const idx3 = trips3.findIndex(t=>t.id===tripId);
-    if(idx3>=0){
-      const loads3 = (trips3[idx3].fuelLoads||[]).map(l=> l.loadId===loadId ? {...l, driveStatus:'error'} : l);
-      trips3[idx3] = {...trips3[idx3], fuelLoads: loads3};
-      await storeTrips(trips3);
-      refreshRunningFuelList();
-    }
+    console.warn('uploadFuelReceiptInBackground:', err);
+    if(item){ await markPending(item); try{ refreshRunningFuelList(); }catch(e){} }
   }
 }
 
+// ===== POD FIRMADO + FOTO DE DESCARGA: obligatorios para finalizar y fáciles de mandar al broker =====
+function tripDocReady(t,k){ return !!(t && (t[k+'DriveLink'] || ['pending','uploading','done'].includes(t[k+'DriveStatus']))); }
+function tripFinishMissing(t){ const en=window.TL_LANG==='en'; const m=[]; if(!tripDocReady(t,'pod')) m.push(en?'Signed POD':'POD firmado'); if(!tripDocReady(t,'unloaded')) m.push(en?'Unloading photo':'Foto de la descarga'); return m; }
+async function shareTripDocs(tripId){
+  const en=window.TL_LANG==='en';
+  const t=loadTrips().find(x=>String(x.id)===String(tripId)); if(!t){ alert(en?'Trip not found.':'No se encontró el viaje.'); return; }
+  const files=[]; const tag=t.rc||t.id;
+  if(t.podDriveFileId) files.push({id:t.podDriveFileId, name:'Signed_POD_'+tag});
+  if(t.unloadedDriveFileId) files.push({id:t.unloadedDriveFileId, name:'Unloading_'+tag});
+  if(!files.length){ alert(en?'The signed POD and unloading photo are not in Drive yet. Upload them first (or tap "Upload now").':'Todavía no están en Drive el POD firmado ni la foto de descarga. Súbelos primero (o toca "Subir ahora").'); return; }
+  const co=(typeof loadCompany==='function'&&loadCompany())||{};
+  const place=(c,s,z)=>(c||z||'')+(s?', '+s:'');
+  const d=t.deliveryDate||(t.endTime?String(t.endTime).slice(0,10):''); const p=d.split('-');
+  const title='POD - Load # '+tag;
+  const text=['Hello,','','Please find attached the signed POD'+(t.unloadedDriveFileId?' and unloading photos':'')+'.',
+    'Load # '+tag+' — '+place(t.city1,t.state1,t.z1)+' → '+place(t.city2,t.state2,t.z2), d?'Delivered: '+(p.length===3?p[1]+'/'+p[2]+'/'+p[0]:d):'',
+    '','Thank you,', co.name||'YENAVI FREIGHT LLC'].filter((x,i,a)=>x!==''||a[i-1]!=='').join('\n');
+  const busy=docsBusy(en?'Preparing the photos…':'Preparando las fotos…');
+  // 1) Si el RC trae el correo del broker: se manda el correo desde tu Gmail con las fotos ADJUNTAS
+  if(typeof scriptMode==='function' && scriptMode()){
+    busy.remove();
+    let to=window.prompt((en?'Email the ':'Mandar por correo las ')+files.length+(en?' photo(s) as attachments to (edit if needed):':' foto(s) adjuntas a (puedes cambiar el correo):')+'\n\n'+(en?'Cancel = share another way':'Cancelar = compartir de otra forma'), t.brokerEmail||'');
+    to=(to||'').trim();
+    if(to){
+      if(!to.split(/\s*,\s*/).every(x=>/^[^@\s,]+@[^@\s,]+\.[^@\s,]+$/.test(x))){ alert(en?'That email does not look right.':'Ese correo no está bien escrito.'); return; }
+      const b2=docsBusy(en?'Sending…':'Enviando…');
+      try{
+        await scriptPost({action:'email', to, cc:co.emailTo||'', files:files.map(f=>({id:f.id,name:f.name+'.jpg'})), info:{rc:String(tag), from:place(t.city1,t.state1,t.z1), to:place(t.city2,t.state2,t.z2), delivered:(d?(p.length===3?p[1]+'/'+p[2]+'/'+p[0]:d):''), company:co.name||'YENAVI FREIGHT LLC'}});
+        try{ tgAddNotif(sanitizeForFirestore({tripId:t.id, driverName:t.driverName||'', type:'pod_sent', to, rc:t.rc||'', city1:t.city1, state1:t.state1, city2:t.city2, state2:t.state2, ts:new Date().toISOString(), read:false})).catch(()=>{}); }catch(e){}
+        b2.remove(); alert((en?'✅ Sent to ':'✅ Enviado a ')+to+(en?' with ':' con ')+files.length+(en?' photo(s).':' foto(s).'));
+        try{ const T=loadTrips(); const k=T.findIndex(x=>String(x.id)===String(t.id)); if(k>=0){ T[k]={...T[k],brokerEmail:to,podSentAt:new Date().toISOString(),podSentTo:to}; storeTrips(T); } }catch(e){}
+        return;
+      }catch(e){ b2.remove(); alert((en?'Could not send the email: ':'No se pudo mandar el correo: ')+(e.message||e)+'\n\n'+(en?'You can share the photos another way.':'Puedes compartir las fotos de otra forma.')); }
+    }
+  }
+  // 2) Bajar las fotos y compartirlas como archivos (WhatsApp, correo, mensaje…)
+  const b3=document.getElementById('docs-busy')||docsBusy(en?'Preparing the photos…':'Preparando las fotos…');
+  const got=[];
+  for(const f of files){ try{ got.push(await driveFileAsFile(f.id, f.name)); }catch(e){ console.warn('foto',e); } }
+  b3.remove();
+  if(!got.length){ alert(en?'Could not download the photos from Drive. Check your signal and try again.':'No se pudieron bajar las fotos de Drive. Revisa la señal e intenta otra vez.'); return; }
+  // El celular solo deja abrir "Compartir" si se toca un botón, por eso se pide un toque más
+  const ov=document.createElement('div'); ov.setAttribute('data-no-tr','1');
+  ov.style.cssText='position:fixed;inset:0;z-index:100001;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center;padding:16px;';
+  ov.innerHTML='<div style="background:#fff;color:#111;border-radius:16px;padding:16px;width:100%;max-width:440px;"><div style="font-weight:800;font-size:16px;margin-bottom:8px;">'+(en?'Photos ready':'Fotos listas')+' ('+got.length+')</div>'+
+    '<div style="display:flex;gap:8px;margin-bottom:12px;overflow-x:auto;">'+got.map(f=>'<img src="'+URL.createObjectURL(f)+'" style="height:90px;border-radius:8px;border:1px solid #ddd;"/>').join('')+'</div>'+
+    '<button id="dz-share" style="width:100%;padding:13px;border:0;border-radius:12px;background:#2563EB;color:#fff;font-weight:800;font-size:15px;margin-bottom:8px;">📤 '+(en?'Share photos':'Compartir fotos')+'</button>'+
+    '<button id="dz-save" style="width:100%;padding:11px;border:1px solid #ddd;border-radius:12px;background:#fff;font-weight:700;margin-bottom:8px;">⬇️ '+(en?'Save to phone':'Guardar en el celular')+'</button>'+
+    '<button id="dz-close" style="width:100%;padding:10px;border:0;background:none;color:#666;">'+(en?'Close':'Cerrar')+'</button></div>';
+  document.body.appendChild(ov);
+  const close=()=>ov.remove();
+  ov.querySelector('#dz-close').onclick=close;
+  ov.querySelector('#dz-save').onclick=()=>{ got.forEach(f=>{ const a=document.createElement('a'); a.href=URL.createObjectURL(f); a.download=f.name; document.body.appendChild(a); a.click(); a.remove(); }); };
+  ov.querySelector('#dz-share').onclick=async()=>{
+    const data={files:got, title, text};
+    if(navigator.canShare && navigator.canShare({files:got})){ try{ await navigator.share(data); close(); }catch(e){ if(!(e&&e.name==='AbortError')) alert((en?'Could not share: ':'No se pudo compartir: ')+(e.message||e)); } }
+    else { alert(en?'This device cannot share files from the browser. Use "Save to phone" and attach them.':'Este aparato no deja compartir archivos desde el navegador. Usa "Guardar en el celular" y adjúntalas.'); }
+  };
+}
+function docsBusy(msg){ let b=document.getElementById('docs-busy'); if(b) b.remove(); b=document.createElement('div'); b.id='docs-busy'; b.setAttribute('data-no-tr','1'); b.style.cssText='position:fixed;left:50%;top:40%;transform:translate(-50%,-50%);z-index:100002;background:#111827;color:#fff;padding:14px 18px;border-radius:12px;font-weight:700;font-size:14px;box-shadow:0 8px 24px rgba(0,0,0,.3);'; b.textContent='⏳ '+msg; document.body.appendChild(b); return b; }
+// Baja una foto de Drive como archivo (por el servicio de fotos, o directo con el permiso de Google)
+async function driveFileAsFile(id, base){
+  let blob, mime;
+  if(typeof scriptMode==='function' && scriptMode()){
+    const j=await scriptPost({action:'get', id}); mime=j.mime||'image/jpeg';
+    const bin=atob(j.b64||''); const u8=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u8[i]=bin.charCodeAt(i); blob=new Blob([u8],{type:mime});
+  } else {
+    const tok=await getGoogleDriveToken();
+    const r=await fetch('https://www.googleapis.com/drive/v3/files/'+id+'?alt=media',{headers:{Authorization:'Bearer '+tok}});
+    if(!r.ok) throw new Error('Drive '+r.status); blob=await r.blob(); mime=blob.type||'image/jpeg';
+  }
+  const ext=/pdf/.test(mime)?'.pdf':/png/.test(mime)?'.png':'.jpg';
+  return new File([blob], base+ext, {type:mime});
+}
+function renderMiFinishReq(t){
+  const el=document.getElementById('mv-finish-req'); if(!el||!t) return;
+  const en=window.TL_LANG==='en';
+  const row=(ok,txt)=>'<div style="color:'+(ok?'#16A34A':'#DC2626')+';font-weight:700;">'+(ok?'✅ ':'❌ ')+txt+(ok?'':(en?' — missing':' — falta'))+'</div>';
+  { const sb=document.getElementById('mv-share-docs'); if(sb) sb.textContent='📤 '+(en?'Send signed POD & unloading photos':'Mandar fotos del POD firmado y descarga'); }
+  el.innerHTML='<div style="color:var(--text2);font-weight:600;margin-bottom:3px;">'+(en?'Required to finish:':'Para finalizar se necesita:')+'</div>'+row(tripDocReady(t,'pod'),en?'Signed POD':'POD firmado')+row(tripDocReady(t,'unloaded'),en?'Unloading photo':'Foto de la descarga');
+}
 function finalizarViaje(){
   const tripId = parseInt(document.getElementById('mv-trip-id').value);
   const miEnd = parseFloat(document.getElementById('mv-mi-end').value);
@@ -10915,6 +11446,7 @@ function finalizarViaje(){
   if(idx < 0) return;
 
   const t = trips[idx];
+  { const miss=tripFinishMissing(t); if(miss.length){ const en=window.TL_LANG==='en'; alert((en?'To finish the trip, upload first:\n\n• ':'Para finalizar el viaje primero sube:\n\n• ')+miss.join('\n• ')); try{ renderMiFinishReq(t); document.getElementById('mv-pod-preview')?.scrollIntoView({behavior:'smooth',block:'center'}); }catch(e){} return; } }
 
   // Sin odómetro: las millas del viaje salen de la ruta (GPS/ruta capturada o ZIP a ZIP)
   const miles = routeMilesOf(t);
@@ -10925,10 +11457,12 @@ function finalizarViaje(){
     miEnd: isNaN(miEnd)?(t.miEnd||null):miEnd,
     miles: miles,
     tripStatus: 'completed',
+    endTime: t.endTime || new Date().toISOString(),
     mpgReal: (miles && totalGal) ? parseFloat((miles/totalGal).toFixed(2)) : 0,
     cpm: (miles && totalCost) ? parseFloat((totalCost/miles).toFixed(4)) : 0
   });
   storeTrips(trips);
+  try{ fireKeyMoment(trips[idx],'completed',{rc:trips[idx].rc||''}); }catch(e){}
   renderMiViaje();
 
   // Show success
@@ -11226,8 +11760,9 @@ let _rtTripData = null;  // active trip object
 
 // ===== NOTIFICACIONES DE MOMENTOS CLAVE (inicio / cerca de destino / llegada) =====
 async function fireKeyMoment(trip, type, extra){
-  if(!fbReady || !trip) return;
-  if(trip.notifFlags && trip.notifFlags[type]) return; // ya se mandó este aviso para este viaje
+  if(!trip) return;
+  { const fresh=(loadTrips()||[]).find(x=>String(x.id)===String(trip.id)); if((fresh&&fresh.notifFlags&&fresh.notifFlags[type]) || (trip.notifFlags&&trip.notifFlags[type])) return; } // ya se mandó este aviso para este viaje
+  window._kmSent=window._kmSent||{}; const _kk=trip.id+'|'+type; if(window._kmSent[_kk]) return; window._kmSent[_kk]=1;
 
   const payload = sanitizeForFirestore({
     tripId: trip.id,
@@ -11240,21 +11775,22 @@ async function fireKeyMoment(trip, type, extra){
     read: false
   });
 
-  try{
-    await db.collection('notifications').add(payload);
-  }catch(e){ console.warn('fireKeyMoment error:', e); }
-
-  // Marcar el flag en el trip para no repetir el aviso
+  // Marcar el flag en el trip ANTES de mandar, para no repetir el aviso (el aviso queda guardado en la bandeja si no hay señal)
   const trips = loadTrips();
-  const idx = trips.findIndex(t=>t.id===trip.id);
+  const idx = trips.findIndex(t=>String(t.id)===String(trip.id));
   if(idx>=0){
     const flags = {...(trips[idx].notifFlags||{}), [type]: true};
     trips[idx] = {...trips[idx], notifFlags: flags};
     storeTrips(trips);
   }
+  try{
+    await tgAddNotif(payload);
+  }catch(e){ console.warn('fireKeyMoment error:', e); }
 }
 
-function notifLabel(n){
+// El texto de los avisos se escapa (por si un nombre o gasolinera trae < o >)
+function notifLabel(n){ const _e=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); const i=_notifLabel0(n); return {icon:i.icon, title:_e(i.title), text:_e(i.text)}; }
+function _notifLabel0(n){
   const route = (n.city1||'—') + ' → ' + (n.city2||'—');
   if(n.type==='start') return {icon:'🟢', title:'Inició viaje', text: n.driverName+' arrancó: '+route};
   if(n.type==='near')  return {icon:'🟡', title:'Cerca del destino', text: n.driverName+' — faltan '+(n.milesLeft||'—')+' mi a '+ (n.city2||'destino') + (n.etaTime?(' · ETA '+n.etaTime):'')};
@@ -11263,6 +11799,10 @@ function notifLabel(n){
   if(n.type==='speeding') return {icon:'⚠️', title:'Exceso de velocidad', text: n.driverName+' — '+(n.speedMph||'—')+' mph'};
   if(n.type==='bol_uploaded') return {icon:'📄', title:'BOL para revisar', text: n.driverName+' subió el BOL — revisa y dale Ready to Go'};
   if(n.type==='pod_uploaded') return {icon:'📄', title:'POD para revisar', text: n.driverName+' subió el POD — revisa y dale Ready to Go'};
+  if(n.type==='completed') return {icon:'🏁', title:'Viaje finalizado', text: n.driverName+' terminó: '+route};
+  if(n.type==='fuel') return {icon:'⛽', title:'Cargó diésel', text: n.driverName+' — '+(n.gal||0)+' gal × $'+(n.price||0)+' = $'+(Number(n.cost)||0).toFixed(2)+(n.station?' · '+n.station:'')};
+  if(n.type==='pod_sent') return {icon:'📧', title:'POD enviado al broker', text: (n.to||'')+(n.rc?' · RC #'+n.rc:'')};
+  if(n.type==='late') return {icon:'⚠️', title:'Va tarde a la cita', text: n.driverName+' — ETA '+(n.etaTxt||'—')+' · '+route};
   return {icon:'📍', title:'Aviso', text: n.driverName+' — '+route};
 }
 
@@ -11327,6 +11867,22 @@ function closeNotifPanel(){
   if(ov) ov.style.display='none';
 }
 
+async function rtEldPoll(){
+  try{
+    const _t=(loadTrips()||[]).find(x=>String(x.id)===String((document.getElementById('mv-trip-id')||{}).value)) || _rtTripData;
+    if(!(typeof fbReady!=='undefined' && fbReady && db) || !_t || _t.tripStatus!=='active') return;
+    if(window._rtPhoneAt && Date.now()-window._rtPhoneAt < 5*60000) return; // el GPS del celular está funcionando
+    const tid=_t.truckId; if(tid==null || tid==='') return;
+    const sn=await db.collection('locations').doc('truck_'+tid).get(); if(!sn.exists) return;
+    const d=sn.data(); const tm=typeof d.time==='number'?d.time:Date.parse(d.time);
+    if(d.lat==null || d.lon==null || isNaN(tm) || Date.now()-tm>30*60000) return;
+    _rtDriverPos={lat:+d.lat, lon:+d.lon};
+    const dot=document.getElementById('rt-gps-dot'), lbl=document.getElementById('rt-gps-label');
+    if(dot) dot.style.background='#16A34A';
+    if(lbl) lbl.textContent=(window.TL_LANG==='en'?'Truck ELD':'ELD del camión')+' · '+(d.place||'')+(Math.round((Date.now()-tm)/60000)?' · '+(window.TL_LANG==='en'?'':'hace ')+Math.round((Date.now()-tm)/60000)+' min':'');
+    updateRealtimePanel();
+  }catch(e){}
+}
 function startRealtimeTracker(trip){
   _rtTripData = trip;
   _rtTripStart = trip.startTime ? new Date(trip.startTime) : new Date();
@@ -11339,7 +11895,7 @@ function startRealtimeTracker(trip){
   if(navigator.geolocation){
     _rtGpsWatch = navigator.geolocation.watchPosition(
       pos => {
-        _rtDriverPos = {lat: pos.coords.latitude, lon: pos.coords.longitude};
+        _rtDriverPos = {lat: pos.coords.latitude, lon: pos.coords.longitude}; window._rtPhoneAt = Date.now();
         document.getElementById('rt-gps-dot').style.background = '#16A34A';
         document.getElementById('rt-gps-label').textContent = 'GPS activo';
         updateRealtimePanel();
@@ -11354,12 +11910,16 @@ function startRealtimeTracker(trip){
     );
   }
 
+  // Ubicación del ELD del camión (AT ELD): se usa cuando el celular no manda GPS
+  if(window._rtEldInt) clearInterval(window._rtEldInt);
+  window._rtEldInt = setInterval(rtEldPoll, 60000); setTimeout(rtEldPoll, 1500);
   // Update every 15 seconds
   _rtInterval = setInterval(updateRealtimePanel, 15000);
   updateRealtimePanel(); // immediate first update
 }
 
 function stopRealtimeTracker(){
+  if(window._rtEldInt){ clearInterval(window._rtEldInt); window._rtEldInt=null; }
   if(_rtInterval){ clearInterval(_rtInterval); _rtInterval=null; }
   if(_rtGpsWatch){ navigator.geolocation.clearWatch(_rtGpsWatch); _rtGpsWatch=null; }
   _rtDriverPos = null;
@@ -11404,11 +11964,12 @@ function updateRealtimePanel(){
   let milesLeft = totalMiles;
   let pct = 0;
 
-  if(_rtDriverPos && origPos){
-    // Distance from origin to current position
-    const kmDone = haversineKm(origPos.lat, origPos.lon, _rtDriverPos.lat, _rtDriverPos.lon);
-    milesDone = Math.min(Math.round(kmDone * 0.621371), totalMiles);
-    milesLeft = Math.max(totalMiles - milesDone, 0);
+  if(_rtDriverPos && destPos){
+    // Lo que falta se mide desde donde está el camión HASTA el destino (por carretera ≈ línea recta × 1.2)
+    const kmLeft = haversineKm(_rtDriverPos.lat, _rtDriverPos.lon, destPos.lat, destPos.lon);
+    milesLeft = Math.round(kmLeft * 0.621371 * (kmLeft < 3 ? 1 : 1.2));
+    if(totalMiles>0) milesLeft = Math.min(milesLeft, totalMiles);
+    milesDone = Math.max(totalMiles - milesLeft, 0);
     pct = totalMiles>0 ? Math.round((milesDone/totalMiles)*100) : 0;
   } else {
     // Fallback: estimate from elapsed time
@@ -11431,7 +11992,7 @@ function updateRealtimePanel(){
     : (milesLeft / avgSpeed) * 60;
   const remH = Math.floor(remainMin/60);
   const remM = Math.round(remainMin%60);
-  const remainLabel = milesLeft>0 ? `${remH}h ${String(remM).padStart(2,'0')}min` : '¡Llegaste! 🎉';
+  const remainLabel = !(totalMiles>0) ? '—' : milesLeft>0 ? `${remH}h ${String(remM).padStart(2,'0')}min` : (_rtDriverPos ? '¡Llegaste! 🎉' : (window.TL_LANG==='en'?'Should be arriving':'Debería estar llegando'));
 
   // ETA — now + remaining time
   const etaDate = new Date(Date.now() + remainMin * 60000);
@@ -11440,11 +12001,14 @@ function updateRealtimePanel(){
   const isNextDay = etaDate.getDate() !== new Date().getDate();
 
   // Avisos de momentos clave: cerca de destino (≥85%) y llegada (≥98% o ≤2 mi restantes)
-  if(pct>=85 && pct<98 && milesLeft>2){
-    fireKeyMoment(t, 'near', {milesLeft, pct, etaTime, etaDateStr});
-  }
-  if(pct>=98 || milesLeft<=2){
-    fireKeyMoment(t, 'arrival', {milesLeft, pct, etaTime, etaDateStr});
+  // Solo con la ubicación REAL del GPS (no con el cálculo por tiempo), y si se conocen las millas del viaje
+  if(_rtDriverPos && totalMiles>0){
+    if(pct>=85 && pct<98 && milesLeft>2){
+      fireKeyMoment(t, 'near', {milesLeft, pct, etaTime, etaDateStr});
+    }
+    if(pct>=98 || milesLeft<=2){
+      fireKeyMoment(t, 'arrival', {milesLeft, pct, etaTime, etaDateStr});
+    }
   }
 
   // Next break
@@ -11641,14 +12205,14 @@ const TUTORIAL_STEPS = [
   {
     icon: '🧾',
     title: 'Agregar gastos en ruta',
-    desc: 'Mientras el viaje está activo puedes agregar gastos tocando "+ Agregar carga". Selecciona el tipo: Diesel ⛽, DEF 🧪 u Otro gasto 🧾. Puedes tomar foto del recibo.',
+    desc: 'Mientras el viaje está activo agrega cada carga con "+ Agregar gasto". En diésel toma la foto del ticket (los datos se llenan solos), la del Dashboard con el millaje y la de la pantalla de la bomba: las 3 son obligatorias.',
     target: null,
     arrow: '📸 Siempre guarda foto del recibo'
   },
   {
     icon: '🏁',
     title: 'Finalizar el viaje',
-    desc: 'Al llegar a tu destino ingresa las millas finales del odómetro y presiona "Finalizar viaje". Esto cierra el registro y envía los datos al administrador.',
+    desc: 'Al entregar, sube el POD firmado y la foto de la descarga, y presiona "Finalizar viaje" (sin esas 2 fotos no deja finalizar). Con "Mandar fotos" se las mandas al broker.',
     target: null,
     arrow: '✅ Odómetro final → Finalizar'
   },
@@ -11868,7 +12432,8 @@ function renderMisGanancias(){
   const toF   = document.getElementById('mg-to').value;
 
   const mine = trips.filter(function(t){
-    if(!((t.driverUser===username) || (t.driverName===name))) return false;
+    if(!((t.driverUser===username) || (!t.driverUser && t.driverName===name))) return false;
+    if(t.tripStatus==='scheduled') return false; // un viaje programado todavía no se ha hecho
     if(fromF && t.date < fromF) return false;
     if(toF   && t.date > toF)   return false;
     return true;
@@ -11891,7 +12456,9 @@ function renderMisGanancias(){
     return;
   }
   list.innerHTML = mine.map(function(t){
-    const paidBadge = (t.driverPayStatus||'paid')==='paid'
+    const paidBadge = !t.profitSet
+      ? '<span style="background:var(--bg3);color:var(--text3);border:1px solid var(--border2);font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;">'+(t.tripStatus==='active'?(window.TL_LANG==='en'?'In progress':'En curso'):(window.TL_LANG==='en'?'Pay not set yet':'Pago por calcular'))+'</span>'
+      : (t.driverPayStatus||'paid')==='paid'
       ? '<span style="background:#F0FDF4;color:#16A34A;border:1px solid #BBF7D0;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;">✔ Pagado</span>'
       : '<span style="background:#FFFBEB;color:#D97706;border:1px solid #FDE68A;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;">⏳ Pendiente</span>';
     return '<div style="background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:8px;">'+
@@ -12740,6 +13307,26 @@ const DRIVER_SIDEBAR_ITEMS = [
 ];
 
 
+
+// ===== BARRA DE ABAJO (celular): lo más usado a un toque, y "Menú" abre el menú completo =====
+function bottomNavItems(role){
+  return role==='admin'
+    ? [{id:'home',icon:'🏠',es:'Inicio',en:'Home'},{id:'new',icon:'➕',es:'Nuevo',en:'New'},{id:'entransito',icon:'🚚',es:'En Tránsito',en:'In transit'},{id:'log',icon:'📋',es:'Historial',en:'History'}]
+    : [{id:'home',icon:'🏠',es:'Inicio',en:'Home'},{id:'miviaje',icon:'🚚',es:'Mi Viaje',en:'My trip'},{id:'misganancias',icon:'💰',es:'Ganancias',en:'Earnings'},{id:'gas',icon:'⛽',es:'Gasolineras',en:'Fuel'}];
+}
+function buildBottomNav(role){
+  let bar=document.getElementById('bottom-nav');
+  if(!bar){ bar=document.createElement('nav'); bar.id='bottom-nav'; bar.setAttribute('data-no-tr','1'); document.body.appendChild(bar); }
+  const en=window.TL_LANG==='en';
+  const ic=it=>(typeof PRO_ICONS!=='undefined'&&PRO_ICONS[it.id]&&typeof proIcon==='function')?proIcon(it.id):it.icon;
+  bar.innerHTML=bottomNavItems(role).map(it=>'<button type="button" class="bn-item" data-id="'+it.id+'" onclick="sidebarNav(\''+it.id+'\')"><span class="bn-ic">'+ic(it)+'</span><span>'+(en?it.en:it.es)+'</span></button>').join('')+
+    '<button type="button" class="bn-item menu" onclick="toggleSidebar()"><span class="bn-ic">☰</span><span>'+(en?'Menu':'Menú')+'</span></button>';
+  bar.classList.add('on'); document.body.classList.add('has-bottom-nav');
+  markBottomNav(typeof _currentSidebarId!=='undefined'?_currentSidebarId:'home');
+}
+function markBottomNav(id){ document.querySelectorAll('#bottom-nav .bn-item[data-id]').forEach(b=>b.classList.toggle('active', b.getAttribute('data-id')===id)); }
+function hideBottomNav(){ const b=document.getElementById('bottom-nav'); if(b) b.classList.remove('on'); document.body.classList.remove('has-bottom-nav'); }
+
 function buildSidebar(role){
   const items = role==='admin' ? ADMIN_SIDEBAR_ITEMS : DRIVER_SIDEBAR_ITEMS;
   const nav = document.getElementById('sidebar-nav');
@@ -12764,10 +13351,12 @@ function buildSidebar(role){
   if(headerEl) headerEl.classList.toggle('header-with-status', role==='admin');
   const statusBar = document.getElementById('admin-status-bar');
   if(statusBar) statusBar.style.display = role==='admin' ? 'flex' : 'none';
+  try{ buildBottomNav(role); }catch(e){}
 }
 
 function sidebarNav(id){
   _currentSidebarId = id;
+  try{ markBottomNav(id); window.scrollTo(0,0); }catch(e){}
   updateDriverAlertStrip();
   // Update active state
   document.querySelectorAll('.sidebar-item').forEach(el=>{
@@ -12875,6 +13464,61 @@ window.addEventListener('load', function(){
     }
   });
 });
+</script>
+<script>
+/* ══════════ APP INSTALABLE: service worker, aviso de versión nueva y botón "Instalar app" ══════════ */
+(function(){
+  const EN=()=>window.TL_LANG==='en';
+  const T=(es,en)=>EN()?en:es;
+  const standalone=()=>window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;
+  // ── Service worker + aviso de versión nueva
+  if('serviceWorker' in navigator && (location.protocol==='https:'||location.hostname==='localhost')){
+    let reloading=false;
+    navigator.serviceWorker.addEventListener('controllerchange',()=>{ if(reloading) return; reloading=true; location.reload(); });
+    const showUpdate=(reg)=>{
+      if(document.getElementById('app-update-bar')) return;
+      const b=document.createElement('div'); b.id='app-update-bar'; b.setAttribute('data-no-tr','');
+      b.style.cssText='position:fixed;left:12px;right:12px;bottom:calc(var(--bn-h,0px) + 14px + env(safe-area-inset-bottom));z-index:100000;background:#1E3A8A;color:#fff;border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:10px;box-shadow:0 8px 24px rgba(0,0,0,.25);font-size:14px;font-weight:700;';
+      b.innerHTML='<span style="flex:1;">🔄 '+T('Hay una versión nueva de la app','A new version of the app is available')+'</span><button style="background:#fff;color:#1E3A8A;border:none;border-radius:10px;padding:8px 12px;font-weight:800;font-size:13px;cursor:pointer;">'+T('Actualizar','Update')+'</button>';
+      b.querySelector('button').onclick=()=>{ if(reg.waiting) reg.waiting.postMessage('SKIP_WAITING'); else location.reload(); };
+      document.body.appendChild(b);
+    };
+    window.addEventListener('load',()=>{
+      navigator.serviceWorker.register('./sw.js').then(reg=>{
+        if(reg.waiting && navigator.serviceWorker.controller) showUpdate(reg);
+        reg.addEventListener('updatefound',()=>{ const w=reg.installing; if(!w) return;
+          w.addEventListener('statechange',()=>{ if(w.state==='installed' && navigator.serviceWorker.controller) showUpdate(reg); }); });
+        setInterval(()=>reg.update().catch(()=>{}), 30*60*1000);
+        document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') reg.update().catch(()=>{}); });
+      }).catch(()=>{});
+    });
+  }
+  // ── Botón "Instalar app"
+  let deferred=null;
+  window.addEventListener('beforeinstallprompt',e=>{ e.preventDefault(); deferred=e; showInstall(); });
+  window.addEventListener('appinstalled',()=>{ deferred=null; const x=document.getElementById('app-install-card'); if(x) x.remove(); });
+  const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
+  function dismissed(){ try{ return Date.now()-(+localStorage.getItem('trucklog_install_dismiss')||0) < 7*86400000; }catch(e){ return false; } }
+  function showInstall(){
+    if(standalone()||dismissed()||document.getElementById('app-install-card')) return;
+    if(!deferred && !isIOS) return;
+    const host=document.getElementById('page-home'); if(!host) return;
+    const c=document.createElement('div'); c.id='app-install-card'; c.setAttribute('data-no-tr','');
+    c.style.cssText='background:#EEF2FF;border:1px solid #C7D2FE;color:#1E3A8A;border-radius:14px;padding:12px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;';
+    c.innerHTML='<img src="'+(document.querySelector('link[rel=apple-touch-icon]')||{}).href+'" alt="" style="width:40px;height:40px;border-radius:10px;border:1px solid #C7D2FE;background:#fff;"/>'+
+      '<div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:800;">'+T('Instala la app en tu celular','Install the app on your phone')+'</div><div style="font-size:12px;opacity:.85;">'+T('Se abre con su ícono, más rápido y sin la barra del navegador.','Opens from its icon, faster and without the browser bar.')+'</div></div>'+
+      '<button id="app-install-btn" style="background:#1E3A8A;color:#fff;border:none;border-radius:10px;padding:9px 12px;font-weight:800;font-size:13px;cursor:pointer;">'+T('Instalar','Install')+'</button>'+
+      '<button id="app-install-x" aria-label="'+T('Cerrar','Close')+'" style="background:transparent;border:none;color:#1E3A8A;font-size:18px;cursor:pointer;padding:0 2px;">×</button>';
+    host.insertBefore(c, host.firstChild);
+    c.querySelector('#app-install-x').onclick=()=>{ try{ localStorage.setItem('trucklog_install_dismiss',Date.now()); }catch(e){} c.remove(); };
+    c.querySelector('#app-install-btn').onclick=async()=>{
+      if(deferred){ deferred.prompt(); try{ await deferred.userChoice; }catch(e){} deferred=null; c.remove(); return; }
+      alert(T('En iPhone:\n1. Toca el botón Compartir (el cuadro con la flecha hacia arriba) abajo en Safari.\n2. Elige "Agregar a pantalla de inicio".\n3. Toca "Agregar".','On iPhone:\n1. Tap the Share button (square with the up arrow) in Safari.\n2. Choose "Add to Home Screen".\n3. Tap "Add".'));
+    };
+  }
+  window.addEventListener('load',()=>setTimeout(showInstall,1500));
+  document.addEventListener('click',()=>setTimeout(showInstall,300),{passive:true});
+})();
 </script>
 </body>
 </html>

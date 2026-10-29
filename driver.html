@@ -11214,8 +11214,8 @@ function renderGastoExtras(){
   const box=document.getElementById('gasto-extra-photos'); if(!box) return;
   const en=window.TL_LANG==='en';
   box.style.display = gastoTipoActual==='diesel'?'block':'none';
-  { const tl=document.getElementById('gasto-ticket-lbl'); if(tl) tl.innerHTML=en?'📷 Ticket photo '+(gastoTipoActual==='diesel'?'<span style="color:#DC2626;">(required for diesel)</span>':'(optional)'):'📷 Foto del ticket '+(gastoTipoActual==='diesel'?'<span style="color:#DC2626;">(obligatoria en diésel)</span>':'(opcional)'); }
-  box.innerHTML='<div style="font-size:11px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin:4px 0 8px;">'+(en?'📸 Required photos':'📸 Fotos obligatorias')+'</div>'+
+  { const tl=document.getElementById('gasto-ticket-lbl'); if(tl) tl.innerHTML=en?'📷 Ticket photo '+(gastoTipoActual==='diesel'&&!(currentUser&&currentUser.role==='admin')?'<span style="color:#DC2626;">(required for diesel)</span>':'(optional)'):'📷 Foto del ticket '+(gastoTipoActual==='diesel'&&!(currentUser&&currentUser.role==='admin')?'<span style="color:#DC2626;">(obligatoria en diésel)</span>':'(opcional)'); }
+  box.innerHTML='<div style="font-size:11px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin:4px 0 8px;">'+((typeof currentUser!=='undefined'&&currentUser&&currentUser.role==='admin')?(en?'📸 Photos (optional for admin)':'📸 Fotos (opcionales para el administrador)'):(en?'📸 Required photos':'📸 Fotos obligatorias'))+'</div>'+
    FUEL_EXTRA.map(function(x){ const f=gastoExtraFiles[x.k], name=en?x.en:x.es;
      const btn='padding:7px 10px;border:1.5px solid var(--border3);border-radius:8px;cursor:pointer;font-size:14px;background:var(--bg2,#fff);';
      return '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;margin-bottom:6px;border:1.5px '+(f?'solid #16A34A':'dashed #DC2626')+';border-radius:10px;background:var(--bg3);">'+
@@ -11229,6 +11229,7 @@ function handleGastoExtra(k,input){ if(!input.files||!input.files[0]) return; co
 function removeGastoExtra(k){ delete gastoExtraFiles[k]; renderGastoExtras(); }
 function fuelPhotosMissing(){
   if(gastoTipoActual!=='diesel') return null;
+  if(typeof currentUser!=='undefined' && currentUser && currentUser.role==='admin') return null; // el administrador puede capturar sin fotos
   const en=window.TL_LANG==='en';
   const miss=(gastoImgFile?[]:[en?'Ticket':'Ticket']).concat(FUEL_EXTRA.filter(function(x){return !gastoExtraFiles[x.k];}).map(function(x){return en?x.en:x.es;}));
   return miss.length?(en?'Missing photos: ':'Faltan fotos: ')+miss.join(', ')+(en?'.\n\nEvery diesel load needs the ticket, dashboard (mileage) and pump photos.':'.\n\nEn cada carga de diésel hay que subir el ticket, el Dashboard con el millaje y la pantalla de la bomba.'):null;
@@ -11358,7 +11359,7 @@ async function uploadFuelReceiptInBackground(tripId, loadId, file, kind){
 
 // ===== POD FIRMADO + FOTO DE DESCARGA: obligatorios para finalizar y fáciles de mandar al broker =====
 function tripDocReady(t,k){ return !!(t && (t[k+'DriveLink'] || ['pending','uploading','done'].includes(t[k+'DriveStatus']))); }
-function tripFinishMissing(t){ const en=window.TL_LANG==='en'; const m=[]; if(!tripDocReady(t,'pod')) m.push(en?'Signed POD':'POD firmado'); if(!tripDocReady(t,'unloaded')) m.push(en?'Unloading photo':'Foto de la descarga'); return m; }
+function tripFinishMissing(t){ if(typeof currentUser!=='undefined' && currentUser && currentUser.role==='admin') return []; /* el administrador puede finalizar sin fotos */ const en=window.TL_LANG==='en'; const m=[]; if(!tripDocReady(t,'pod')) m.push(en?'Signed POD':'POD firmado'); if(!tripDocReady(t,'unloaded')) m.push(en?'Unloading photo':'Foto de la descarga'); return m; }
 async function shareTripDocs(tripId){
   const en=window.TL_LANG==='en';
   const t=loadTrips().find(x=>String(x.id)===String(tripId)); if(!t){ alert(en?'Trip not found.':'No se encontró el viaje.'); return; }

@@ -701,7 +701,7 @@
       <!-- Ganancias rápidas -->
       <div class="card" style="margin-bottom:12px;cursor:pointer;" onclick="sidebarNav('misganancias')">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-          <div class="card-title" style="margin:0;">💰 Ganancias de esta semana</div>
+          <div class="card-title" style="margin:0;">💰 Ganancias de esta semana <span id="dd-week-range" style="font-size:11px;font-weight:600;color:var(--text3);"></span></div>
           <span style="font-size:11px;color:var(--accent);font-weight:700;">Ver todo →</span>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
@@ -2287,48 +2287,79 @@
     </div>
   </div>
 
-  <!-- MIS GANANCIAS (driver) -->
+  <!-- MIS GANANCIAS (driver): tablero solo con SU pago y SU diésel + boletas de pago -->
   <div class="page" id="page-misganancias">
     <div class="card">
-      <div class="card-title">💰 Filtrar por fecha</div>
-      <div class="g2" style="margin-bottom:10px;">
+      <div class="mg-tabs" style="display:flex;gap:6px;margin-bottom:10px;">
+        <button class="btn-sm mg-tab" data-m="week" onclick="mgSetMode('week')">Semana</button>
+        <button class="btn-sm mg-tab" data-m="month" onclick="mgSetMode('month')">Mes</button>
+        <button class="btn-sm mg-tab" data-m="range" onclick="mgSetMode('range')">Fechas</button>
+        <button class="btn-sm mg-tab" data-m="all" onclick="mgSetMode('all')">Todo</button>
+      </div>
+      <div id="mg-nav" style="display:flex;align-items:center;gap:8px;">
+        <button class="btn-sm" onclick="mgStep(-1)" style="padding:8px 14px;font-size:16px;" aria-label="Anterior">◀</button>
+        <div style="flex:1;text-align:center;">
+          <div id="mg-period-title" style="font-size:15px;font-weight:800;color:var(--text);">Semana actual</div>
+          <div id="mg-period-sub" style="font-size:12px;color:var(--text3);"></div>
+        </div>
+        <button class="btn-sm" onclick="mgStep(1)" style="padding:8px 14px;font-size:16px;" aria-label="Siguiente">▶</button>
+      </div>
+      <div id="mg-range-box" class="g2" style="display:none;margin-top:4px;">
         <div class="field"><label>Desde</label><input type="date" id="mg-from" onchange="renderMisGanancias()"/></div>
         <div class="field"><label>Hasta</label><input type="date" id="mg-to" onchange="renderMisGanancias()"/></div>
       </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <button class="btn-sm" onclick="mgQuick('week')" style="background:var(--bg3);border:1px solid var(--border2);color:var(--text2);">Esta semana</button>
-        <button class="btn-sm" onclick="mgQuick('month')" style="background:var(--bg3);border:1px solid var(--border2);color:var(--text2);">Este mes</button>
-        <button class="btn-sm" onclick="mgQuick('last30')" style="background:var(--bg3);border:1px solid var(--border2);color:var(--text2);">Últimos 30 días</button>
-        <button class="btn-sm" onclick="mgQuick('all')" style="background:var(--bg3);border:1px solid var(--border2);color:var(--text2);">Todo</button>
-      </div>
+      <div id="mg-range" style="display:none;"></div>
+      <div style="margin-top:8px;font-size:11px;color:var(--text3);">Semana de trabajo: sábado a viernes. Cada viaje cuenta en la semana en que se entregó.</div>
     </div>
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
-      <div class="card" style="grid-column:span 2;text-align:center;background:var(--green-bg);border:1px solid #BBF7D0;">
-        <div style="font-size:11px;font-weight:700;color:var(--green2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Total ganado</div>
+      <div class="card" style="grid-column:span 2;text-align:center;background:var(--green-bg);border:1px solid #BBF7D0;margin:0;">
+        <div style="font-size:11px;font-weight:700;color:var(--green2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">💰 Mi pago</div>
         <div style="font-size:32px;font-weight:800;color:var(--green);" id="mg-total">$0.00</div>
+        <div id="mg-total-sub" style="font-size:12px;color:var(--green2);margin-top:2px;"></div>
       </div>
-      <div class="card" style="text-align:center;">
-        <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px;">Viajes</div>
-        <div style="font-size:22px;font-weight:800;color:var(--text);" id="mg-count">0</div>
-      </div>
-      <div class="card" style="text-align:center;">
-        <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px;">Millas</div>
-        <div style="font-size:22px;font-weight:800;color:var(--text);" id="mg-miles">0</div>
-      </div>
-      <div class="card" style="text-align:center;background:var(--green-bg);border:1px solid #BBF7D0;">
+      <div class="card" style="text-align:center;background:var(--green-bg);border:1px solid #BBF7D0;margin:0;">
         <div style="font-size:10px;font-weight:700;color:var(--green2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px;">✔ Pagado</div>
         <div style="font-size:18px;font-weight:800;color:var(--green);" id="mg-paid">$0.00</div>
       </div>
-      <div class="card" style="text-align:center;background:var(--orange-bg);border:1px solid #FDE68A;">
+      <div class="card" style="text-align:center;background:var(--orange-bg);border:1px solid #FDE68A;margin:0;">
         <div style="font-size:10px;font-weight:700;color:var(--orange);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px;">⏳ Pendiente</div>
         <div style="font-size:18px;font-weight:800;color:var(--orange);" id="mg-pending">$0.00</div>
       </div>
+      <div class="card" style="grid-column:span 2;background:#EFF6FF;border:1px solid #BFDBFE;margin:0;">
+        <div style="font-size:11px;font-weight:700;color:#1D4ED8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;text-align:center;">⛽ Mi diésel</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;text-align:center;">
+          <div><div style="font-size:18px;font-weight:800;color:#1D4ED8;" id="mg-fuel-cost">$0.00</div><div style="font-size:10px;color:var(--text3);">gastado</div></div>
+          <div><div style="font-size:18px;font-weight:800;color:#1D4ED8;" id="mg-fuel-gal">0</div><div style="font-size:10px;color:var(--text3);">galones</div></div>
+          <div><div style="font-size:18px;font-weight:800;color:#1D4ED8;" id="mg-fuel-ppg">—</div><div style="font-size:10px;color:var(--text3);">precio prom.</div></div>
+        </div>
+      </div>
+      <div class="card" style="text-align:center;margin:0;">
+        <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px;">🚚 Viajes</div>
+        <div style="font-size:22px;font-weight:800;color:var(--text);" id="mg-count">0</div>
+      </div>
+      <div class="card" style="text-align:center;margin:0;">
+        <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px;">🛣️ Millas</div>
+        <div style="font-size:22px;font-weight:800;color:var(--text);" id="mg-miles">0</div>
+      </div>
+    </div>
+
+    <button class="btn-save" onclick="mgDownloadCurrent()" style="width:100%;margin-bottom:12px;">📄 Descargar boleta de pago de este periodo</button>
+
+    <div class="card" id="mg-adj-card" style="display:none;">
+      <div class="card-title">💵 Anticipos, bonos y deducciones</div>
+      <div id="mg-adj-list"></div>
     </div>
 
     <div class="card">
       <div class="card-title">📋 Detalle por viaje</div>
       <div id="mg-list"><div class="empty">Sin viajes en este rango.</div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🧾 Mis boletas de pago</div>
+      <div style="font-size:12px;color:var(--text3);margin-bottom:8px;">Una boleta por semana (sábado a viernes). Toca <b>Descargar</b> para verla, guardarla en PDF o imprimirla.</div>
+      <div id="mg-stubs"></div>
     </div>
   </div>
 
@@ -6236,7 +6267,7 @@ function hwQuick(type,el){
   if(el)el.classList.add('active');
   const today=todayStr();const now=new Date();let from,to;
   if(type==='today'){from=today;to=today;}
-  else if(type==='week'){const day=now.getDay();const mon=new Date(now);mon.setDate(now.getDate()-(day===0?6:day-1));from=mon.toISOString().slice(0,10);to=today;}
+  else if(type==='week'){const r=wkRange(0);from=r.from;to=r.to;}
   else if(type==='month'){from=today.slice(0,7)+'-01';to=today;}
   else if(type==='last30'){from=addDays(today,-30);to=today;}
   document.getElementById('hw-from').value=from;
@@ -6637,11 +6668,11 @@ function renderHome(){
         }
 
         // Ganancias de la semana
-        const wkAnchorDate = new Date(); wkAnchorDate.setDate(wkAnchorDate.getDate()-wkAnchorDate.getDay());
-        const wkFromStr = wkAnchorDate.toISOString().slice(0,10);
-        const weekTrips = myTrips.filter(t=>t.date && t.date>=wkFromStr);
+        const wkR = wkRange(0); // semana de trabajo sáb – vie, por fecha de entrega
+        const weekTrips = myTrips.filter(t=>{ if(t.tripStatus==='scheduled') return false; const wd=tripWorkDate(t); return wd && wd>=wkR.from && wd<=wkR.to; });
         const weekTotal = weekTrips.filter(t=>t.profitSet).reduce((a,t)=>a+(t.driver||0),0);
         const weekPending = weekTrips.filter(t=>t.profitSet && (t.driverPayStatus||'paid')!=='paid').reduce((a,t)=>a+(t.driver||0),0);
+        if(el('dd-week-range'))   el('dd-week-range').textContent   = '· '+wkLabel(wkR);
         if(el('dd-week-total'))   el('dd-week-total').textContent   = '$'+weekTotal.toFixed(0);
         if(el('dd-week-trips'))   el('dd-week-trips').textContent   = weekTrips.length;
         if(el('dd-week-pending')) el('dd-week-pending').textContent = '$'+weekPending.toFixed(0);
@@ -12408,77 +12439,150 @@ function importarDatos(input){
   reader.readAsText(file);
 }
 
+// ===== SEMANA DE TRABAJO: sábado a viernes; el viaje cuenta en la semana en que se ENTREGÓ (igual que en la app del admin) =====
+function wkYmd(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function wkSat(d){ const r=new Date(d.getFullYear(),d.getMonth(),d.getDate()); r.setDate(r.getDate()-((r.getDay()+1)%7)); return r; }
+function wkRange(off){ const sat=wkSat(new Date()); sat.setDate(sat.getDate()+7*(off||0)); const fri=new Date(sat); fri.setDate(fri.getDate()+6); return {from:wkYmd(sat), to:wkYmd(fri), sat, fri}; }
+function tripWorkDate(t){ if(!t) return ''; if(t.deliveryDate) return t.deliveryDate; if(t.endTime){ const d=new Date(t.endTime); if(!isNaN(d)) return wkYmd(d); } return t.date||''; }
+function wkLabel(r){ const f=d=>(d.getMonth()+1)+'/'+d.getDate(); return (window.TL_LANG==='en'?'Sat ':'sáb ')+f(r.sat)+' – '+(window.TL_LANG==='en'?'Fri ':'vie ')+f(r.fri); }
 // ===== MIS GANANCIAS (driver) =====
-function mgQuick(period){
-  const now = new Date();
-  let from='', to=now.toISOString().slice(0,10);
-  if(period==='week'){
-    const d=new Date(now); d.setDate(d.getDate()-d.getDay());
-    from=d.toISOString().slice(0,10);
-  } else if(period==='month'){
-    from=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
-  } else if(period==='last30'){
-    const d=new Date(now); d.setDate(d.getDate()-30);
-    from=d.toISOString().slice(0,10);
-  } else if(period==='all'){
-    from=''; to='';
-  }
-  document.getElementById('mg-from').value=from;
-  document.getElementById('mg-to').value=to;
+// Tablero del driver: SOLO su pago y su diésel (nada del valor de la carga, broker ni ganancia de la empresa) + boletas de pago
+let mgMode='week', mgOff=0;
+function mgMoney(v){ v=Number(v)||0; return (v<0?'-$':'$')+Math.abs(v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function mgEsc(x){ return String(x==null?'':x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function mgMine(t){
+  if(!currentUser) return false;
+  const u=currentUser; return (t.driverUser && t.driverUser===u.username) || (!t.driverUser && t.driverName===u.name);
+}
+function mgFuel(t){ // solo diésel (no DEF ni "otro")
+  const L=(t.fuelLoads||[]).filter(l=>l && l.type!=='def' && (l.tipo==='diesel'||!l.tipo));
+  if(!L.length) return {cost:parseFloat(t.totalCost)||0, gal:parseFloat(t.totalGal)||0};
+  return {cost:L.reduce((a,l)=>a+(parseFloat(l.cost)||0),0), gal:L.reduce((a,l)=>a+(parseFloat(l.gal)||0),0)};
+}
+function mgMiles(t){ return Math.round(parseFloat(t.roadMiles||t.routeMiles||t.miles)||0); }
+// Anticipos / bonos / deducciones que el admin registra (Reportes → Pago a drivers)
+const MG_ADJ_KEY='trucklog_driver_adj';
+const MG_ADJ_TYPES={adelanto:{es:'Anticipo',en:'Cash Advance',sign:-1},diesel:{es:'Reembolso de combustible',en:'Fuel Reimbursement',sign:1},bono:{es:'Bono',en:'Bonus',sign:1},descuento:{es:'Deducción',en:'Deduction',sign:-1}};
+let _mgAdjLoaded=false;
+function mgAdjAll(){ try{ return JSON.parse(localStorage.getItem(MG_ADJ_KEY))||[]; }catch(e){ return []; } }
+function mgMyNames(){ const u=currentUser||{}; return [u.name, [u.firstName,u.lastName].filter(Boolean).join(' '), u.username].filter(Boolean).map(x=>String(x).trim().toLowerCase()); }
+function mgAdjFor(from,to){ const n=mgMyNames(); return mgAdjAll().filter(a=>n.includes(String(a.driverName||'').trim().toLowerCase()) && (!from||a.date>=from) && (!to||a.date<=to)).sort((x,y)=>(x.date||'').localeCompare(y.date||'')); }
+function mgAdjSigned(a){ return (MG_ADJ_TYPES[a.type]?MG_ADJ_TYPES[a.type].sign:1)*(parseFloat(a.amount)||0); }
+async function mgLoadAdj(){
+  if(_mgAdjLoaded || !fbReady || !db) return; _mgAdjLoaded=true;
+  try{ const sn=await db.collection('data').doc('driverAdjustments').get(); if(sn.exists && sn.data().adjustments){ localStorage.setItem(MG_ADJ_KEY, JSON.stringify(sn.data().adjustments)); renderMisGanancias(); } }catch(e){}
+}
+function mgPeriod(){
+  if(mgMode==='week'){ const r=wkRange(mgOff); return {from:r.from,to:r.to,title:mgOff===0?'Semana actual':mgOff===-1?'Semana pasada':mgOff===1?'Semana siguiente':(mgOff<0?'Hace '+(-mgOff)+' semanas':'En '+mgOff+' semanas'), sub:wkLabel(r)}; }
+  if(mgMode==='month'){ const n=new Date(); const d=new Date(n.getFullYear(), n.getMonth()+mgOff, 1); const e=new Date(d.getFullYear(), d.getMonth()+1, 0);
+    const M=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+    return {from:wkYmd(d), to:wkYmd(e), title:M[d.getMonth()].charAt(0).toUpperCase()+M[d.getMonth()].slice(1)+' '+d.getFullYear(), sub:'Por fecha de entrega'}; }
+  if(mgMode==='range'){ const f=document.getElementById('mg-from').value, t=document.getElementById('mg-to').value; return {from:f,to:t,title:'Rango de fechas',sub:(f?fmtDate(f):'—')+' al '+(t?fmtDate(t):'—')}; }
+  return {from:'',to:'',title:'Todos mis viajes',sub:''};
+}
+function mgSetMode(m){ mgMode=m; mgOff=0; renderMisGanancias(); }
+function mgStep(d){ if(mgMode==='week'||mgMode==='month'){ mgOff+=d; renderMisGanancias(); } }
+function mgQuick(period){ // compatibilidad con botones viejos
+  if(period==='week'){ mgMode='week'; mgOff=0; } else if(period==='prevweek'){ mgMode='week'; mgOff=-1; } else if(period==='month'){ mgMode='month'; mgOff=0; } else { mgMode='all'; }
   renderMisGanancias();
 }
-
+function mgData(from,to){
+  const mine=loadTrips().filter(t=>mgMine(t) && t.tripStatus!=='scheduled').filter(t=>{ const wd=tripWorkDate(t); if(from && wd<from) return false; if(to && wd>to) return false; return true; })
+    .sort((a,b)=>tripWorkDate(a).localeCompare(tripWorkDate(b)));
+  const pay=mine.filter(t=>t.profitSet).reduce((a,t)=>a+(parseFloat(t.driver)||0),0);
+  const paid=mine.filter(t=>t.profitSet && (t.driverPayStatus||'paid')==='paid').reduce((a,t)=>a+(parseFloat(t.driver)||0),0);
+  const fuel=mine.reduce((a,t)=>{ const f=mgFuel(t); a.cost+=f.cost; a.gal+=f.gal; return a; },{cost:0,gal:0});
+  const adj=mgAdjFor(from,to), adjTotal=adj.reduce((a,x)=>a+mgAdjSigned(x),0);
+  return {mine, pay, paid, pending:pay-paid, fuel, miles:mine.reduce((a,t)=>a+mgMiles(t),0), adj, adjTotal, net:pay+adjTotal, waiting:mine.filter(t=>!t.profitSet).length};
+}
 function renderMisGanancias(){
-  const trips = loadTrips();
-  const username = currentUser ? currentUser.username : null;
-  const name = currentUser ? currentUser.name : null;
-  const fromF = document.getElementById('mg-from').value;
-  const toF   = document.getElementById('mg-to').value;
-
-  const mine = trips.filter(function(t){
-    if(!((t.driverUser===username) || (!t.driverUser && t.driverName===name))) return false;
-    if(t.tripStatus==='scheduled') return false; // un viaje programado todavía no se ha hecho
-    if(fromF && t.date < fromF) return false;
-    if(toF   && t.date > toF)   return false;
-    return true;
-  }).sort(function(a,b){ return (b.date||'').localeCompare(a.date||''); });
-
-  const total   = mine.filter(t=>t.profitSet).reduce((a,t)=>a+(t.driver||0),0);
-  const miles   = mine.reduce((a,t)=>a+(t.miles||0),0);
-  const paid    = mine.filter(t=>t.profitSet && (t.driverPayStatus||'paid')==='paid').reduce((a,t)=>a+(t.driver||0),0);
-  const pending = mine.filter(t=>t.profitSet && (t.driverPayStatus||'paid')!=='paid').reduce((a,t)=>a+(t.driver||0),0);
-
-  document.getElementById('mg-total').textContent   = '$'+total.toFixed(2);
-  document.getElementById('mg-count').textContent   = mine.length;
-  document.getElementById('mg-miles').textContent   = fmtNum(Math.round(miles));
-  document.getElementById('mg-paid').textContent    = '$'+paid.toFixed(2);
-  document.getElementById('mg-pending').textContent = '$'+pending.toFixed(2);
-
-  const list = document.getElementById('mg-list');
-  if(!mine.length){
-    list.innerHTML = '<div class="empty">Sin viajes en este rango.</div>';
-    return;
-  }
-  list.innerHTML = mine.map(function(t){
-    const paidBadge = !t.profitSet
-      ? '<span style="background:var(--bg3);color:var(--text3);border:1px solid var(--border2);font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;">'+(t.tripStatus==='active'?(window.TL_LANG==='en'?'In progress':'En curso'):(window.TL_LANG==='en'?'Pay not set yet':'Pago por calcular'))+'</span>'
-      : (t.driverPayStatus||'paid')==='paid'
-      ? '<span style="background:#F0FDF4;color:#16A34A;border:1px solid #BBF7D0;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;">✔ Pagado</span>'
-      : '<span style="background:#FFFBEB;color:#D97706;border:1px solid #FDE68A;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;">⏳ Pendiente</span>';
-    return '<div style="background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:8px;">'+
-      '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">'+
-        '<div>'+
-          '<div style="font-size:11px;color:var(--text3);margin-bottom:2px;">'+fmtDate(t.date)+'</div>'+
-          '<div style="font-size:14px;font-weight:800;color:var(--text);">'+(t.city1||'—')+' <span style="color:var(--accent);">→</span> '+(t.city2||'—')+'</div>'+
-        '</div>'+
-        paidBadge+
-      '</div>'+
-      '<div style="display:flex;justify-content:space-between;align-items:center;">'+
-        '<span style="font-size:11px;color:var(--text3);">'+fmtNum(t.miles||0)+' mi</span>'+
-        '<span style="font-size:18px;font-weight:800;color:var(--green);">'+(t.profitSet?'$'+(t.driver||0).toFixed(2):'—')+'</span>'+
-      '</div>'+
-    '</div>';
+  mgLoadAdj();
+  document.querySelectorAll('#page-misganancias .mg-tab').forEach(b=>{ const on=b.dataset.m===mgMode; b.style.background=on?'var(--accent)':'var(--bg3)'; b.style.color=on?'#fff':'var(--text2)'; b.style.border='1px solid '+(on?'var(--accent)':'var(--border2)'); b.style.flex='1'; });
+  const P=mgPeriod();
+  document.getElementById('mg-nav').style.display=(mgMode==='week'||mgMode==='month')?'flex':'none';
+  document.getElementById('mg-range-box').style.display=mgMode==='range'?'grid':'none';
+  document.getElementById('mg-period-title').textContent=P.title; document.getElementById('mg-period-sub').textContent=P.sub;
+  const D=mgData(P.from,P.to);
+  document.getElementById('mg-total').textContent=mgMoney(D.net);
+  document.getElementById('mg-total-sub').textContent=(D.adj.length?'Viajes '+mgMoney(D.pay)+' · ajustes '+mgMoney(D.adjTotal):'')+(D.waiting?(D.adj.length?' · ':'')+D.waiting+' viaje'+(D.waiting>1?'s':'')+' sin pago calculado todavía':'');
+  document.getElementById('mg-paid').textContent=mgMoney(D.paid);
+  document.getElementById('mg-pending').textContent=mgMoney(D.pending);
+  document.getElementById('mg-fuel-cost').textContent=mgMoney(D.fuel.cost);
+  document.getElementById('mg-fuel-gal').textContent=D.fuel.gal?D.fuel.gal.toLocaleString('en-US',{maximumFractionDigits:1}):'0';
+  document.getElementById('mg-fuel-ppg').textContent=D.fuel.gal?'$'+(D.fuel.cost/D.fuel.gal).toFixed(3):'—';
+  document.getElementById('mg-count').textContent=D.mine.length;
+  document.getElementById('mg-miles').textContent=fmtNum(D.miles);
+  // ajustes
+  const ac=document.getElementById('mg-adj-card');
+  if(D.adj.length){ ac.style.display='block'; document.getElementById('mg-adj-list').innerHTML=D.adj.map(a=>{ const v=mgAdjSigned(a); return '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;"><span>'+mgEsc((MG_ADJ_TYPES[a.type]||{}).es||a.type)+' <span style="color:var(--text3);font-size:11px;">'+fmtDate(a.date)+(a.note?' · '+mgEsc(a.note):'')+'</span></span><b style="color:'+(v<0?'var(--red)':'var(--green)')+';">'+mgMoney(v)+'</b></div>'; }).join(''); }
+  else ac.style.display='none';
+  // viajes
+  const list=document.getElementById('mg-list');
+  list.innerHTML=!D.mine.length?'<div class="empty">Sin viajes en este periodo.</div>':D.mine.slice().reverse().map(t=>{
+    const f=mgFuel(t);
+    const badge=!t.profitSet?'<span style="background:var(--bg3);color:var(--text3);border:1px solid var(--border2);font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;">'+(t.tripStatus==='active'?'En curso':'Pago por calcular')+'</span>'
+      :(t.driverPayStatus||'paid')==='paid'?'<span style="background:#F0FDF4;color:#16A34A;border:1px solid #BBF7D0;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;">✔ Pagado</span>'
+      :'<span style="background:#FFFBEB;color:#D97706;border:1px solid #FDE68A;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;">⏳ Pendiente</span>';
+    return '<div style="background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:8px;">'+
+      '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px;"><div>'+
+        '<div style="font-size:11px;color:var(--text3);">Entregado '+fmtDate(tripWorkDate(t))+(t.rc?' · RC #'+mgEsc(t.rc):'')+'</div>'+
+        '<div style="font-size:14px;font-weight:800;color:var(--text);">'+mgEsc(t.city1||t.z1||'—')+' <span style="color:var(--accent);">→</span> '+mgEsc(t.city2||t.z2||'—')+'</div></div>'+badge+'</div>'+
+      '<div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--text3);">'+
+        '<span>'+fmtNum(mgMiles(t))+' mi · ⛽ '+(f.cost?mgMoney(f.cost)+' ('+f.gal.toFixed(1)+' gal)':'sin diésel')+'</span>'+
+        '<span style="font-size:17px;font-weight:800;color:var(--green);">'+(t.profitSet?mgMoney(t.driver):'—')+'</span></div></div>';
   }).join('');
+  mgRenderStubs();
+}
+// Lista de boletas: últimas 12 semanas que tienen viajes o ajustes
+function mgRenderStubs(){
+  const box=document.getElementById('mg-stubs'); if(!box) return;
+  const rows=[];
+  for(let off=0; off>-12; off--){
+    const r=wkRange(off), D=mgData(r.from,r.to);
+    if(!D.mine.length && !D.adj.length) continue;
+    rows.push('<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);">'+
+      '<div style="flex:1;"><div style="font-size:13px;font-weight:800;color:var(--text);">'+wkLabel(r)+(off===0?' <span style="font-size:10px;color:var(--accent);">(en curso)</span>':'')+'</div>'+
+      '<div style="font-size:11px;color:var(--text3);">'+D.mine.length+' viaje'+(D.mine.length!==1?'s':'')+' · ⛽ '+mgMoney(D.fuel.cost)+(D.pending>0?' · <span style="color:var(--orange);font-weight:700;">pendiente '+mgMoney(D.pending)+'</span>':'')+'</div></div>'+
+      '<div style="font-size:15px;font-weight:800;color:var(--green);">'+mgMoney(D.net)+'</div>'+
+      '<button class="btn-sm" onclick="mgDownloadStub(\''+r.from+'\',\''+r.to+'\')" style="white-space:nowrap;">📄 Descargar</button></div>');
+  }
+  box.innerHTML=rows.length?rows.join(''):'<div class="empty">Todavía no tienes boletas.</div>';
+}
+function mgDownloadCurrent(){ const P=mgPeriod(); mgDownloadStub(P.from,P.to,P.title); }
+// Boleta de pago (Driver Settlement): solo pago del driver, diésel y ajustes
+function mgDownloadStub(from,to,title){
+  const D=mgData(from,to), co=(typeof loadCompany==='function'&&loadCompany())||{}, u=currentUser||{};
+  const name=[u.firstName,u.lastName].filter(Boolean).join(' ')||u.name||u.username||'';
+  const per=(from||to)?((from?fmtDate(from):'—')+' – '+(to?fmtDate(to):'—')):'All records / Todos los registros';
+  const rows=D.mine.map((t,i)=>{ const f=mgFuel(t); return '<tr'+(i%2?' class="alt"':'')+'><td class="hm">'+(i+1)+'</td><td>'+fmtDate(tripWorkDate(t))+'</td><td class="hm">'+mgEsc(t.rc||'—')+'</td><td>'+mgEsc((t.city1||t.z1||'—')+(t.state1?', '+t.state1:''))+' → '+mgEsc((t.city2||t.z2||'—')+(t.state2?', '+t.state2:''))+'</td><td class="r hm">'+fmtNum(mgMiles(t))+'</td><td class="r">'+(f.cost?mgMoney(f.cost)+'<small> '+f.gal.toFixed(1)+' gal</small>':'—')+'</td><td class="r b">'+(t.profitSet?mgMoney(t.driver):'Pending')+'</td><td class="r '+((t.driverPayStatus||'paid')==='paid'?'ok':'pe')+'">'+(!t.profitSet?'—':(t.driverPayStatus||'paid')==='paid'?'Paid':'Pending')+'</td></tr>'; }).join('');
+  const adjRows=D.adj.map(a=>{ const v=mgAdjSigned(a); return '<tr><td>'+fmtDate(a.date)+'</td><td>'+mgEsc((MG_ADJ_TYPES[a.type]||{}).en||a.type)+' / '+mgEsc((MG_ADJ_TYPES[a.type]||{}).es||'')+(a.note?' — '+mgEsc(a.note):'')+'</td><td class="r b" style="color:'+(v<0?'#B91C1C':'#15803D')+'">'+mgMoney(v)+'</td></tr>'; }).join('');
+  const html='<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Pay Stub — '+mgEsc(name)+' — '+mgEsc(per)+'</title><style>'+
+    'body{font-family:Arial,Helvetica,sans-serif;color:#0F172A;margin:0;padding:24px;font-size:13px;-webkit-print-color-adjust:exact;print-color-adjust:exact;}'+
+    '.hd{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;border-bottom:3px solid #0E1B3D;padding-bottom:12px;margin-bottom:14px;}'+
+    '.co{display:flex;gap:12px;align-items:center;}.co img{width:58px;height:58px;object-fit:contain;border:1px solid #ddd;border-radius:8px;}'+
+    '.co b{font-size:19px;display:block;}.co small{color:#555;display:block;font-size:11px;}.tt{text-align:right;}.tt h1{margin:0;font-size:18px;color:#0E1B3D;}.tt div{font-size:12px;color:#444;margin-top:3px;}'+
+    '.box{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0;}.k{border:1px solid #E2E8F0;border-radius:8px;padding:10px;text-align:center;}.k span{display:block;font-size:10px;color:#64748B;text-transform:uppercase;font-weight:700;}.k b{font-size:17px;}'+
+    '.net{background:#F0FDF4;border-color:#BBF7D0;}.net b{color:#15803D;font-size:20px;}'+
+    'table{width:100%;border-collapse:collapse;margin-top:6px;}th{background:#0E1B3D;color:#fff;font-size:11px;text-align:left;padding:7px 8px;}td{padding:7px 8px;border-bottom:1px solid #E2E8F0;font-size:12px;}tr.alt td{background:#F8FAFC;}'+
+    '.r{text-align:right;}.b{font-weight:700;}.ok{color:#15803D;font-weight:700;}.pe{color:#B45309;font-weight:700;}small{color:#64748B;}h3{font-size:13px;margin:18px 0 4px;color:#0E1B3D;}'+
+    '.tot td{font-weight:800;background:#F1F5F9;}.ft{margin-top:22px;font-size:11px;color:#64748B;border-top:1px solid #E2E8F0;padding-top:8px;}'+
+    '.bar{background:#fff;padding:0 0 12px;text-align:right;}.bar button{background:#2563EB;color:#fff;border:none;border-radius:8px;padding:10px 16px;font-size:14px;font-weight:700;}'+
+    '@media print{.bar{display:none;}body{padding:10px;}}@media(max-width:600px){body{padding:12px;}.box{grid-template-columns:1fr 1fr;}.hd{flex-direction:column;}.tt{text-align:left;}th,td{padding:6px 4px;font-size:10.5px;}.hm{display:none;}}'+
+    '</style></head><body><div class="bar"><button onclick="window.print()">🖨️ Guardar PDF / Imprimir</button></div>'+
+    '<div class="hd"><div class="co">'+(co.logo?'<img src="'+co.logo+'"/>':'')+'<div><b>'+mgEsc(co.name||'YENAVI FREIGHT LLC')+'</b>'+(co.address?'<small>'+mgEsc(co.address)+'</small>':'')+(co.phone?'<small>'+mgEsc(co.phone)+'</small>':'')+((co.mc||co.dot)?'<small>'+(co.mc?'MC: '+mgEsc(co.mc):'')+(co.mc&&co.dot?' | ':'')+(co.dot?'DOT: '+mgEsc(co.dot):'')+'</small>':'')+'</div></div>'+
+    '<div class="tt"><h1>DRIVER PAY STUB<br/><span style="font-size:13px;">Boleta de pago</span></h1><div><b>'+mgEsc(name)+'</b></div><div>Period / Periodo: '+mgEsc(per)+'</div><div>Work week Sat–Fri · by delivery date</div><div>Issued / Emitida: '+fmtDate(wkYmd(new Date()))+'</div></div></div>'+
+    '<div class="box"><div class="k"><span>Trips / Viajes</span><b>'+D.mine.length+'</b></div><div class="k"><span>Miles / Millas</span><b>'+fmtNum(D.miles)+'</b></div><div class="k"><span>Diesel / Diésel</span><b>'+mgMoney(D.fuel.cost)+'</b><small>'+D.fuel.gal.toFixed(1)+' gal</small></div><div class="k net"><span>Net pay / Pago neto</span><b>'+mgMoney(D.net)+'</b></div></div>'+
+    '<h3>Trips / Viajes</h3><table><tr><th class="hm">#</th><th>Delivered</th><th class="hm">RC #</th><th>Route / Ruta</th><th class="r hm">Miles</th><th class="r">Diesel</th><th class="r">Pay / Pago</th><th class="r">Status</th></tr>'+(rows||'<tr><td colspan="8" style="text-align:center;color:#64748B;">No trips / Sin viajes</td></tr>')+
+    '<tr class="tot"><td colspan="2">Total</td><td class="hm" colspan="3"></td><td class="r">'+mgMoney(D.fuel.cost)+'</td><td class="r">'+mgMoney(D.pay)+'</td><td></td></tr></table>'+
+    (D.adj.length?'<h3>Adjustments / Anticipos, bonos y deducciones</h3><table><tr><th>Date</th><th>Concept / Concepto</th><th class="r">Amount</th></tr>'+adjRows+'<tr class="tot"><td colspan="2">Total adjustments</td><td class="r">'+mgMoney(D.adjTotal)+'</td></tr></table>':'')+
+    '<h3>Summary / Resumen</h3><table><tr><td>Gross trip pay / Pago por viajes</td><td class="r b">'+mgMoney(D.pay)+'</td></tr>'+(D.adj.length?'<tr><td>Adjustments / Ajustes</td><td class="r b">'+mgMoney(D.adjTotal)+'</td></tr>':'')+'<tr class="tot"><td>NET PAY / PAGO NETO</td><td class="r" style="color:#15803D;">'+mgMoney(D.net)+'</td></tr><tr><td>Paid / Pagado</td><td class="r ok">'+mgMoney(D.paid)+'</td></tr><tr><td>Pending / Pendiente</td><td class="r pe">'+mgMoney(D.pending)+'</td></tr></table>'+
+    (D.waiting?'<p style="color:#B45309;font-size:12px;">'+D.waiting+' trip(s) without pay calculated yet / viaje(s) sin pago calculado todavía.</p>':'')+
+    '<div class="ft">Diesel is shown for your records; it is not deducted from your pay unless listed as a deduction. · El diésel se muestra como referencia; no se descuenta de tu pago a menos que aparezca como deducción.</div></body></html>';
+  const fileName='Boleta_'+(name||'driver').replace(/\s+/g,'_')+'_'+(from||'todo')+(to?'_'+to:'')+'.html';
+  let w=null; try{ w=window.open('','_blank'); }catch(e){}
+  if(w && w.document){ w.document.open(); w.document.write(html); w.document.close(); return; }
+  // Si el celular bloquea ventanas nuevas: se descarga el archivo
+  try{ const blob=new Blob([html],{type:'text/html'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=fileName; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },4000); }catch(e){ alert('No se pudo abrir la boleta.'); }
 }
 
 // ===== REPORTE DRIVER =====

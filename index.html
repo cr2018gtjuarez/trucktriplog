@@ -5849,7 +5849,12 @@ let _etaLast=null;
 function renderEtaBox(){
   const box=document.getElementById('home-eta'); if(!box) return;
   if(box.dataset.ready==='1'){ box.style.display='block'; return; }
-  box.innerHTML=`<div style="background:var(--card,#fff);border:1px solid var(--border);border-radius:16px;padding:14px;">
+  box.innerHTML=`<div style="background:var(--card,#fff);border:1px solid var(--border);border-radius:16px;padding:14px;margin-bottom:12px;">
+    <div style="font-size:15px;font-weight:800;margin-bottom:2px;">📍 ${TR('¿Dónde está el driver?','Where is the driver?')}</div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:10px;">${TR('Elige el driver: ubicación, hora del lugar, ETA al delivery y ETA a la siguiente carga.','Pick a driver: location, local time, ETA to delivery and ETA to the next load.')}</div>
+    <select id="dl-driver" onfocus="dlFillSel()" onchange="dlRun()" style="width:100%;font-size:16px;padding:10px 12px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg3);color:var(--text);"></select>
+    <div id="dl-res" style="margin-top:10px;"></div></div>
+  <div style="background:var(--card,#fff);border:1px solid var(--border);border-radius:16px;padding:14px;">
     <div style="font-size:15px;font-weight:800;margin-bottom:2px;">🕐 ${TR('ETA al pick up','ETA to pick up')}</div>
     <div style="font-size:12px;color:var(--text3);margin-bottom:10px;">${TR('Escribe el ZIP de la carga y ve cuánto tarda cada camión.','Type the load ZIP and see how long each truck takes.')}</div>
     <div style="display:flex;gap:8px;">
@@ -5862,7 +5867,7 @@ function renderEtaBox(){
         <input id="eta-lmi" type="number" min="0" step="10" placeholder="${TR('Millas de la carga','Load miles')}" style="flex:1;min-width:0;font-size:15px;padding:9px 10px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg3);color:var(--text);" oninput="etaPaint()"/>
       </div></details>
     <div id="eta-res" style="margin-top:10px;"></div></div>`;
-  box.dataset.ready='1'; box.style.display='block';
+  box.dataset.ready='1'; box.style.display='block'; try{ dlFillSel(); }catch(e){}
 }
 // Simula el manejo con las reglas de horas: 30 min de descanso cada 8 h manejando y 10 h de descanso al terminar las horas disponibles
 function etaDriveHours(h,avail){ let t=0,rem=h,a=avail,since=0; while(rem>0.001){ if(a<=0){ t+=10; a=11; since=0; continue; } const c=Math.min(rem,a,8-since); if(c<=0){ t+=0.5; since=0; continue; } t+=c; rem-=c; a-=c; since+=c; } return t; }
@@ -5940,6 +5945,130 @@ function etaPaint(){
         <button type="button" data-msg="${msg.replace(/"/g,'&quot;')}" onclick="etaCopy(this)" style="font-size:12px;font-weight:700;padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg3);color:var(--text);cursor:pointer;">📋 ${TR('Copiar mensaje para el broker','Copy message for broker')}</button>
         <label style="font-size:11px;color:var(--text3);display:flex;align-items:center;gap:4px;">${TR('Horas que le quedan','Hours left')} <input type="number" min="0" max="11" step="0.5" value="${r.avail}" onchange="etaSetAvail(${i},this.value)" style="width:52px;padding:4px 6px;border:1px solid var(--border);border-radius:6px;background:var(--bg3);color:var(--text);font-size:13px;"/></label>
       </div></div>`; }).join('')+`<div style="font-size:11px;color:var(--text3);">${TR('Promedio '+ETA_MPH+' mph por carretera, con 30 min de descanso cada 8 h y 10 h al terminar sus horas.','Average '+ETA_MPH+' mph by road, with a 30-min break every 8 h and 10 h off when hours run out.')}</div>`;
+}
+// ===== ¿DÓNDE ESTÁ EL DRIVER?: ubicación (ZIP, ciudad, estado), hora local, ETA al delivery y ETA a la siguiente carga =====
+const DL_TZ={CT:'America/New_York',DE:'America/New_York',DC:'America/New_York',GA:'America/New_York',ME:'America/New_York',MD:'America/New_York',MA:'America/New_York',NH:'America/New_York',NJ:'America/New_York',NY:'America/New_York',NC:'America/New_York',OH:'America/New_York',PA:'America/New_York',RI:'America/New_York',SC:'America/New_York',VT:'America/New_York',VA:'America/New_York',WV:'America/New_York',MI:'America/New_York',
+  AL:'America/Chicago',AR:'America/Chicago',IL:'America/Chicago',IA:'America/Chicago',LA:'America/Chicago',MN:'America/Chicago',MS:'America/Chicago',MO:'America/Chicago',OK:'America/Chicago',WI:'America/Chicago',
+  CO:'America/Denver',MT:'America/Denver',NM:'America/Denver',UT:'America/Denver',WY:'America/Denver',AZ:'America/Phoenix',CA:'America/Los_Angeles',NV:'America/Los_Angeles',WA:'America/Los_Angeles',AK:'America/Anchorage',HI:'Pacific/Honolulu'};
+// Zona horaria por estado; en los estados partidos se usa la longitud (aproximado)
+function dlTz(st,lat,lon){ st=String(st||'').toUpperCase();
+  if(st==='TX') return lon<-104.9?'America/Denver':'America/Chicago';
+  if(st==='FL') return lon<-85.0?'America/Chicago':'America/New_York';
+  if(st==='TN') return lon>-85.1?'America/New_York':'America/Chicago';
+  if(st==='KY') return lon<-86.0?'America/Chicago':'America/New_York';
+  if(st==='IN') return lon<-86.9?'America/Chicago':'America/New_York';
+  if(st==='ND') return lon<-101.0?'America/Denver':'America/Chicago';
+  if(st==='SD') return lon<-100.6?'America/Denver':'America/Chicago';
+  if(st==='NE') return lon<-101.2?'America/Denver':'America/Chicago';
+  if(st==='KS') return lon<-101.4?'America/Denver':'America/Chicago';
+  if(st==='OR') return (lat<44.5&&lon>-117.3)?'America/Denver':'America/Los_Angeles';
+  if(st==='ID') return lat>45.6?'America/Los_Angeles':'America/Denver';
+  return DL_TZ[st]||'America/Chicago'; }
+function dlLocal(ms,tz){ try{ return new Date(ms).toLocaleString('en-US',{timeZone:tz,weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit',timeZoneName:'short'}); }catch(e){ return new Date(ms).toLocaleString('en-US'); } }
+const _dlGeo={};
+async function dlRevGeo(lat,lon){
+  const k=lat.toFixed(3)+','+lon.toFixed(3); if(_dlGeo[k]) return _dlGeo[k];
+  try{ const r=await fetch('https://nominatim.openstreetmap.org/reverse?format=json&zoom=16&addressdetails=1&lat='+lat+'&lon='+lon); if(!r.ok) return null; const j=await r.json(); const a=j.address||{};
+    const o={city:a.city||a.town||a.village||a.hamlet||a.county||'', st:((a['ISO3166-2-lvl4']||'').split('-')[1]||''), zip:String(a.postcode||'').slice(0,5)}; _dlGeo[k]=o; return o; }catch(e){ return null; }
+}
+function dlDrivers(){ return getUsers().filter(u=>u.role!=='admin').map(u=>({u,label:(u.firstName&&u.lastName?u.firstName+' '+u.lastName:(u.name||u.username))})).sort((a,b)=>a.label.localeCompare(b.label)); }
+function dlFillSel(){
+  const sel=document.getElementById('dl-driver'); if(!sel) return; const keep=sel.value; const trucks=loadTrucks()||[];
+  sel.innerHTML='<option value="">'+TR('— Elige un driver —','— Pick a driver —')+'</option>'+dlDrivers().map(x=>{ const tk=trucks.find(t=>String(t.id)===String(x.u.truckId)); return '<option value="'+String(x.u.username).replace(/"/g,'&quot;')+'">'+x.label.replace(/</g,'&lt;')+(tk?' · '+tk.name:'')+'</option>'; }).join('');
+  sel.value=keep;
+}
+let _dlLast=null;
+async function dlRun(){
+  const sel=document.getElementById('dl-driver'), res=document.getElementById('dl-res'); if(!sel||!res) return;
+  const uname=sel.value; if(!uname){ res.innerHTML=''; return; }
+  const u=getUsers().find(x=>x.username===uname); if(!u) return;
+  res.innerHTML='<div style="font-size:13px;color:var(--text3);">⏳ '+TR('Buscando…','Looking up…')+'</div>';
+  const label=(u.firstName&&u.lastName?u.firstName+' '+u.lastName:(u.name||u.username));
+  const trips=loadTrips().filter(t=>(t.driverUser&&t.driverUser===u.username)||(!t.driverUser&&t.driverName&&(t.driverName===u.name||t.driverName===label)));
+  const byTime=(a,b)=>String(a.date||'').localeCompare(String(b.date||''));
+  const active=trips.filter(t=>t.tripStatus==='active').sort(byTime).pop()||null;
+  const nextLoad=trips.filter(t=>t.tripStatus==='scheduled').sort(byTime)[0]||null;
+  const truckId=u.truckId||(active&&tripTruckId(active))||null;
+  const live=await etaLiveLocations(), now=Date.now();
+  const recs=[live[u.username]&&Object.assign({src:'phone'},live[u.username]), truckId&&live['truck_'+truckId]&&Object.assign({src:'eld'},live['truck_'+truckId])].filter(x=>x&&x.lat!=null&&x.lon!=null)
+    .map(x=>Object.assign({},x,{tm:typeof x.time==='number'?x.time:Date.parse(x.time)})).filter(x=>!isNaN(x.tm)).sort((a,b)=>b.tm-a.tm);
+  const loc=recs[0]||null;
+  let here=null;
+  if(loc){ const g=await dlRevGeo(+loc.lat,+loc.lon); here={lat:+loc.lat,lon:+loc.lon,city:(g&&g.city)||'',st:(g&&g.st)||'',zip:(g&&g.zip)||'',place:loc.place||'',ago:Math.round((now-loc.tm)/60000),src:loc.src,moving:loc.movingStatus,speed:loc.speedMph}; }
+  else { const last=trips.filter(t=>t.tripStatus==='completed').sort((a,b)=>String(tripDeliveryDate(a)).localeCompare(String(tripDeliveryDate(b)))).pop();
+    if(last){ const z=ZC[last.z2]||await fetchZip(last.z2); if(z) here={lat:z.lat,lon:z.lon,city:last.city2||z.city,st:last.state2||z.abbr,zip:last.z2,ago:null,src:'last',deliv:tripDeliveryDate(last)}; } }
+  let del=null;
+  if(active){ try{ del=await deliveryEta(active); }catch(e){} }
+  _dlLast={u,label,active,nextLoad,here,del};
+  const zipIn=nextLoad&&nextLoad.z1?nextLoad.z1:'';
+  dlPaint(zipIn);
+}
+async function dlPaint(zipIn){
+  const res=document.getElementById('dl-res'); if(!res||!_dlLast) return;
+  const {label,active,nextLoad,here,del}=_dlLast, now=Date.now();
+  const esc=x=>String(x==null?'':x).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  let h='', msg=[];
+  // Ubicación + hora local
+  if(here){
+    const tz=dlTz(here.st,here.lat,here.lon);
+    const where=[here.city,here.st].filter(Boolean).join(', ')+(here.zip?' '+here.zip:'');
+    const srcTxt=here.src==='eld'?'📡 ELD':here.src==='phone'?'📱 '+TR('Celular','Phone'):'📍 '+TR('Última entrega','Last delivery')+(here.deliv?' '+fmtDate(here.deliv):'');
+    const mov=here.moving==='driving'?'🟢 '+TR('Manejando','Driving')+(here.speed!=null?' · '+here.speed+' mph':''):here.moving==='stopped'?'🟠 '+TR('Detenido','Stopped'):'';
+    h+=`<div style="border:1px solid var(--border);border-radius:12px;padding:11px 12px;margin-bottom:8px;">
+      <div style="font-size:11px;font-weight:800;color:var(--text3);text-transform:uppercase;">${TR('Ubicación actual','Current location')}</div>
+      <div style="font-size:18px;font-weight:800;margin-top:2px;">${esc(where||here.place||TR('Sin nombre','Unknown'))}</div>
+      ${here.place&&here.src==='eld'&&!(here.city&&String(here.place).toLowerCase().startsWith(String(here.city).toLowerCase()))?`<div style="font-size:12px;color:var(--text3);">${esc(here.place)}</div>`:''}
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:8px;font-size:12px;">
+        <div><div style="color:var(--text3);font-size:10px;font-weight:700;">ZIP</div><b>${esc(here.zip||'—')}</b></div>
+        <div><div style="color:var(--text3);font-size:10px;font-weight:700;">${TR('CIUDAD','CITY')}</div><b>${esc(here.city||'—')}</b></div>
+        <div><div style="color:var(--text3);font-size:10px;font-weight:700;">${TR('ESTADO','STATE')}</div><b>${esc(here.st||'—')}</b></div></div>
+      <div style="margin-top:8px;font-size:13px;">🕐 ${TR('Hora del lugar','Local time')}: <b>${dlLocal(now,tz)}</b></div>
+      <div style="font-size:11px;color:var(--text3);margin-top:3px;">${srcTxt}${here.ago!=null?' · '+TR('hace '+here.ago+' min',here.ago+' min ago'):''}${mov?' · '+mov:''}</div></div>`;
+    msg.push('Driver '+label+' is currently in '+(where||'—')+' (local time '+dlLocal(now,tz)+').');
+  } else h+=`<div style="border:1px solid var(--border);border-radius:12px;padding:11px 12px;margin-bottom:8px;font-size:13px;color:var(--text3);">${TR('Sin ubicación conocida para '+esc(label)+'.','No known location for '+esc(label)+'.')}</div>`;
+  // Carga actual → ETA al delivery
+  let startPt=null, startAt=now, availAfter=11;
+  if(active){
+    const dz=ZC[active.z2]||await fetchZip(active.z2);
+    const dTz=dz?dlTz(active.state2||dz.abbr,dz.lat,dz.lon):'America/Chicago';
+    h+=`<div style="border:1px solid var(--border);border-radius:12px;padding:11px 12px;margin-bottom:8px;">
+      <div style="font-size:11px;font-weight:800;color:var(--text3);text-transform:uppercase;">🚚 ${TR('Con carga','Loaded')}${active.rc?' · RC #'+esc(active.rc):''}</div>
+      <div style="font-size:14px;font-weight:800;margin-top:2px;">${esc((active.city1||active.z1||'—')+(active.state1?', '+active.state1:''))} → ${esc((active.city2||active.z2||'—')+(active.state2?', '+active.state2:''))} ${esc(active.z2||'')}</div>
+      ${del?`<div style="font-size:20px;font-weight:800;margin-top:6px;">${del.arrived?TR('Ya llegó al delivery','At delivery'):'ETA delivery: '+detaWhen(del.eta)}</div>
+        <div style="font-size:12px;color:var(--text2);">${del.arrived?'':del.miles.toLocaleString('en-US')+' mi · '}${TR('hora local del delivery','delivery local time')}: <b>${dlLocal(del.eta,dTz)}</b>${active.deliveryDate?' · '+TR('cita','appt')+' '+fmtDate(active.deliveryDate):''}</div>
+        ${del.status&&!del.arrived?'<div style="font-size:12px;margin-top:3px;">'+detaStatusHtml(del)+'</div>':''}`
+      :`<div style="font-size:13px;color:var(--text3);margin-top:6px;">${TR('No se pudo calcular el ETA al delivery.','Could not compute delivery ETA.')}</div>`}</div>`;
+    if(del&&dz){ startPt={lat:dz.lat,lon:dz.lon,name:(active.city2||dz.city)+', '+(active.state2||dz.abbr)}; startAt=del.eta; const used=(del.tot||0)%11; availAfter=del.arrived?11:Math.max(0,11-used);
+      msg.push('Loaded, delivering in '+startPt.name+' '+(active.z2||'')+': ETA '+dlLocal(del.eta,dTz)+'.'); }
+  } else if(here){ startPt={lat:here.lat,lon:here.lon,name:[here.city,here.st].filter(Boolean).join(', ')}; h+=`<div style="font-size:12px;color:#16A34A;font-weight:700;margin:0 0 8px;">✅ ${TR('Sin carga ahorita: está libre.','No load right now: available.')}</div>`; msg.push('Empty and available now.'); }
+  // Siguiente carga → ETA al pick up
+  const unload=parseFloat(document.getElementById('dl-unload')?.value)||(active?2:0);
+  h+=`<div style="border:2px solid #1E3A8A;border-radius:12px;padding:11px 12px;">
+    <div style="font-size:11px;font-weight:800;color:#1E3A8A;text-transform:uppercase;">📦 ${TR('Siguiente carga (pick up)','Next load (pick up)')}${nextLoad?' · '+TR('programada','scheduled')+(nextLoad.rc?' RC #'+esc(nextLoad.rc):''):''}</div>
+    <div style="display:flex;gap:8px;margin-top:6px;">
+      <input id="dl-zip" type="text" inputmode="numeric" maxlength="5" value="${esc(zipIn||'')}" placeholder="${TR('ZIP del pick up','Pick up ZIP')}" style="flex:1;min-width:0;font-size:16px;padding:9px 10px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg3);color:var(--text);"/>
+      <button type="button" onclick="dlPaint(document.getElementById('dl-zip').value.trim())" style="padding:9px 14px;border-radius:10px;border:none;background:#1E3A8A;color:#fff;font-weight:800;">${TR('Calcular','Calculate')}</button></div>
+    ${active?`<label style="font-size:11px;color:var(--text3);display:flex;align-items:center;gap:4px;margin-top:6px;">${TR('Horas para descargar','Hours to unload')} <input id="dl-unload" type="number" min="0" max="24" step="0.5" value="${unload}" onchange="dlPaint(document.getElementById('dl-zip').value.trim())" style="width:60px;padding:4px;border:1px solid var(--border);border-radius:6px;background:var(--bg3);color:var(--text);"/></label>`:''}
+    <div id="dl-pu"></div></div>`;
+  h+=`<button type="button" id="dl-copy" onclick="etaCopy(this)" style="margin-top:8px;font-size:12px;font-weight:700;padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg3);color:var(--text);cursor:pointer;">📋 ${TR('Copiar mensaje para el broker','Copy message for the broker')}</button>`;
+  res.innerHTML=h;
+  const cp=document.getElementById('dl-copy'); if(cp) cp.dataset.msg=msg.join(' ');
+  const zip=String(zipIn||'').trim(); const pu=document.getElementById('dl-pu');
+  if(!zip){ pu.innerHTML='<div style="font-size:12px;color:var(--text3);margin-top:6px;">'+TR('Escribe el ZIP de la nueva carga.','Type the new load ZIP.')+'</div>'; return; }
+  if(!/^\d{5}$/.test(zip)){ pu.innerHTML='<div style="color:#DC2626;font-size:13px;font-weight:700;margin-top:6px;">'+TR('Escribe un ZIP de 5 dígitos.','Enter a 5-digit ZIP.')+'</div>'; return; }
+  if(!startPt){ pu.innerHTML='<div style="font-size:12px;color:var(--text3);margin-top:6px;">'+TR('Sin ubicación para calcular.','No location to calculate from.')+'</div>'; return; }
+  pu.innerHTML='<div style="font-size:12px;color:var(--text3);margin-top:6px;">⏳ '+TR('Calculando…','Calculating…')+'</div>';
+  const z=ZC[zip]||await fetchZip(zip); if(!z){ pu.innerHTML='<div style="color:#DC2626;font-size:13px;font-weight:700;margin-top:6px;">'+TR('No encontré ese ZIP.','ZIP not found.')+'</div>'; return; }
+  const rt=await fetchRoadRoute(startPt.lat,startPt.lon,z.lat,z.lon);
+  const miles=rt?Math.round(rt.miles):Math.round(haversineKm(startPt.lat,startPt.lon,z.lat,z.lon)*0.621371*1.2);
+  const leave=startAt+(active?unload*3600000:0);
+  const tot=etaDriveHours(miles/ETA_MPH, active?11:availAfter);   // después de descargar se cuenta con sus horas completas
+  const eta=leave+tot*3600000, pTz=dlTz(z.abbr,z.lat,z.lon);
+  pu.innerHTML=`<div style="font-size:13px;margin-top:6px;">${TR('Pick up en','Pick up in')} <b>${esc(z.city+', '+z.abbr+' '+zip)}</b></div>
+    <div style="font-size:20px;font-weight:800;margin-top:2px;">ETA pick up: ${detaWhen(eta)}</div>
+    <div style="font-size:12px;color:var(--text2);">${TR('hora local del pick up','pick up local time')}: <b>${dlLocal(eta,pTz)}</b></div>
+    <div style="font-size:12px;color:var(--text3);margin-top:2px;">${miles.toLocaleString('en-US')} mi${rt?'':' ('+TR('aprox.','approx.')+')'} ${TR('desde','from')} ${esc(startPt.name)}${active?' · '+TR('sale después de entregar y descargar','leaves after delivering and unloading'):''} · ${tot.toFixed(1)} h ${TR('de camino','on the road')}${tot>miles/ETA_MPH+0.4?' ('+TR('con descanso','incl. rest')+')':''}</div>`;
+  if(cp) cp.dataset.msg=msg.concat(['ETA to pickup in '+z.city+', '+z.abbr+' '+zip+': '+dlLocal(eta,pTz)+' ('+miles+' mi).']).join(' ');
 }
 function etaCopy(btn){ const m=btn.dataset.msg; const done=()=>{ btn.textContent='✓ '+TR('Copiado','Copied'); };
   if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(m).then(done,()=>{ prompt(TR('Copia el mensaje:','Copy the message:'),m); });

@@ -1714,6 +1714,7 @@ label.dead-lock-lbl{color:#B91C1C!important;font-weight:800;}
         </div>
       </div>
 
+      <div id="at-pod-email"></div>
       <button type="button" class="btn-sm" id="at-share-docs" data-no-tr="1" onclick="shareTripDocs(_adminActiveTrip&&_adminActiveTrip.id)" style="width:100%;padding:11px;font-weight:700;margin:-4px 0 14px;">📤 Mandar fotos del POD firmado y descarga</button>
 
       <!-- RC (Rate Confirmation) — lo sube el admin -->
@@ -4915,6 +4916,8 @@ async function doLogin(){
   const btn=document.getElementById('login-btn-txt');
   btn.textContent='Entrando...';
 
+  // Si la base de datos todavía está cargando (celular recién abierto), esperar hasta 6 s para leer los usuarios nuevos
+  for(let i=0;i<30 && !fbReady;i++) await new Promise(r=>setTimeout(r,200));
   // Try to load users from Firebase first
   if(fbReady){
     try{
@@ -4926,7 +4929,8 @@ async function doLogin(){
     }catch(e){ /* use cached */ }
   }
 
-  const found=getUsers().find(u=>u.username===uname&&u.password===pass);
+  // El usuario no distingue mayúsculas (el celular pone la primera letra en mayúscula) y se ignoran espacios al inicio/final
+  const found=getUsers().find(u=>String(u.username||'').trim().toLowerCase()===uname.toLowerCase()&&String(u.password||'').trim()===String(pass||'').trim());
   btn.textContent='Entrar';
   if(!found){document.getElementById('l-err').style.display='block';return;}
   if(!found.role) found.role='driver';
@@ -6912,6 +6916,7 @@ function openTripDetail(tripId){
   loadFuelBlocksIntoUI(t.fuelLoads);
 
   { const sb=document.getElementById('at-share-docs'); if(sb) sb.textContent='📤 '+TR('Mandar fotos del POD firmado y descarga','Send signed POD & unloading photos'); }
+  { const pe=document.getElementById('at-pod-email'); if(pe) pe.innerHTML=podEmailHTML(t); }
   // Fotos del viaje
   ['loaded','unloaded','bol','pod'].forEach(function(kind){
     const driveThumb = t[kind+'DriveThumb'];
@@ -8955,8 +8960,10 @@ function logTripDetailHTML(t){ return `
           ${renderMileAnalysisGrid(t)}
         </div>
       </div>
+      ${t.tripStatus==='completed'?podEmailHTML(t):''}
       <div class="trip-actions">
         <button class="btn-sm btn-edit" onclick="openEditModal(${t.id})">&#x270F; ${t.profitSet?'Editar ganancia':'Agregar ganancia'}</button>
+        ${t.tripStatus==='completed'?`<button class="btn-sm" onclick="shareTripDocs('${t.id}')">📤 ${t.podSentAt?'Reenviar POD':'Mandar POD'}</button>`:''}
         ${t.tripStatus==='completed'?`<button class="btn-sm" onclick="sendTripEmail(loadTrips().find(x=>String(x.id)==='${t.id}'),{manual:true}).then(ok=>{ if(ok) alert('Reporte enviado por correo.'); })">${t.emailSentAt?'Reenviar reporte por correo':'Enviar reporte por correo'}</button>`:''}
         <button class="btn-sm btn-red-sm" onclick="delTrip(${t.id})">Eliminar</button>
       </div>
@@ -14837,6 +14844,33 @@ async function uploadFuelReceiptInBackground(tripId, loadId, file, kind){
 // ===== POD FIRMADO + FOTO DE DESCARGA: obligatorios para finalizar y fáciles de mandar al broker =====
 function tripDocReady(t,k){ return !!(t && (t[k+'DriveLink'] || ['pending','uploading','done'].includes(t[k+'DriveStatus']))); }
 function tripFinishMissing(t){ if(typeof currentUser!=='undefined' && currentUser && currentUser.role==='admin') return []; /* el administrador puede finalizar sin fotos */ const en=window.TL_LANG==='en'; const m=[]; if(!tripDocReady(t,'pod')) m.push(en?'Signed POD':'POD firmado'); if(!tripDocReady(t,'unloaded')) m.push(en?'Unloading photo':'Foto de la descarga'); return m; }
+// Correo del broker para el POD: se ve en la tarjeta del viaje (En Tránsito e Historial) y se puede cambiar
+function podEmailHTML(t){
+  if(!t) return '';
+  const en=window.TL_LANG==='en', e=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const sent=t.podSentAt?new Date(t.podSentAt):null;
+  const sentTxt=sent&&!isNaN(sent)?(sent.getMonth()+1)+'/'+sent.getDate()+' '+sent.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}):'';
+  const mail=t.brokerEmail?'<b style="word-break:break-all;">'+e(t.brokerEmail)+'</b>':'<span style="color:var(--red);font-weight:700;">'+(en?'No email — the RC did not have one':'Sin correo — el RC no lo trae')+'</span>';
+  return '<div class="pod-email-box" style="background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:10px 12px;margin:8px 0;font-size:13px;line-height:1.5;">'+
+    '<div>📧 '+(en?'Send POD to: ':'Mandar POD a: ')+mail+
+    ' <button type="button" class="btn-sm" onclick="editBrokerEmail(\''+e(t.id)+'\')" style="padding:2px 8px;font-size:11px;margin-left:4px;">✏️ '+(en?'Change':'Cambiar')+'</button></div>'+
+    (sent?'<div style="color:var(--green);font-weight:700;">✅ '+(en?'POD sent ':'POD enviado el ')+sentTxt+(t.podSentTo?(en?' to ':' a ')+e(t.podSentTo):'')+'</div>'
+         :'<div style="color:var(--text3);">'+(en?'POD not sent yet':'POD todavía no enviado')+'</div>')+
+  '</div>';
+}
+async function editBrokerEmail(tripId){
+  const en=window.TL_LANG==='en';
+  const T=loadTrips(); const k=T.findIndex(x=>String(x.id)===String(tripId)); if(k<0) return;
+  let v=window.prompt(en?'Broker email for the POD (separate with commas if more than one):':'Correo del broker para el POD (sepáralos con coma si son varios):', T[k].brokerEmail||'');
+  if(v===null) return; v=v.trim().replace(/\s*;\s*/g,', ');
+  if(v && !v.split(/\s*,\s*/).every(x=>/^[^@\s,]+@[^@\s,]+\.[^@\s,]+$/.test(x))){ alert(en?'That email does not look right.':'Ese correo no está bien escrito.'); return; }
+  T[k]={...T[k],brokerEmail:v||null}; await storeTrips(T);
+  try{ refreshPodEmailViews(); }catch(e){}
+}
+function refreshPodEmailViews(){
+  try{ const box=document.getElementById('at-pod-email'); if(box && typeof _adminActiveTrip!=='undefined' && _adminActiveTrip){ const t=loadTrips().find(x=>String(x.id)===String(_adminActiveTrip.id)); if(t) box.innerHTML=podEmailHTML(t); } }catch(e){}
+  try{ if(typeof _logOpen!=='undefined') _logOpen.forEach(k=>{ const item=document.getElementById('lg-'+k), t=loadTrips().find(x=>String(x.id)===String(k)); if(item&&t){ const det=item.querySelector('.lg-detail'); if(det) det.innerHTML=logTripDetailHTML(t); } }); }catch(e){}
+}
 async function shareTripDocs(tripId){
   const en=window.TL_LANG==='en';
   const t=loadTrips().find(x=>String(x.id)===String(tripId)); if(!t){ alert(en?'Trip not found.':'No se encontró el viaje.'); return; }
@@ -14864,7 +14898,7 @@ async function shareTripDocs(tripId){
         await scriptPost({action:'email', to, cc:co.emailTo||'', files:files.map(f=>({id:f.id,name:f.name+'.jpg'})), info:{rc:String(tag), from:place(t.city1,t.state1,t.z1), to:place(t.city2,t.state2,t.z2), delivered:(d?(p.length===3?p[1]+'/'+p[2]+'/'+p[0]:d):''), company:co.name||'YENAVI FREIGHT LLC'}});
         try{ tgAddNotif(sanitizeForFirestore({tripId:t.id, driverName:t.driverName||'', type:'pod_sent', to, rc:t.rc||'', city1:t.city1, state1:t.state1, city2:t.city2, state2:t.state2, ts:new Date().toISOString(), read:false})).catch(()=>{}); }catch(e){}
         b2.remove(); alert((en?'✅ Sent to ':'✅ Enviado a ')+to+(en?' with ':' con ')+files.length+(en?' photo(s).':' foto(s).'));
-        try{ const T=loadTrips(); const k=T.findIndex(x=>String(x.id)===String(t.id)); if(k>=0){ T[k]={...T[k],brokerEmail:to,podSentAt:new Date().toISOString(),podSentTo:to}; storeTrips(T); } }catch(e){}
+        try{ const T=loadTrips(); const k=T.findIndex(x=>String(x.id)===String(t.id)); if(k>=0){ T[k]={...T[k],brokerEmail:to,podSentAt:new Date().toISOString(),podSentTo:to}; await storeTrips(T); } refreshPodEmailViews(); }catch(e){}
         return;
       }catch(e){ b2.remove(); alert((en?'Could not send the email: ':'No se pudo mandar el correo: ')+(e.message||e)+'\n\n'+(en?'You can share the photos another way.':'Puedes compartir las fotos de otra forma.')); }
     }

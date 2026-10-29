@@ -3864,6 +3864,8 @@ async function doLogin(){
   const btn=document.getElementById('login-btn-txt');
   btn.textContent='Entrando...';
 
+  // Si la base de datos todavía está cargando (celular recién abierto), esperar hasta 6 s para leer los usuarios nuevos
+  for(let i=0;i<30 && !fbReady;i++) await new Promise(r=>setTimeout(r,200));
   // Try to load users from Firebase first
   if(fbReady){
     try{
@@ -3875,7 +3877,8 @@ async function doLogin(){
     }catch(e){ /* use cached */ }
   }
 
-  const found=getUsers().find(u=>u.username===uname&&u.password===pass);
+  // El usuario no distingue mayúsculas (el celular pone la primera letra en mayúscula) y se ignoran espacios al inicio/final
+  const found=getUsers().find(u=>String(u.username||'').trim().toLowerCase()===uname.toLowerCase()&&String(u.password||'').trim()===String(pass||'').trim());
   btn.textContent='Entrar';
   if(!found){document.getElementById('l-err').style.display='block';document.getElementById('l-err').textContent='Usuario o contraseña incorrectos.';return;}
   if(!found.role) found.role='driver';

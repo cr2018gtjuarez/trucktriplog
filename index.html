@@ -1092,6 +1092,9 @@ label.dead-lock-lbl{color:#B91C1C!important;font-weight:800;}
     <!-- ETA RÁPIDO AL PICK UP (solo admin) -->
     <div id="home-eta" data-no-tr style="display:none;margin-bottom:14px;"></div>
 
+    <!-- DOCUMENTOS DE CHOFERES Y CAMIONES (solo admin) -->
+    <div id="home-docs" data-no-tr style="display:none;margin-bottom:14px;"></div>
+
     <!-- ASISTENTE (solo admin) -->
     <div id="home-assistant" data-no-tr style="display:none;margin-bottom:14px;"></div>
 
@@ -1104,7 +1107,7 @@ label.dead-lock-lbl{color:#B91C1C!important;font-weight:800;}
       </div>
 
       <!-- Recordatorio de cambio de aceite -->
-      <div id="dd-oil-alert" style="display:none;margin-bottom:12px;cursor:pointer;border-radius:12px;padding:12px 16px;" onclick="sidebarNav('inspeccion')">
+      <div id="dd-oil-alert" style="display:none;margin-bottom:12px;border-radius:12px;padding:12px 16px;">
         <div style="font-size:13px;font-weight:700;" id="dd-oil-alert-text">🛢️ Cambio de aceite</div>
       </div>
 
@@ -1686,14 +1689,17 @@ label.dead-lock-lbl{color:#B91C1C!important;font-weight:800;}
           <div>
             <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;margin-bottom:6px;">Carga (loaded)</div>
             <div id="at-loaded-preview" style="background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:14px;text-align:center;font-size:12px;color:var(--text3);">Sin subir</div>
+            <input type="file" id="at-loaded-file" accept="image/*,application/pdf" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;" onchange="adminTripDocUpload(this,'loaded','transit')"/><label for="at-loaded-file" class="btn-sm" data-at-up="loaded" style="display:block;width:100%;box-sizing:border-box;text-align:center;margin-top:6px;background:#ECFDF5;border:1.5px dashed #10B981;color:#047857;font-weight:700;cursor:pointer;">📎 Subir</label>
           </div>
           <div>
             <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;margin-bottom:6px;">Descarga (unloaded)</div>
             <div id="at-unloaded-preview" style="background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:14px;text-align:center;font-size:12px;color:var(--text3);">Sin subir</div>
+            <input type="file" id="at-unloaded-file" accept="image/*,application/pdf" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;" onchange="adminTripDocUpload(this,'unloaded','transit')"/><label for="at-unloaded-file" class="btn-sm" data-at-up="unloaded" style="display:block;width:100%;box-sizing:border-box;text-align:center;margin-top:6px;background:#ECFDF5;border:1.5px dashed #10B981;color:#047857;font-weight:700;cursor:pointer;">📎 Subir</label>
           </div>
           <div>
             <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;margin-bottom:6px;">BOL (pickup)</div>
             <div id="at-bol-preview" style="background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:14px;text-align:center;font-size:12px;color:var(--text3);">Sin subir</div>
+            <input type="file" id="at-bol-file" accept="image/*,application/pdf" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;" onchange="adminTripDocUpload(this,'bol','transit')"/><label for="at-bol-file" class="btn-sm" data-at-up="bol" style="display:block;width:100%;box-sizing:border-box;text-align:center;margin-top:6px;background:#ECFDF5;border:1.5px dashed #10B981;color:#047857;font-weight:700;cursor:pointer;">📎 Subir</label>
             <div id="at-bol-actions" style="margin-top:6px;display:none;">
               <div style="display:flex;gap:6px;">
                 <button class="btn-sm" onclick="approveDoc('bol')" style="flex:1;background:var(--green-bg);border:1px solid #BBF7D0;color:var(--green);font-weight:700;">✅ Ready to Go</button>
@@ -1704,6 +1710,7 @@ label.dead-lock-lbl{color:#B91C1C!important;font-weight:800;}
           <div>
             <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;margin-bottom:6px;">POD (entrega)</div>
             <div id="at-pod-preview" style="background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:14px;text-align:center;font-size:12px;color:var(--text3);">Sin subir</div>
+            <input type="file" id="at-pod-file" accept="image/*,application/pdf" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;" onchange="adminTripDocUpload(this,'pod','transit')"/><label for="at-pod-file" class="btn-sm" data-at-up="pod" style="display:block;width:100%;box-sizing:border-box;text-align:center;margin-top:6px;background:#ECFDF5;border:1.5px dashed #10B981;color:#047857;font-weight:700;cursor:pointer;">📎 Subir</label>
             <div id="at-pod-actions" style="margin-top:6px;display:none;">
               <div style="display:flex;gap:6px;">
                 <button class="btn-sm" onclick="approveDoc('pod')" style="flex:1;background:var(--green-bg);border:1px solid #BBF7D0;color:var(--green);font-weight:700;">✅ Ready to Go</button>
@@ -1714,6 +1721,7 @@ label.dead-lock-lbl{color:#B91C1C!important;font-weight:800;}
         </div>
       </div>
 
+      <div id="at-trip-extras" data-no-tr="1"></div>
       <div id="at-pod-email"></div>
       <button type="button" class="btn-sm" id="at-share-docs" data-no-tr="1" onclick="shareTripDocs(_adminActiveTrip&&_adminActiveTrip.id)" style="width:100%;padding:11px;font-weight:700;margin:-4px 0 14px;">📤 Mandar fotos del POD firmado y descarga</button>
 
@@ -3253,8 +3261,8 @@ label.dead-lock-lbl{color:#B91C1C!important;font-weight:800;}
 
   <div class="page" id="page-mantenimiento">
 
-    <!-- INSPECCIONES SEMANALES DE DRIVERS -->
-    <div class="card">
+    <!-- INSPECCIONES SEMANALES DE DRIVERS (quitadas) -->
+    <div class="card" style="display:none;">
       <div class="card-title">🔧 Inspecciones semanales de drivers</div>
       <div id="mt-inspections"><div class="empty">Sin inspecciones registradas aún.</div></div>
     </div>
@@ -3864,6 +3872,9 @@ label.dead-lock-lbl{color:#B91C1C!important;font-weight:800;}
       <div class="field"><label>URL del servicio de correo (Google Apps Script)</label><input type="url" id="co-email-url" placeholder="https://script.google.com/macros/s/.../exec"/></div>
       <div class="field"><label>📲 URL de avisos por Telegram (Google Apps Script)</label><input type="url" id="co-tg-url" placeholder="https://script.google.com/macros/s/.../exec"/>
         <div style="display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center;margin-top:6px;"><button type="button" class="btn-sm" onclick="tgTest()">Enviar aviso de prueba</button><span id="co-tg-msg" data-no-tr style="font-size:13px;font-weight:700;color:var(--text3);flex-basis:100%;"></span></div></div>
+      <div class="field"><label>✍️ URL de pagos firmados (Google Apps Script)</label><input type="url" id="co-stub-url" placeholder="https://script.google.com/macros/s/.../exec"/>
+        <div style="display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center;margin-top:6px;"><button type="button" class="btn-sm" onclick="stubTest()">Probar conexión</button></div><div id="co-stub-msg" style="font-size:12px;font-weight:700;margin-top:4px;"></div>
+        <div style="font-size:11px;color:var(--text3);margin-top:3px;">Cuando el chofer firma su boleta en la app, te llega el PDF firmado por correo y se guarda en Drive en "YENAVI — Pagos de choferes".</div></div>
       <div class="field"><label>📷 URL del servicio de fotos (Google Apps Script)</label><input type="url" id="co-photo-url" placeholder="https://script.google.com/macros/s/.../exec"/>
         <div style="font-size:11px;color:var(--text3);margin-top:3px;">Con esto las fotos se guardan en tu Drive y los drivers no tienen que entrar a Google.</div>
         <div style="display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center;margin-top:6px;"><button type="button" class="btn-sm" onclick="photoTest()">Probar conexión</button><span id="co-photo-msg" data-no-tr style="font-size:13px;font-weight:700;color:var(--text3);flex-basis:100%;"></span></div></div>
@@ -4012,6 +4023,18 @@ label.dead-lock-lbl{color:#B91C1C!important;font-weight:800;}
         <label for="edit-rcs-file" class="btn-sm" style="flex:1;text-align:center;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);cursor:pointer;">✍️ Subir RC firmado</label>
       </div>
       <div id="edit-rc-status" class="hint" style="margin-top:6px;"></div>
+    </div>
+
+    <!-- BOL, POD y fotos (el admin también puede subirlos) -->
+    <div class="field" style="margin-bottom:1rem;">
+      <label>📄 BOL, POD y fotos de carga / descarga</label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
+        <input type="file" id="edit-bol-file" accept="image/*,application/pdf" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;" onchange="adminTripDocUpload(this,'bol','edit')"/><label for="edit-bol-file" class="btn-sm" style="text-align:center;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);font-weight:700;cursor:pointer;">📋 Subir BOL</label>
+        <input type="file" id="edit-pod-file" accept="image/*,application/pdf" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;" onchange="adminTripDocUpload(this,'pod','edit')"/><label for="edit-pod-file" class="btn-sm" style="text-align:center;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);font-weight:700;cursor:pointer;">✅ Subir POD</label>
+        <input type="file" id="edit-loaded-file" accept="image/*,application/pdf" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;" onchange="adminTripDocUpload(this,'loaded','edit')"/><label for="edit-loaded-file" class="btn-sm" style="text-align:center;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);font-weight:700;cursor:pointer;">📦 Foto de carga</label>
+        <input type="file" id="edit-unloaded-file" accept="image/*,application/pdf" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;" onchange="adminTripDocUpload(this,'unloaded','edit')"/><label for="edit-unloaded-file" class="btn-sm" style="text-align:center;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);font-weight:700;cursor:pointer;">🚚 Foto de descarga</label>
+      </div>
+      <div id="edit-docs-status" class="hint" style="margin-top:6px;"></div>
     </div>
 
     <!-- Load Value -->
@@ -4959,6 +4982,14 @@ function tgSend(n){
     driverName:n.driverName||(t&&t.driverName)||''}};
   return fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(body)}).then(()=>true).catch(()=>false);
 }
+async function stubTest(){
+  const u=(document.getElementById('co-stub-url')?.value||'').trim(), m=document.getElementById('co-stub-msg');
+  if(!/^https:\/\/script\.google\.com\//.test(u)){ m.style.color='#DC2626'; m.textContent='Pega la URL que termina en /exec'; return; }
+  m.style.color='var(--text3)'; m.textContent='Probando…';
+  try{ const r=await fetch(u,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({key:'yenavi-pagos-8Tz3',action:'ping'})}); const j=JSON.parse(await r.text());
+    if(j.ok){ m.style.color='#16A34A'; m.textContent='✓ Conectado. Toca Guardar cambios.'; } else { m.style.color='#DC2626'; m.textContent='Error: '+(j.error||''); } }
+  catch(e){ m.style.color='#DC2626'; m.textContent='No contestó: revisa la URL y que esté implementada como Aplicación web (Cualquier usuario).'; }
+}
 async function tgTest(){
   const u=(document.getElementById('co-tg-url')?.value||'').trim(); const m=document.getElementById('co-tg-msg');
   if(!/^https:\/\/script\.google\.com\//.test(u)){ if(m){ m.style.color='#DC2626'; m.textContent=TR('Pega la URL que termina en /exec','Paste the URL ending in /exec'); } return; }
@@ -5051,6 +5082,7 @@ function openCompanyModal(){
   document.getElementById('co-email-on').checked = !!co.emailOn;
   document.getElementById('co-email-to').value  = co.emailTo||'operations@yenavifreight.com';
   { const tg=document.getElementById('co-tg-url'); if(tg) tg.value=co.tgUrl||''; }
+  { const su=document.getElementById('co-stub-url'); if(su) su.value=co.stubUrl||''; }
   { const ph=document.getElementById('co-photo-url'); if(ph) ph.value=co.photoUrl||''; const pm=document.getElementById('co-photo-msg'); if(pm) pm.textContent=''; }
   document.getElementById('co-email-url').value = co.emailUrl||(typeof TRIP_EMAIL_URL_DEFAULT!=='undefined'?TRIP_EMAIL_URL_DEFAULT:'');
   document.getElementById('co-email-msg').textContent='';
@@ -5092,6 +5124,7 @@ function saveCompanySettings(){
   data.emailOn  = document.getElementById('co-email-on').checked;
   data.emailTo  = document.getElementById('co-email-to').value.trim()||'operations@yenavifreight.com';
   data.tgUrl = (document.getElementById('co-tg-url')?.value||'').trim();
+  data.stubUrl = (document.getElementById('co-stub-url')?.value||'').trim();
   data.photoUrl = (document.getElementById('co-photo-url')?.value||'').trim();
   data.emailUrl = document.getElementById('co-email-url').value.trim()||(typeof TRIP_EMAIL_URL_DEFAULT!=='undefined'?TRIP_EMAIL_URL_DEFAULT:'');
   // Solo se envían correos de viajes terminados desde que se activó (no se reenvía el historial viejo)
@@ -5849,16 +5882,12 @@ let _etaLast=null;
 function renderEtaBox(){
   const box=document.getElementById('home-eta'); if(!box) return;
   if(box.dataset.ready==='1'){ box.style.display='block'; return; }
-  box.innerHTML=`<div style="background:var(--card,#fff);border:1px solid var(--border);border-radius:16px;padding:14px;margin-bottom:12px;">
-    <div style="font-size:15px;font-weight:800;margin-bottom:2px;">📍 ${TR('¿Dónde está el driver?','Where is the driver?')}</div>
-    <div style="font-size:12px;color:var(--text3);margin-bottom:10px;">${TR('Elige el driver: ubicación, hora del lugar, ETA al delivery y ETA a la siguiente carga.','Pick a driver: location, local time, ETA to delivery and ETA to the next load.')}</div>
-    <select id="dl-driver" onfocus="dlFillSel()" onchange="dlRun()" style="width:100%;font-size:16px;padding:10px 12px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg3);color:var(--text);"></select>
-    <div id="dl-res" style="margin-top:10px;"></div></div>
-  <div style="background:var(--card,#fff);border:1px solid var(--border);border-radius:16px;padding:14px;">
-    <div style="font-size:15px;font-weight:800;margin-bottom:2px;">🕐 ${TR('ETA al pick up','ETA to pick up')}</div>
-    <div style="font-size:12px;color:var(--text3);margin-bottom:10px;">${TR('Escribe el ZIP de la carga y ve cuánto tarda cada camión.','Type the load ZIP and see how long each truck takes.')}</div>
+  box.innerHTML=`  <div style="background:var(--card,#fff);border:2px solid #1E3A8A;border-radius:16px;padding:14px;margin-bottom:12px;">
+    <div style="font-size:15px;font-weight:800;margin-bottom:2px;">📞 ${TR('¿Cuánto tarda en llegar a la carga?','How long to reach the load?')}</div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:10px;">${TR('Para cuando el broker pregunta: escribe el ZIP del pick up y ve dónde está cada camión ahorita y cuándo llega.','When a broker asks: type the pick up ZIP and see where each truck is now and when it arrives.')}</div>
+    <select id="eta-driver" onfocus="etaFillDrv()" onchange="if(_etaLast) etaCalc()" style="width:100%;font-size:14px;padding:8px 10px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg3);color:var(--text);margin-bottom:8px;"><option value="">${TR('Todos los camiones','All trucks')}</option></select>
     <div style="display:flex;gap:8px;">
-      <input id="eta-zip" type="text" inputmode="numeric" maxlength="5" placeholder="${TR('ZIP del pick up','Pick up ZIP')}" style="flex:1;min-width:0;font-size:16px;padding:10px 12px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg3);color:var(--text);" onkeydown="if(event.key==='Enter')etaCalc()"/>
+      <input id="eta-zip" onkeydown="if(event.key==='Enter') etaCalc()" type="text" inputmode="numeric" maxlength="5" placeholder="${TR('ZIP del pick up','Pick up ZIP')}" style="flex:1;min-width:0;font-size:16px;padding:10px 12px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg3);color:var(--text);" onkeydown="if(event.key==='Enter')etaCalc()"/>
       <button type="button" onclick="etaCalc()" style="padding:10px 16px;border-radius:10px;border:none;background:#1E3A8A;color:#fff;font-weight:800;font-size:14px;cursor:pointer;">${TR('Calcular','Calculate')}</button>
     </div>
     <details style="margin-top:8px;"><summary style="font-size:12px;color:var(--text3);cursor:pointer;">${TR('Opcional: pago y millas de la carga (para saber si te conviene)','Optional: load pay and miles (to see if it pays)')}</summary>
@@ -5866,8 +5895,13 @@ function renderEtaBox(){
         <input id="eta-pay" type="number" min="0" step="50" placeholder="${TR('Pago $','Pay $')}" style="flex:1;min-width:0;font-size:15px;padding:9px 10px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg3);color:var(--text);" oninput="etaPaint()"/>
         <input id="eta-lmi" type="number" min="0" step="10" placeholder="${TR('Millas de la carga','Load miles')}" style="flex:1;min-width:0;font-size:15px;padding:9px 10px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg3);color:var(--text);" oninput="etaPaint()"/>
       </div></details>
-    <div id="eta-res" style="margin-top:10px;"></div></div>`;
-  box.dataset.ready='1'; box.style.display='block'; try{ dlFillSel(); }catch(e){}
+    <div id="eta-res" style="margin-top:10px;"></div></div>
+<div style="background:var(--card,#fff);border:1px solid var(--border);border-radius:16px;padding:14px;margin-bottom:12px;">
+    <div style="font-size:15px;font-weight:800;margin-bottom:2px;">📍 ${TR('¿Dónde está el driver?','Where is the driver?')}</div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:10px;">${TR('Elige el driver: ubicación, hora del lugar, ETA al delivery y ETA a la siguiente carga.','Pick a driver: location, local time, ETA to delivery and ETA to the next load.')}</div>
+    <select id="dl-driver" onfocus="dlFillSel()" onchange="dlRun()" style="width:100%;font-size:16px;padding:10px 12px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg3);color:var(--text);"></select>
+    <div id="dl-res" style="margin-top:10px;"></div></div>`;
+  box.dataset.ready='1'; box.style.display='block'; try{ dlFillSel(); etaFillDrv(); }catch(e){}
 }
 // Simula el manejo con las reglas de horas: 30 min de descanso cada 8 h manejando y 10 h de descanso al terminar las horas disponibles
 function etaDriveHours(h,avail){ let t=0,rem=h,a=avail,since=0; while(rem>0.001){ if(a<=0){ t+=10; a=11; since=0; continue; } const c=Math.min(rem,a,8-since); if(c<=0){ t+=0.5; since=0; continue; } t+=c; rem-=c; a-=c; since+=c; } return t; }
@@ -5880,71 +5914,141 @@ async function etaCityOf(lat,lon){
   try{ const r=await fetch('https://nominatim.openstreetmap.org/reverse?format=json&zoom=10&lat='+lat+'&lon='+lon); if(!r.ok) return null; const j=await r.json(); const a=j.address||{};
     const c=a.city||a.town||a.village||a.county||''; const st=(a['ISO3166-2-lvl4']||'').split('-')[1]||a.state||''; return c?(c+(st?', '+st:'')):null; }catch(e){ return null; }
 }
+// Al teléfono con el broker: ZIP de la carga → dónde está cada camión AHORA (ZIP, ciudad, hora local) y cuándo llega al pick up.
+// Si va cargado: primero entrega; si tiene cargas programadas: las hace en orden; luego va a la carga nueva.
+const ETA_LOAD_H=2, ETA_UNLOAD_H=2;
+let _etaOpts={};   // por camión: {avail, leave}
 async function etaCalc(){
   const zip=(document.getElementById('eta-zip')?.value||'').trim(); const res=document.getElementById('eta-res');
   if(!/^\d{5}$/.test(zip)){ res.innerHTML='<div style="color:#DC2626;font-size:13px;font-weight:700;">'+TR('Escribe un ZIP de 5 dígitos.','Enter a 5-digit ZIP.')+'</div>'; return; }
   res.innerHTML='<div style="font-size:13px;color:var(--text3);">⏳ '+TR('Calculando…','Calculating…')+'</div>';
   const pu=ZC[zip]||await fetchZip(zip); if(!pu){ res.innerHTML='<div style="color:#DC2626;font-size:13px;font-weight:700;">'+TR('No encontré ese ZIP.','ZIP not found.')+'</div>'; return; }
+  const onlyDrv=(document.getElementById('eta-driver')?.value||'');
   const trips=loadTrips(), trucks=loadTrucks()||[], users=getUsers(), live=await etaLiveLocations(), now=Date.now();
   const rows=[];
   for(const tr of trucks){
-    const drivers=users.filter(u=>u.role==='driver'&&String(u.truckId)===String(tr.id));
+    const drivers=users.filter(u=>u.role!=='admin'&&String(u.truckId)===String(tr.id));
+    if(onlyDrv && !drivers.some(u=>u.username===onlyDrv)) continue;
     const mine=trips.filter(t=>tripTruckId(t)===String(tr.id));
-    const schedL=mine.filter(t=>t.tripStatus==='scheduled').sort((a,b)=>mlTripTime(b)-mlTripTime(a))[0];
-    const active=schedL||mine.filter(t=>t.tripStatus==='active').sort((a,b)=>mlTripTime(b)-mlTripTime(a))[0];
+    const active=mine.filter(t=>t.tripStatus==='active').sort((a,b)=>mlTripTime(b)-mlTripTime(a))[0]||null;
+    const sched=mine.filter(t=>t.tripStatus==='scheduled').sort((a,b)=>String(a.date||'').localeCompare(String(b.date||'')));
     const lastDone=lastDoneTripOfTruck(tr.id);
-    const drvName=(drivers[0]&&(drivers[0].name||drivers[0].username))||(lastDone&&lastDone.driverName)||'';
-    let o=null;
-    // 1) Ubicación en vivo (celular del driver o ELD) si es reciente
-    const liveRecs=drivers.map(u=>live[u.username]).concat(live['truck_'+tr.id]?[live['truck_'+tr.id]]:[]).filter(x=>x&&x.lat&&x.lon);
-    const lv=liveRecs.sort((a,b)=>(b.time||0)-(a.time||0))[0];
-    const lvTime=lv?(typeof lv.time==='number'?lv.time:Date.parse(lv.time)):NaN;
-    if(lv && !schedL && !isNaN(lvTime) && now-lvTime<=ETA_LIVE_MIN*60000){ o={lat:+lv.lat,lon:+lv.lon,start:now,src:'live',ago:Math.round((now-lvTime)/60000),city:null}; }
-    // 2) Está en un viaje: sale después de entregar
-    else if(active){ const z=ZC[active.z2]||await fetchZip(active.z2); if(z){ const dd=active.deliveryDate?Date.parse(active.deliveryDate+'T17:00:00'):NaN; o={lat:z.lat,lon:z.lon,start:isNaN(dd)?now:Math.max(now,dd),src:active.tripStatus==='scheduled'?'sched':'busy',city:(active.city2||z.city)+', '+(active.state2||z.abbr),deliv:active.deliveryDate}; } }
-    // 3) Última entrega
-    else if(lastDone){ const z=ZC[lastDone.z2]||await fetchZip(lastDone.z2); if(z) o={lat:z.lat,lon:z.lon,start:now,src:'last',city:(lastDone.city2||z.city)+', '+(lastDone.state2||z.abbr),days:asstDays(asstDelivDate(lastDone))}; }
-    if(!o){ rows.push({tr,drvName,none:true}); continue; }
-    if(o.src==='live') o.city=await etaCityOf(o.lat,o.lon);
-    const rt=await fetchRoadRoute(o.lat,o.lon,pu.lat,pu.lon);
-    const miles=rt?Math.round(rt.miles):Math.round(haversineKm(o.lat,o.lon,pu.lat,pu.lon)*0.621371*1.2);
-    rows.push({tr,drvName,o,miles,avail:11,est:!rt});
+    const d0=drivers[0]; const drvName=(d0&&((d0.firstName&&d0.lastName)?d0.firstName+' '+d0.lastName:(d0.name||d0.username)))||(active&&active.driverName)||(lastDone&&lastDone.driverName)||'';
+    // ¿Dónde está ahora?
+    const liveRecs=drivers.map(u=>live[u.username]&&Object.assign({src:'phone'},live[u.username])).concat(live['truck_'+tr.id]?[Object.assign({src:'eld'},live['truck_'+tr.id])]:[]).filter(x=>x&&x.lat!=null&&x.lon!=null)
+      .map(x=>Object.assign({},x,{tm:typeof x.time==='number'?x.time:Date.parse(x.time)})).filter(x=>!isNaN(x.tm)).sort((a,b)=>b.tm-a.tm);
+    const lv=liveRecs[0]; let here=null;
+    if(lv && now-lv.tm<=ETA_LIVE_MIN*60000){ const g=await dlRevGeo(+lv.lat,+lv.lon); here={lat:+lv.lat,lon:+lv.lon,city:(g&&g.city)||'',st:(g&&g.st)||'',zip:(g&&g.zip)||'',src:lv.src,ago:Math.round((now-lv.tm)/60000),moving:lv.movingStatus,speed:lv.speedMph}; }
+    else if(lastDone){ const z=ZC[lastDone.z2]||await fetchZip(lastDone.z2); if(z) here={lat:z.lat,lon:z.lon,city:lastDone.city2||z.city,st:lastDone.state2||z.abbr,zip:lastDone.z2,src:'last',deliv:tripDeliveryDate(lastDone)}; }
+    else if(lv){ const g=await dlRevGeo(+lv.lat,+lv.lon); here={lat:+lv.lat,lon:+lv.lon,city:(g&&g.city)||'',st:(g&&g.st)||'',zip:(g&&g.zip)||'',src:lv.src,ago:Math.round((now-lv.tm)/60000),old:true}; }
+    // Cadena de cargas: entregar la actual → hacer las programadas en orden → quedar libre
+    const steps=[]; let at=null, t=now, est=false;
+    if(active){
+      let del=null; try{ del=await deliveryEta(active); }catch(e){}
+      const dz=ZC[active.z2]||await fetchZip(active.z2);
+      if(del&&dz){ at={lat:dz.lat,lon:dz.lon,name:(active.city2||dz.city)+', '+(active.state2||dz.abbr)}; t=del.eta+(del.arrived?0:0)+ETA_UNLOAD_H*3600000;
+        steps.push({kind:'active',trip:active,eta:del.eta,arrived:del.arrived,miles:del.miles,place:at.name,zip:active.z2}); }
+    }
+    if(!at && here){ at={lat:here.lat,lon:here.lon,name:[here.city,here.st].filter(Boolean).join(', ')}; }
+    for(const sc of sched){
+      if(!at) break;
+      const a1=ZC[sc.z1]||await fetchZip(sc.z1), a2=ZC[sc.z2]||await fetchZip(sc.z2); if(!a1||!a2) continue;
+      const r1=await fetchRoadRoute(at.lat,at.lon,a1.lat,a1.lon), m1=r1?r1.miles:haversineKm(at.lat,at.lon,a1.lat,a1.lon)*0.621371*1.2; if(!r1) est=true;
+      let arrPu=t+etaDriveHours(m1/ETA_MPH,11)*3600000; const appt=sc.date?Date.parse(sc.date+'T08:00:00'):NaN; if(!isNaN(appt)&&appt>arrPu) arrPu=appt;
+      const r2=await fetchRoadRoute(a1.lat,a1.lon,a2.lat,a2.lon), m2=r2?r2.miles:haversineKm(a1.lat,a1.lon,a2.lat,a2.lon)*0.621371*1.2; if(!r2) est=true;
+      const arrDel=arrPu+ETA_LOAD_H*3600000+etaDriveHours(m2/ETA_MPH,11)*3600000;
+      steps.push({kind:'sched',trip:sc,puEta:arrPu,eta:arrDel,place:(sc.city2||a2.city)+', '+(sc.state2||a2.abbr),from:(sc.city1||a1.city)+', '+(sc.state1||a1.abbr)});
+      at={lat:a2.lat,lon:a2.lon,name:(sc.city2||a2.city)+', '+(sc.state2||a2.abbr)}; t=arrDel+ETA_UNLOAD_H*3600000;
+    }
+    if(!at){ rows.push({tr,drvName,here,none:true}); continue; }
+    const rt=await fetchRoadRoute(at.lat,at.lon,pu.lat,pu.lon);
+    const miles=rt?Math.round(rt.miles):Math.round(haversineKm(at.lat,at.lon,pu.lat,pu.lon)*0.621371*1.2); if(!rt) est=true;
+    rows.push({tr,drvName,here,steps,from:at,freeAt:t,busy:steps.length>0,miles,est});
   }
   _etaLast={zip,pu,rows}; etaPaint();
 }
-function etaSetAvail(i,v){ if(!_etaLast||!_etaLast.rows[i]) return; const n=parseFloat(v); _etaLast.rows[i].avail=isNaN(n)?11:Math.max(0,Math.min(11,n)); etaPaint(); }
+function etaFillDrv(){ const sel=document.getElementById('eta-driver'); if(!sel) return; const keep=sel.value; const trucks=loadTrucks()||[];
+  sel.innerHTML='<option value="">'+TR('Todos los camiones','All trucks')+'</option>'+dlDrivers().filter(x=>x.u.truckId!=null&&x.u.truckId!=='').map(x=>{ const tk=trucks.find(t=>String(t.id)===String(x.u.truckId)); return '<option value="'+String(x.u.username).replace(/"/g,'&quot;')+'">'+x.label.replace(/</g,'&lt;')+(tk?' · '+tk.name:'')+'</option>'; }).join(''); sel.value=keep; }
+function etaSetAvail(i,v){ if(!_etaLast||!_etaLast.rows[i]) return; const k=String(_etaLast.rows[i].tr.id); const n=parseFloat(v); (_etaOpts[k]=_etaOpts[k]||{}).avail=isNaN(n)?11:Math.max(0,Math.min(11,n)); etaPaint(); }
+function etaSetLeave(i,v){ if(!_etaLast||!_etaLast.rows[i]) return; const k=String(_etaLast.rows[i].tr.id); (_etaOpts[k]=_etaOpts[k]||{}).leave=v||''; etaPaint(); }
 function etaPaint(){
   const res=document.getElementById('eta-res'); if(!res||!_etaLast) return;
-  const {pu,rows}=_etaLast; const pay=parseFloat(document.getElementById('eta-pay')?.value)||0, lmi=parseFloat(document.getElementById('eta-lmi')?.value)||0;
+  const {pu,zip,rows}=_etaLast; const pay=parseFloat(document.getElementById('eta-pay')?.value)||0, lmi=parseFloat(document.getElementById('eta-lmi')?.value)||0;
   let BE=null; try{ const b=asstBreakEven(); BE=b?b.be:null; }catch(e){}
-  const puName=pu.city+', '+pu.abbr;
-  const fmtWhen=ms=>{ const d=new Date(ms), t0=new Date(); t0.setHours(0,0,0,0); const dd=Math.round((new Date(ms).setHours(0,0,0,0)-t0)/86400000);
-    const day=dd===0?TR('Hoy','Today'):dd===1?TR('Mañana','Tomorrow'):d.toLocaleDateString(window.TL_LANG==='en'?'en-US':'es-US',{weekday:'long',month:'short',day:'numeric'});
-    return day+' '+d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}); };
-  const calc=rows.map(r=>{ if(r.none) return r; const h=r.miles/ETA_MPH, tot=etaDriveHours(h,r.avail), eta=r.o.start+tot*3600000; return {...r,h,tot,eta}; });
+  const esc=x=>String(x==null?'':x).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const puName=pu.city+', '+pu.abbr, puTz=dlTz(pu.abbr,pu.lat,pu.lon);
+  const now=Date.now();
+  const calc=rows.map(r=>{ if(r.none) return r; const o=_etaOpts[String(r.tr.id)]||{};
+    let start=r.busy?r.freeAt:now;
+    if(!r.busy && o.leave){ const [hh,mm]=o.leave.split(':').map(Number); const d=new Date(); d.setHours(hh,mm||0,0,0); if(d.getTime()<now-30*60000) d.setDate(d.getDate()+1); start=d.getTime(); }
+    const avail=r.busy?11:(o.avail!=null?o.avail:11);
+    const h=r.miles/ETA_MPH, tot=etaDriveHours(h,avail), eta=start+tot*3600000; return {...r,h,tot,eta,start,avail,leave:o.leave||''}; });
   const ok=calc.filter(r=>!r.none); const best=ok.slice().sort((a,b)=>a.eta-b.eta)[0];
-  const srcTxt=r=> r.o.src==='live'?'📡 '+TR('En vivo','Live')+': '+(r.o.city||TR('ubicación actual','current location'))+' · '+TR('hace '+r.o.ago+' min',r.o.ago+' min ago')
-    : r.o.src==='busy'?'🚚 '+TR('En viaje: sale después de entregar en ','On a trip: leaves after delivering in ')+r.o.city+(r.o.deliv?' ('+fmtDate(r.o.deliv)+')':'')
-    : r.o.src==='sched'?'🗓️ '+TR('Tiene viaje programado: libre después de entregar en ','Has a scheduled trip: free after delivering in ')+r.o.city+(r.o.deliv?' ('+fmtDate(r.o.deliv)+')':'')
-    : '📍 '+TR('Última entrega: ','Last delivery: ')+r.o.city+(r.o.days!=null?TR(' · hace '+r.o.days+' día'+(r.o.days!==1?'s':''),' · '+r.o.days+' day'+(r.o.days!==1?'s':'')+' ago'):'');
-  res.innerHTML=`<div style="font-size:12px;color:var(--text3);margin-bottom:8px;">${TR('Pick up en','Pick up in')} <b>${puName}</b></div>`+calc.map((r,i)=>{
-    if(r.none) return `<div style="border:1px solid var(--border);border-radius:12px;padding:10px 12px;margin-bottom:8px;font-size:13px;color:var(--text3);"><b>${r.tr.name}</b> · ${TR('sin ubicación conocida','no known location')}</div>`;
+  res.innerHTML=`<div style="font-size:12px;color:var(--text3);margin-bottom:8px;">${TR('Pick up en','Pick up in')} <b>${esc(puName)} ${esc(zip)}</b> · ${TR('hora allá ahorita','local time now')}: <b>${dlLocal(now,puTz)}</b></div>`+calc.map((r,i)=>{
+    const H=r.here; const hTz=H?dlTz(H.st,H.lat,H.lon):null;
+    const where=H?[H.city,H.st].filter(Boolean).join(', ')+(H.zip?' '+H.zip:''):'';
+    const hereHtml=H?`<div style="font-size:17px;font-weight:800;margin-top:4px;">📍 ${esc(where||TR('Ubicación sin nombre','Unknown place'))}</div><div style="font-size:13px;">${TR('hora allá','local time')} <b>${new Date(now).toLocaleTimeString('en-US',{timeZone:hTz,hour:'numeric',minute:'2-digit',timeZoneName:'short'})}</b></div>
+      <div style="font-size:11px;color:var(--text3);">${H.src==='last'?TR('Última entrega','Last delivery')+(H.deliv?' '+fmtDate(H.deliv):'')+' · '+TR('sin señal en vivo','no live signal'):(H.src==='eld'?'📡 ELD':'📱 '+TR('Celular','Phone'))+' · '+TR('hace '+H.ago+' min',H.ago+' min ago')+(H.old?' ⚠️ '+TR('señal vieja','old signal'):'')+(H.moving==='driving'?' · 🟢 '+TR('manejando','driving')+(H.speed!=null?' '+H.speed+' mph':''):H.moving==='stopped'?' · 🟠 '+TR('detenido','stopped'):'')}</div>`
+      :`<div style="font-size:12px;color:var(--text3);margin-top:4px;">${TR('Sin ubicación conocida','No known location')}</div>`;
+    if(r.none) return `<div style="border:1px solid var(--border);border-radius:12px;padding:10px 12px;margin-bottom:8px;"><b>${esc(r.tr.name)}${r.drvName?' · '+esc(r.drvName.split(' ')[0]):''}</b>${hereHtml}</div>`;
+    const stepsHtml=r.steps.length?r.steps.map(s=>s.kind==='active'
+        ?`<div style="font-size:12px;margin-top:3px;">🚚 ${TR('Cargado','Loaded')}${s.trip.rc?' RC #'+esc(s.trip.rc):''}: ${s.arrived?TR('ya está en el delivery en ','at delivery in '):TR('entrega en ','delivering in ')}<b>${esc(s.place)}</b>${s.arrived?'':' · ETA '+detaWhen(s.eta)}</div>`
+        :`<div style="font-size:12px;margin-top:3px;">🗓️ ${TR('Luego programada','Then scheduled')}${s.trip.rc?' RC #'+esc(s.trip.rc):''}: ${esc(s.from)} → <b>${esc(s.place)}</b> · ${TR('entrega aprox.','delivers approx.')} ${detaWhen(s.eta)}</div>`).join('')
+      :`<div style="font-size:12px;margin-top:3px;color:#16A34A;font-weight:700;">✅ ${TR('Sin carga: libre','Empty: available')}</div>`;
     const dead=r.miles, fuel=(()=>{ try{ const x=deadFuelCost(dead,8); return x?x.cost:null; }catch(e){ return null; } })();
     let rateHtml='';
     if(pay>0&&lmi>0){ const rate=pay/(lmi+dead), need=BE?Math.ceil(BE*(lmi+dead)/50)*50:null, good=BE?rate>=BE:null;
       rateHtml=`<div style="margin-top:6px;font-size:13px;font-weight:700;color:${good===false?'#DC2626':good?'#16A34A':'var(--text)'};">${TR('Rate real con millas vacías','Real rate incl. empty miles')}: $${rate.toFixed(2)}/mi${need?' · '+(good?TR('te conviene','it pays'):TR('pide mínimo ','ask at least ')+asstMoney(need)):''}</div>`; }
-    const msg=((r.o.src==='busy'||r.o.src==='sched')?'Truck available after delivering in '+r.o.city:'Truck '+(r.o.city?'in '+r.o.city:'available'))+'. ETA to pickup in '+puName+': '+new Date(r.eta).toLocaleString('en-US',{weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+' ('+dead.toLocaleString('en-US')+' mi).';
+    const loc=where?where:'';
+    const act=r.steps.find(s=>s.kind==='active');
+    const msg=(r.busy
+        ? (loc?'Truck is currently near '+loc+(H&&H.src!=='last'?' (local time '+new Date(now).toLocaleTimeString('en-US',{timeZone:hTz,hour:'numeric',minute:'2-digit',timeZoneName:'short'})+')':'')+'. ':'')+(act?'Loaded, delivering in '+act.place+(act.arrived?' now':' ETA '+new Date(act.eta).toLocaleString('en-US',{weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}))+'. ':'')+'Available after delivery in '+r.from.name+'. '
+        : 'Truck is empty and available'+(loc?' in '+loc:'')+(H&&H.src!=='last'?' (local time '+new Date(now).toLocaleTimeString('en-US',{timeZone:hTz,hour:'numeric',minute:'2-digit',timeZoneName:'short'})+')':'')+'. ')
+      +'ETA to pickup in '+puName+' '+zip+': '+dlLocal(r.eta,puTz)+' ('+dead+' mi).'+(truckDimsText(r.tr,{en:true}).length?'\n'+truckDimsText(r.tr,{en:true}).join('\n'):'');
     const isBest=best&&best===r&&ok.length>1;
     return `<div style="border:${isBest?'2px solid #1E3A8A':'1px solid var(--border)'};border-radius:12px;padding:11px 12px;margin-bottom:8px;">
-      <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start;"><div style="min-width:0;"><div style="font-size:14px;font-weight:800;">${r.tr.name}${r.drvName?' · '+r.drvName.split(' ')[0]:''}</div>
-        <div style="font-size:11px;color:var(--text3);margin-top:1px;">${srcTxt(r)}</div></div>${isBest?`<span style="font-size:11px;font-weight:800;background:#E0E7FF;color:#3730A3;padding:3px 8px;border-radius:8px;white-space:nowrap;">${TR('Llega primero','Arrives first')}</span>`:''}</div>
-      <div style="font-size:22px;font-weight:800;margin:6px 0 2px;">${fmtWhen(r.eta)}</div>
-      <div style="font-size:13px;color:var(--text2);">${dead.toLocaleString('en-US')} mi${r.est?' ('+TR('aprox.','approx.')+')':''} · ${r.tot.toFixed(1)} h ${TR('de camino','on the road')}${r.tot>r.h+0.4?' ('+TR('con descanso','incl. rest')+')':''}${fuel!=null?' · '+TR('diésel','diesel')+' '+asstMoney(fuel):''}</div>
+      <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start;"><div style="font-size:14px;font-weight:800;">${esc(r.tr.name)}${r.drvName?' · '+esc(r.drvName.split(' ')[0]):''}</div>${isBest?`<span style="font-size:11px;font-weight:800;background:#E0E7FF;color:#3730A3;padding:3px 8px;border-radius:8px;white-space:nowrap;">${TR('Llega primero','Arrives first')}</span>`:''}</div>
+      ${hereHtml}${stepsHtml}${(()=>{ const L=truckDimsText(r.tr); return L.length?`<details style="margin-top:4px;"><summary style="font-size:12px;cursor:pointer;color:var(--text2);">📏 ${esc(L[0].replace(/^Caja por dentro \(L x A x Al\): /,'Caja '))}</summary><div style="font-size:12px;color:var(--text2);">${L.map(esc).join('<br/>')}</div></details>`:`<div style="font-size:11px;color:var(--text3);margin-top:3px;">📏 Sin medidas (agrégalas en Mantenimiento)</div>`; })()}
+      <div style="margin-top:8px;padding-top:8px;border-top:1px dashed var(--border);">
+        <div style="font-size:11px;font-weight:800;color:#1E3A8A;text-transform:uppercase;">${TR('ETA al pick up','ETA to pick up')}</div>
+        <div style="font-size:22px;font-weight:800;margin:2px 0;">${detaWhen(r.eta)}</div>
+        <div style="font-size:12px;color:var(--text2);">${TR('hora local del pick up','pick up local time')}: <b>${dlLocal(r.eta,puTz)}</b></div>
+        <div style="font-size:12px;color:var(--text3);">${dead.toLocaleString('en-US')} mi${r.est?' ('+TR('aprox.','approx.')+')':''} ${TR('desde','from')} ${esc(r.from.name)} · ${r.tot.toFixed(1)} h ${TR('de camino','on the road')}${r.tot>r.h+0.4?' ('+TR('con descanso','incl. rest')+')':''}${fuel!=null?' · '+TR('diésel vacío ~','empty diesel ~')+asstMoney(fuel):''}</div></div>
       ${rateHtml}
       <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap;">
-        <button type="button" data-msg="${msg.replace(/"/g,'&quot;')}" onclick="etaCopy(this)" style="font-size:12px;font-weight:700;padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg3);color:var(--text);cursor:pointer;">📋 ${TR('Copiar mensaje para el broker','Copy message for broker')}</button>
-        <label style="font-size:11px;color:var(--text3);display:flex;align-items:center;gap:4px;">${TR('Horas que le quedan','Hours left')} <input type="number" min="0" max="11" step="0.5" value="${r.avail}" onchange="etaSetAvail(${i},this.value)" style="width:52px;padding:4px 6px;border:1px solid var(--border);border-radius:6px;background:var(--bg3);color:var(--text);font-size:13px;"/></label>
-      </div></div>`; }).join('')+`<div style="font-size:11px;color:var(--text3);">${TR('Promedio '+ETA_MPH+' mph por carretera, con 30 min de descanso cada 8 h y 10 h al terminar sus horas.','Average '+ETA_MPH+' mph by road, with a 30-min break every 8 h and 10 h off when hours run out.')}</div>`;
+        <button type="button" data-msg="${esc(msg)}" onclick="etaCopy(this)" style="font-size:12px;font-weight:700;padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg3);color:var(--text);cursor:pointer;">📋 ${TR('Copiar para el broker','Copy for broker')}</button>
+        <button type="button" onclick="tcPdf('${r.tr.id}',this)" style="font-size:12px;font-weight:700;padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg3);color:var(--text);cursor:pointer;">📸 Truck check PDF</button>
+        ${r.busy?'':`<label style="font-size:11px;color:var(--text3);display:flex;align-items:center;gap:4px;">${TR('Horas que le quedan','Hours left')} <input type="number" min="0" max="11" step="0.5" value="${r.avail}" onchange="etaSetAvail(${i},this.value)" style="width:52px;padding:4px;border:1px solid var(--border);border-radius:6px;background:var(--bg3);color:var(--text);"/></label>
+        <label style="font-size:11px;color:var(--text3);display:flex;align-items:center;gap:4px;">${TR('Sale a las','Leaves at')} <input type="time" value="${esc(r.leave)}" onchange="etaSetLeave(${i},this.value)" style="padding:3px;border:1px solid var(--border);border-radius:6px;background:var(--bg3);color:var(--text);"/></label>`}
+      </div></div>`; }).join('')+`<div style="font-size:11px;color:var(--text3);">${TR('Promedio '+ETA_MPH+' mph por carretera, con 30 min de descanso cada 8 h y 10 h al terminar sus horas. Si va cargado: '+ETA_UNLOAD_H+' h para descargar; cargas programadas: '+ETA_LOAD_H+' h para cargar.','Average '+ETA_MPH+' mph by road, with a 30-min break every 8 h and 10 h after the shift. Loaded: '+ETA_UNLOAD_H+' h to unload; scheduled loads: '+ETA_LOAD_H+' h to load.')}</div>`;
+}
+// ===== DOCUMENTOS (admin): licencia, tarjeta médica, registro, seguro, IFTA, inspección anual — los sube el chofer en su app
+const ADOC={cdl:'🪪 CDL',medical:'🩺 Tarjeta médica',registration:'📄 Registro',insurance:'🛡️ Seguro',ifta:'⛽ IFTA',annual:'🔧 Inspección anual'};
+let _adocs=null, _adocsAt=0, _adocsOpen=false;
+async function renderAdminDocs(force){
+  const box=document.getElementById('home-docs'); if(!box) return;
+  if(!(typeof fbReady!=='undefined'&&fbReady&&db)){ box.style.display='none'; return; }
+  if(!_adocs || force || Date.now()-_adocsAt>5*60000){ try{ const sn=await db.collection('docs').get(); _adocs={}; sn.forEach(d=>{ _adocs[d.id]=d.data(); }); _adocsAt=Date.now(); }catch(e){ return; } }
+  const today=rpLocalISO(new Date());
+  const st=it=>{ if(!it||!((it.files||[]).length)) return {k:'none',c:'#64748B',t:'Falta'}; if(!it.exp) return {k:'ok',c:'#16A34A',t:'Sin fecha'};
+    const d=Math.round((Date.parse(it.exp+'T12:00:00')-Date.parse(today+'T12:00:00'))/86400000);
+    return d<0?{k:'exp',c:'#B91C1C',t:'Vencido '+fmtDate(it.exp),d}:d<=30?{k:'soon',c:'#B45309',t:d+' d · '+fmtDate(it.exp),d}:{k:'ok',c:'#16A34A',t:fmtDate(it.exp),d}; };
+  const esc=x=>String(x==null?'':x).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const cell=(it,lbl)=>{ const s=st(it); const f=(it&&it.files||[]).find(x=>x.link); const rd=it&&it.read?Object.keys(it.read).filter(k=>k!=='at').map(k=>k.replace('_',' ')+': '+it.read[k]).join(' · '):'';
+    return `<div style="display:flex;justify-content:space-between;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px;"><span>${lbl}${rd?`<div style="font-size:10px;color:var(--text3);">${esc(rd)}</div>`:''}</span><span style="white-space:nowrap;"><b style="color:${s.c};">${s.k==='none'?'⚠️ Falta':esc(s.t)}</b>${f?` <a href="${esc(f.link)}" target="_blank" style="font-size:11px;">ver</a>`:''}</span></div>`; };
+  const users=getUsers().filter(u=>u.role!=='admin'), trucks=loadTrucks()||[];
+  let bad=0, soon=0; const blocks=[];
+  users.forEach(u=>{ const D=(_adocs['drv_'+u.username]||{}).items||{}; ['cdl','medical'].forEach(t=>{ const k=st(D[t]).k; if(k==='exp'||k==='none') bad++; else if(k==='soon') soon++; });
+    blocks.push(`<div style="border:1px solid var(--border);border-radius:10px;padding:8px 10px;"><div style="font-size:13px;font-weight:800;">👤 ${esc(u.firstName&&u.lastName?u.firstName+' '+u.lastName:(u.name||u.username))}</div>${cell(D.cdl,ADOC.cdl)}${cell(D.medical,ADOC.medical)}</div>`); });
+  trucks.forEach(t=>{ const D=(_adocs['truck_'+t.id]||{}).items||{}; ['registration','insurance','ifta','annual'].forEach(x=>{ const k=st(D[x]).k; if(k==='exp') bad++; else if(k==='soon') soon++; });
+    blocks.push(`<div style="border:1px solid var(--border);border-radius:10px;padding:8px 10px;"><div style="font-size:13px;font-weight:800;">🚚 ${esc(t.name)}</div>${['registration','insurance','ifta','annual'].map(x=>cell(D[x],ADOC[x])).join('')}</div>`); });
+  box.style.display='block';
+  box.innerHTML=`<div style="background:var(--card,#fff);border:1px solid ${bad?'#FECACA':soon?'#FDE68A':'var(--border)'};border-radius:16px;padding:14px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;" onclick="_adocsOpen=!_adocsOpen;renderAdminDocs()">
+      <div><div style="font-size:15px;font-weight:800;">📁 Documentos de choferes y camiones</div>
+      <div style="font-size:12px;font-weight:700;color:${bad?'#B91C1C':soon?'#B45309':'#16A34A'};">${bad?bad+' vencido(s) o sin subir':''}${bad&&soon?' · ':''}${soon?soon+' por vencer (30 días)':''}${!bad&&!soon?'✅ Todo al día':''}</div></div>
+      <span style="font-size:13px;color:var(--accent);font-weight:700;">${_adocsOpen?'Ocultar ▲':'Ver ▼'}</span></div>
+    ${_adocsOpen?`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px;margin-top:10px;">${blocks.join('')}</div><div style="font-size:11px;color:var(--text3);margin-top:8px;">Los choferes suben sus documentos en su app (📁 Mis Documentos). La fecha de vencimiento se lee de la foto. Te llega aviso a Telegram cada mañana cuando faltan 60, 30, 15, 7 y 1 día(s).</div>`:''}</div>`;
 }
 // ===== ¿DÓNDE ESTÁ EL DRIVER?: ubicación (ZIP, ciudad, estado), hora local, ETA al delivery y ETA a la siguiente carga =====
 const DL_TZ={CT:'America/New_York',DE:'America/New_York',DC:'America/New_York',GA:'America/New_York',ME:'America/New_York',MD:'America/New_York',MA:'America/New_York',NH:'America/New_York',NJ:'America/New_York',NY:'America/New_York',NC:'America/New_York',OH:'America/New_York',PA:'America/New_York',RI:'America/New_York',SC:'America/New_York',VT:'America/New_York',VA:'America/New_York',WV:'America/New_York',MI:'America/New_York',
@@ -6355,17 +6459,67 @@ function rcFindEmail(lines){
   let m; while((m=rx.exec(txt))) add(m[2]);
   return out.slice(0,2).join(', ')||null;
 }
+// Detalles de cada parada para el chofer: nombre del lugar, horario/cita, números de referencia, teléfono e instrucciones
+function rcDetails(lines){
+  const L=(lines||[]).map(l=>typeof l==='string'?l:(l&&l.t)||'');
+  const out={stops:[],notes:[]};
+  const HDR=/^\s*(Pick-?\s*up Location|Delivery Location|(?:PICK\s*-?\s*UP|DELIVERY)\s*#\s*\d{1,2}(?=\s{2,}|\s*$|\s+Type)|SHIPPER\s*#?\s*\d*\s*:|RECEIVER\s*#?\s*\d*\s*:|CONSIGNEE\s*#?\s*\d*\s*:)/i;
+  const STOPEND=/Total details|CARRIER RESPONSIBLE|Rate Details|Load\s*&\s*Trip|Commodities:|Please (?:ask for|confirm)|TQL Privacy|SERVICE REQUIREMENTS|Page \d+ of/i;
+  const add=(type,o)=>{ out.stops.push(Object.assign({type},o)); };
+  for(let i=0;i<L.length;i++){
+    const t=L[i]; const m=t.match(HDR); if(!m) continue;
+    const type=/PICK|SHIPPER/i.test(m[1])?'pickup':'delivery';
+    // TQL: tabla "Pick-up Location  Date  Time" y debajo una o varias filas "Ciudad, ST  fecha  FCFS 08:00 to 15:00"
+    if(/Location/i.test(m[1])){
+      for(let k=i+1;k<L.length&&k<i+6;k++){ const c=rcCols(L[k]); if(c.length<2||!/,\s*[A-Z]{2}\b/.test(c[0])) break; add(type,{place:c[0],date:c[1]||'',time:c.slice(2).join(' ')}); }
+      continue;
+    }
+    const block=[t]; for(let k=i+1;k<L.length&&k<i+14;k++){ if(HDR.test(L[k])||STOPEND.test(L[k])) break; block.push(L[k]); }
+    const B=block.join('\n'); const o={};
+    const ty=B.match(/Type:\s*([A-Z]+)/i); if(ty) o.kind=ty[1].toUpperCase();
+    const by=B.match(/By:\s*(\d{1,2}\/\d{1,2}\/\d{2,4})\s+(\d{1,2}:\d{2})\s*(\([A-Z\/]+\))?/i);
+    const fr=B.match(/From:\s*(\d{1,2}\/\d{1,2}\/\d{2,4})\s+(\d{1,2}:\d{2})\s*(\([A-Z\/]+\))?/i), to=B.match(/To:\s*(\d{1,2}\/\d{1,2}\/\d{2,4})\s+(\d{1,2}:\d{2})/i);
+    if(fr){ o.date=fr[1]; o.time=fr[2]+(to?' – '+to[2]:'')+(fr[3]?' '+fr[3].replace(/[()]/g,''):''); } else if(by){ o.date=by[1]; o.time=(TR('antes de las ','by '))+by[2]+(by[3]?' '+by[3].replace(/[()]/g,''):''); }
+    const pt=B.match(/(?:Pick\s*Up|Delivery)\s*Time:\s*([0-9:apm \-–]+)/i); if(pt) o.time=pt[1].trim();
+    const pd=B.match(/(?:Pick\s*Up|Delivery)\s*Date:\s*(\d{1,2}\/\d{1,2}\/\d{2,4})/i); if(pd) o.date=pd[1];
+    if(/\*Open (Pick ?Up|Delivery)\*/i.test(B)) o.kind=o.kind||'FCFS';
+    // Nombre del lugar
+    const nm=t.match(/(?:SHIPPER|RECEIVER|CONSIGNEE)\s*#?\s*\d*\s*:\s*(.+?)(?:\s{3,}|$)/i);
+    if(nm) o.name=nm[1].trim(); else if(block[1]){ const c=rcCols(block[1]); if(c[0]&&!/^(By|From|To|Address)\b/i.test(c[0])&&!/,\s*[A-Z]{2},\s*\d{5}/.test(c[0])) o.name=c[0]; }
+    // Dirección
+    { const a2=B.match(/Address:\s*(.+?)(?:\s{3,}|\n|$)/i); const c2=B.match(/\n\s*([A-Z][A-Za-z .'-]+,\s*[A-Z]{2}\s+\d{5})/); if(a2) o.addr=(a2[1].replace(/\*[^*]*\*/g,'').trim()+(c2?', '+c2[1].trim():'')).replace(/\s+/g,' '); }
+    // Números y teléfono
+    const refs=[]; let r;
+    const RX=/\b(Pick\s*up\s*#|Pickup#|Delivery\s*#|Appointment\s*#|PO\s*#|BOL\s*#|Ref(?:erence)?\s*#|Confirmation\s*#|Order\s*#)\s*:?\s*([A-Z0-9-]{3,})/gi;
+    while((r=RX.exec(B))){ if(!/^(Phone|Address)$/i.test(r[2])) refs.push(r[1].replace(/\s+/g,' ').replace(/:$/,'')+' '+r[2]); }
+    if(refs.length) o.refs=[...new Set(refs)];
+    const ph=B.match(/Phone:\s*(\(?\d{3}\)?[\s.-]*\d{3}[\s.-]*\d{4})/i); if(ph) o.phone=ph[1];
+    const pcs=B.match(/(\d+)\s*pcs\s*\/\s*([\d,]+)\s*lbs/i); if(pcs) o.load=pcs[1]+' pcs / '+pcs[2]+' lbs';
+    add(type,o);
+  }
+  // Instrucciones generales (TQL "READ IN FULL" / "Note to Carrier", CHR "Shipper/Receiver Instructions")
+  for(let i=0;i<L.length;i++){
+    if(/^\s*(READ IN FULL|Note to|Shipper Instructions|Receiver Instructions|Special Instructions|Driver Instructions)\b/i.test(L[i])){
+      const who=/Shipper/i.test(L[i])?TR('Pick up: ','Pick up: '):/Receiver/i.test(L[i])?TR('Delivery: ','Delivery: '):'';
+      for(let k=i+1;k<L.length&&k<i+14;k++){ const x=L[k].replace(/^\s*Carrier\s+/i,'').trim(); if(!x) continue; if(HDR.test(L[k])||/TQL Privacy|If this box|Page \d+|Rate Details|Commodity\s+Est|Please confirm|C\.H\. Robinson Contract/i.test(x)) break; if(/^(Note to|READ IN FULL)$/i.test(x)) continue; out.notes.push(who+x.replace(/^[-•*]\s*/,'')); }
+    }
+  }
+  out.notes=[...new Set(out.notes)].slice(0,14);
+  return out;
+}
 async function readRcFile(file){
   if(!rcIsPdf(file)) return null;
   const pdfjs=await loadPdfJs(); const buf=new Uint8Array(await file.arrayBuffer());
   const _lines=await rcPdfLines(pdfjs,buf); const R=rcParse(_lines);
   R.docsEmail=rcFindEmail(_lines);
+  try{ const D=rcDetails(_lines); R.notes=D.notes; R.details=D.stops; }catch(e){ R.details=[]; }
   for(const st of R.stops){ if(!st.zip && st.city && st.state){ const z=await rcResolveZip(st.city,st.state); if(z){ st.zip=z; st.zipFromCity=true; } } }
   // Si la dirección venía partida en dos renglones ("Grand / Junction"), se usa el nombre de la ciudad que corresponde al ZIP
   for(const st of R.stops){ if(st.zip && st.city){ try{ const zc=await fetchZip(st.zip); if(zc && zc.city){ const a=zc.city.toLowerCase(), b=st.city.toLowerCase().trim(); if(a!==b && a.endsWith(' '+b)){ st.city=zc.city; if(st.addr) st.addr=st.addr.replace(/,\s*(\S+),\s*([A-Z]{2}),/, (m)=>m.replace(', '+m.split(',')[1].trim()+',',' '+m.split(',')[1].trim()+',')); } } }catch(e){} } }
   R.pickup=R.stops.find(x=>x.type==='pickup')||null;
   const dels=R.stops.filter(x=>x.type==='delivery'); R.delivery=dels[dels.length-1]||null;
   R.extraStops=R.stops.filter(x=>x!==R.pickup && x!==R.delivery);
+  try{ ['pickup','delivery'].forEach(tp=>{ const S=R.stops.filter(x=>x.type===tp), D=(R.details||[]).filter(x=>x.type===tp); S.forEach((s,k)=>{ if(D[k]) s.det=D[k]; }); }); }catch(e){}
   return R;
 }
 function fileToDataUrl(file){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=e=>res(e.target.result); r.onerror=rej; r.readAsDataURL(file); }); }
@@ -6476,7 +6630,7 @@ async function applyRcToTrip(tripId, picked, R){
   }
   if(R && R.pickup && R.pickup.addr && picked.some(r=>r.key==='z1')) t.pickupAddress=R.pickup.addr;
   if(R && R.delivery && R.delivery.addr && picked.some(r=>r.key==='z2')) t.deliveryAddress=R.delivery.addr;
-  if(R){ t.rcExtras=R.extras; t.rcStops=R.stops; }
+  if(R){ t.rcExtras=R.extras; t.rcStops=R.stops; t.rcNotes=R.notes||[]; }
   T[i]=t; await storeTrips(T);
 }
 // Edición (viaje terminado): pone los datos del RC en la ventana de Editar; al Guardar se recalcula todo
@@ -6506,13 +6660,40 @@ async function rcUploadLater(input, kind, where){
   if(kind!=='rc' || !rcIsPdf(file)) return;
   let R=null; try{ R=await readRcFile(file); }catch(e){ return; }
   const t=loadTrips().find(x=>String(x.id)===String(tripId)); if(!t||!R) return;
-  if(R.docsEmail && !t.brokerEmail){ const T=loadTrips(); const k=T.findIndex(x=>String(x.id)===String(tripId)); if(k>=0){ T[k]={...T[k],brokerEmail:R.docsEmail}; await storeTrips(T); } }
+  { const T=loadTrips(); const k=T.findIndex(x=>String(x.id)===String(tripId)); if(k>=0){ const up={rcStops:R.stops, rcNotes:R.notes||[]}; if(R.docsEmail && !t.brokerEmail) up.brokerEmail=R.docsEmail; T[k]={...T[k],...up}; await storeTrips(T); } }
   const rows=rcDiffRows(t,R);
   const note=where==='edit'?TR('Los cambios se ponen en esta ventana. Presiona <b>Guardar</b> para que se recalculen el pago del driver, el fee, la ganancia y el rate.','Changes are placed in this window. Press <b>Save</b> so driver pay, fee, profit and rate are recalculated.')
     :TR('El pago se pone solo cuando finalices el viaje.','The pay is filled in when you finish the trip.');
   const picked=await rcCompareModal(TR('RC subido — compara los datos','RC uploaded — compare the data'), rows, note);
   if(where==='edit') applyRcToEditModal(picked,R);
   else { await applyRcToTrip(tripId,picked,R); try{ openTripDetail(Number(tripId)); }catch(e){} }
+}
+// ===== El ADMIN sube BOL, POD y fotos de carga/descarga (desde En Tránsito o desde Editar) =====
+function renderEditDocsStatus(t){
+  const el=document.getElementById('edit-docs-status'); if(!el||!t) return; el.setAttribute('data-no-tr','');
+  const a=(k,txt)=>{ const l=t[k+'DriveLink']; return l?`<a href="${l}" target="_blank" style="color:var(--accent);font-weight:700;">✔ ${txt}</a>`:(t[k+'DriveStatus']==='pending'?`<span style="color:#B45309;">📤 ${txt}: ${TR('pendiente','pending')}</span>`:`<span style="color:var(--text3);">${txt}: ${TR('falta','missing')}</span>`); };
+  el.innerHTML=[a('bol','BOL'),a('pod','POD'),a('loaded',TR('Carga','Loaded')),a('unloaded',TR('Descarga','Unloaded'))].join(' &nbsp;·&nbsp; ');
+}
+async function adminTripDocUpload(input, kind, where){
+  if(!driveTokenValid()){ try{ window._driveWarm=getGoogleDriveToken(); window._driveWarm.catch(()=>{}); }catch(e){} }
+  const file=input.files&&input.files[0]; if(!file) return; input.value='';
+  const tripId=where==='edit'?document.getElementById('edit-trip-id')?.value:(_adminActiveTrip&&_adminActiveTrip.id);
+  const trip=loadTrips().find(x=>String(x.id)===String(tripId));
+  if(!trip){ alert(TR('No hay un viaje abierto.','No trip is open.')); return; }
+  const st=document.getElementById(where==='edit'?'edit-docs-status':'at-'+kind+'-preview');
+  if(st){ st.setAttribute('data-no-tr',''); st.innerHTML='☁️ '+TR('Subiendo ','Uploading ')+upqLabel(kind)+'…'; }
+  let dataUrl; try{ dataUrl=await shrinkDataUrl(await fileToDataUrl0(file),1600,0.8); }catch(e){ alert(TR('No se pudo leer el archivo.','Could not read the file.')); return; }
+  const item={tripId:trip.id, kind, dataUrl, checklist:{admin:true}}; item.qid=upqAdd(item);
+  try{
+    if(window._driveWarm){ try{ await window._driveWarm; }catch(e){} window._driveWarm=null; }
+    const res=await uploadPhotoToDrive(trip, kind, dataUrl);
+    await applyUpload(item, res); upqRemove(item.qid);
+  }catch(e){
+    console.warn('adminTripDocUpload',e); await markPending(item);
+    alert(TR('No se pudo subir ahora. Quedó guardado en este aparato: toca "Subir ahora" (abajo) para mandarlo a Drive.','Could not upload now. It is saved on this device: tap "Upload now" (below) to send it to Drive.')+(e&&e.message?'\n\n'+e.message:''));
+  }
+  const t2=loadTrips().find(x=>String(x.id)===String(trip.id));
+  if(where==='edit') renderEditDocsStatus(t2); else { try{ openTripDetail(Number(trip.id)); }catch(e){} }
 }
 function renderEditRcStatus(t){
   const el=document.getElementById('edit-rc-status'); if(!el||!t) return; el.setAttribute('data-no-tr','');
@@ -6794,7 +6975,7 @@ async function adminStartTrip(){
       zStart: zStart||null, cityStart: zStart&&ZC[zStart]?ZC[zStart].city:null, stateStart: zStart&&ZC[zStart]?ZC[zStart].abbr:null,
       gpsMiles, deadMiles: deadFinal, deadMilesSrc: deadSrcFinal,
       loadType: isPartial?'partial':'full',
-      rcRate: rcP&&rcP.rate!=null?rcP.rate:null, brokerEmail: (rcP&&rcP.docsEmail)||null, rcExtras: rcP?rcP.extras:null, rcStops: rcP?rcP.stops:null,
+      rcRate: rcP&&rcP.rate!=null?rcP.rate:null, brokerEmail: (rcP&&rcP.docsEmail)||null, rcExtras: rcP?rcP.extras:null, rcStops: rcP?rcP.stops:null, rcNotes: rcP?(rcP.notes||[]):null,
       roadMiles: (rcP && rcP.stops.length>2 && routeMiles)?routeMiles:undefined,
       parentTripId: parentTrip?parentTrip.id:null,
       desvioMiles: parentTrip?desvioMiles:null,
@@ -7046,6 +7227,7 @@ function openTripDetail(tripId){
 
   { const sb=document.getElementById('at-share-docs'); if(sb) sb.textContent='📤 '+TR('Mandar fotos del POD firmado y descarga','Send signed POD & unloading photos'); }
   { const pe=document.getElementById('at-pod-email'); if(pe) pe.innerHTML=podEmailHTML(t); }
+  { const tx=document.getElementById('at-trip-extras'); if(tx){ tx.innerHTML=odoHTML(t)+tripExtrasHTML(t); odoLoad().then(ch=>{ if(ch&&tx.isConnected){ const t2=loadTrips().find(x=>String(x.id)===String(t.id)); if(t2) tx.innerHTML=odoHTML(t2)+tripExtrasHTML(t2); } }); } }
   // Fotos del viaje
   ['loaded','unloaded','bol','pod'].forEach(function(kind){
     const driveThumb = t[kind+'DriveThumb'];
@@ -7059,6 +7241,7 @@ function openTripDetail(tripId){
       if(actionsEl) actionsEl.style.display = (driveThumb && !t[kind+'Approved']) ? 'block' : 'none';
     }
     if(prev) prev.innerHTML = (driveThumb ? '<img src="'+driveThumb+'" style="max-height:110px;border-radius:6px;cursor:pointer;" onclick="window.open(\''+driveLink+'\',\'_blank\')" />' : 'Sin subir') + driveBadge;
+    { const lb=document.querySelector('[data-at-up="'+kind+'"]'); if(lb) lb.textContent=driveLink?'📎 '+TR('Cambiar','Replace'):'📎 '+TR('Subir','Upload'); }
   });
 
   // RC
@@ -7494,6 +7677,7 @@ function openEditModal(tripId){
   document.getElementById('edit-brokername').value=t.brokerName||'';
   document.getElementById('edit-factoring').value=(t.factoringFeePct!=null&&!isNaN(t.factoringFeePct)&&t.factoringFeePct>0)?t.factoringFeePct:'';
   try{ renderEditRcStatus(t); }catch(e){}
+  try{ renderEditDocsStatus(t); }catch(e){}
   document.getElementById('edit-rc').value=t.rc||'';
 
   try{ const tt=tripTruck(t); fillTruckSelect('edit-truck', t.truckId!=null?t.truckId:(tt.truck?tt.truck.id:''), null); }catch(e){}
@@ -9089,6 +9273,7 @@ function logTripDetailHTML(t){ return `
           ${renderMileAnalysisGrid(t)}
         </div>
       </div>
+      ${odoHTML(t)}${tripExtrasHTML(t)}
       ${t.tripStatus==='completed'?podEmailHTML(t):''}
       <div class="trip-actions">
         <button class="btn-sm btn-edit" onclick="openEditModal(${t.id})">&#x270F; ${t.profitSet?'Editar ganancia':'Agregar ganancia'}</button>
@@ -9183,7 +9368,8 @@ function renderMileAnalysisGrid(t){
   const rm = t.roadMiles;
   if(!rm) return '<div class="ma-loading" style="grid-column:1/-1;">Calculando distancia real entre ZIP codes...</div>';
 
-  const rpm     = t.profitSet ? parseFloat((t.net / rm).toFixed(2))            : null;
+  const _rpm    = t.profitSet ? parseFloat(((parseFloat(t.net)||0) / rm).toFixed(2)) : null;
+  const rpm     = _rpm==null||isNaN(_rpm) ? null : _rpm;
   const cpm     = rm && t.totalCost ? parseFloat((t.totalCost / rm).toFixed(3)) : null;
   const rpmLoad = t.profitSet && rm  ? parseFloat((t.loadVal / rm).toFixed(2))  : null;
 
@@ -9840,6 +10026,8 @@ function renderHome(){
   if(isAdmin && /^#trip=/.test(location.hash||'')){ const id=decodeURIComponent(location.hash.slice(6)); history.replaceState(null,'',location.pathname+location.search);
     setTimeout(()=>{ try{ const t=loadTrips().find(x=>String(x.id)===id); if(!t) return; if(t.tripStatus==='active'){ sidebarNav('entransito'); setTimeout(()=>openTripDetail(t.id),200); } else openEditModal(t.id); }catch(e){} },600); }
   { const eb=el('home-eta'); if(eb){ if(isAdmin){ try{ renderEtaBox(); }catch(e){ console.warn('eta',e); } } else eb.style.display='none'; } }
+  { const db2=el('home-docs'); if(db2){ if(isAdmin){ try{ renderAdminDocs(); }catch(e){ console.warn('docs',e); } } else db2.style.display='none'; } }
+  if(isAdmin){ try{ odoLoad(); }catch(e){} }
   { const ab=el('home-assistant'); if(ab){ if(isAdmin) setTimeout(()=>{ try{ renderAssistant(); }catch(e){ console.warn('asistente',e); ab.style.display='none'; } },0); else ab.style.display='none'; } }
 
   // ── Hero greeting
@@ -9896,7 +10084,7 @@ function renderHome(){
         if(inspAlert){
           const lastInsp = getLastInspection(currentUser.username);
           const inspDays = lastInsp ? daysSince(lastInsp.date) : Infinity;
-          if(inspDays>7){
+          if(false){ // inspección semanal quitada
             inspAlert.style.display = 'block';
             el('dd-insp-alert-text').textContent = lastInsp
               ? '⚠️ Inspección semanal vencida — hace '+inspDays+' días'
@@ -9908,7 +10096,8 @@ function renderHome(){
           // Recordatorio de cambio de aceite (basado en el camión de su última inspección)
           const oilAlert = el('dd-oil-alert');
           if(oilAlert){
-            const truck = lastInsp ? loadTrucks().find(t=>t.id===lastInsp.truckId) : null;
+            const myTid = currentUser.truckId!=null&&currentUser.truckId!=='' ? currentUser.truckId : (lastInsp?lastInsp.truckId:null);
+            const truck = myTid!=null ? loadTrucks().find(t=>String(t.id)===String(myTid)) : null;
             if(truck){
               const oil = getOilChangeStatus(truck);
               if(oil.status!=='ok'){
@@ -10580,7 +10769,7 @@ function renderAdminReport(){
   if(pendingPay.length) items.push({c:'var(--orange)',t:`${pendingPay.length} carga${pendingPay.length!==1?'s':''} sin cobrar`,s:'Pago pendiente del broker / cliente',v:rpMoney(sumF(pendingPay,t=>t.loadVal)),nav:'log'});
   if(pendingDriver.length) items.push({c:'var(--orange)',t:`${pendingDriver.length} pago${pendingDriver.length!==1?'s':''} a driver pendiente${pendingDriver.length!==1?'s':''}`,s:'Por pagarle a los drivers',v:rpMoney(sumF(pendingDriver,t=>t.driver)),nav:'reportes'});
   if(pendingDispatch.length) items.push({c:'var(--red)',t:`${pendingDispatch.length} fee${pendingDispatch.length!==1?'s':''} de dispatcher`,s:'Pendiente o por cobrar',v:rpMoney(sumF(pendingDispatch,t=>t.fee)),nav:'dispatcherpay'});
-  if(overdueInsp.length) items.push({c:'var(--orange)',t:`Inspección vencida (${overdueInsp.length})`,s:overdueInsp.map(u=>u.name).join(', '),v:'Ver',nav:'mantenimiento'});
+  if(false&&overdueInsp.length) items.push({c:'var(--orange)',t:`Inspección vencida (${overdueInsp.length})`,s:overdueInsp.map(u=>u.name).join(', '),v:'Ver',nav:'mantenimiento'});
   { const lim=rpLocalISO(new Date(Date.now()-60*86400000));
     const dups=findTripDuplicates(trips.filter(t=>(t.tripStatus==='active'||t.tripStatus==='completed')&&tripPickupDate(t)>=lim));
     if(dups.length) items.unshift({c:'var(--red)',t:`${dups.length} viaje${dups.length!==1?'s':''} posiblemente duplicado${dups.length!==1?'s':''}`,s:dups.slice(0,3).map(([a])=>(a.driverName||'').split(' ')[0]+': '+(a.city1||a.z1||'')+' → '+(a.city2||a.z2||'')).join(' · ')+' — borra el que sobra en Historial',v:'Ver',nav:'log'}); }
@@ -10693,6 +10882,7 @@ async function logLocationHistoryPoint(username, point){
 }
 
 async function fireDriverAlert(type, extra){
+  if(typeof SERVER_ELD_ALERTS!=='undefined' && SERVER_ELD_ALERTS && (type==='stopped_long'||type==='speeding')) return;
   if(!currentUser) return;
   try{
     await tgAddNotif(sanitizeForFirestore({
@@ -12141,12 +12331,9 @@ function updateDriverAlertStrip(){
   const inspDays = lastInsp ? daysSince(lastInsp.date) : Infinity;
   let alertText = null;
 
-  if(inspDays>7){
-    alertText = lastInsp
-      ? 'Inspección semanal vencida — hace '+inspDays+' días'
-      : 'Aún no tienes ninguna inspección semanal registrada';
-  } else {
-    const truck = lastInsp ? loadTrucks().find(t=>t.id===lastInsp.truckId) : null;
+  {
+    const myTid = currentUser.truckId!=null&&currentUser.truckId!=='' ? currentUser.truckId : (lastInsp?lastInsp.truckId:null);
+    const truck = myTid!=null ? loadTrucks().find(t=>String(t.id)===String(myTid)) : null;
     if(truck){
       const oil = getOilChangeStatus(truck);
       if(oil.status==='overdue') alertText = truck.name+' — cambio de aceite vencido';
@@ -12165,7 +12352,7 @@ function updateDriverAlertStrip(){
 }
 
 function handleAlertStripClick(){
-  sidebarNav('inspeccion');
+  sidebarNav('home');
 }
 
 function getLastInspection(username){
@@ -12330,6 +12517,81 @@ function seedDefaultTrucks(){
   saveTrucks(defaults);
 }
 
+// ===== MEDIDAS DEL CAMIÓN (para contestarle al broker): caja por dentro, puerta, lift gate, peso y pallets
+const TDIM=[['boxL','Largo de la caja (por dentro)','in'],['boxW','Ancho de la caja (por dentro)','in'],['boxH','Alto de la caja (por dentro)','in'],
+  ['doorW','Ancho de la puerta','in'],['doorH','Alto de la puerta','in'],['deckH','Altura del piso al suelo','in'],
+  ['payload','Peso máximo de carga','lbs'],['pallets','Pallets que caben (48x40)','#'],['liftCap','Capacidad del lift gate (0 = no tiene)','lbs']];
+const TDIM_EXTRA=[['palletJack','Pallet jack'],['straps','Straps'],['loadBars','Barras de carga (load bars)'],['blankets','Cobijas (blankets)']];
+function tdFtIn(v){ v=parseFloat(v); if(!(v>0)) return ''; const f=Math.floor(v/12), i=Math.round(v-f*12); return f?f+"'"+(i?i+'"':''):i+'"'; }
+function truckDimsText(t, opts){
+  const d=(t&&t.dims)||{}; const en=opts&&opts.en; const n=v=>parseFloat(v)>0;
+  const box=[d.boxL,d.boxW,d.boxH].every(n)?(en?'Box inside (LxWxH): ':'Caja por dentro (L x A x Al): ')+d.boxL+'" x '+d.boxW+'" x '+d.boxH+'" ('+tdFtIn(d.boxL)+' x '+tdFtIn(d.boxW)+' x '+tdFtIn(d.boxH)+')':'';
+  const door=[d.doorW,d.doorH].every(n)?(en?'Door opening (WxH): ':'Puerta (A x Al): ')+d.doorW+'" x '+d.doorH+'"':'';
+  const deck=n(d.deckH)?(en?'Deck height: ':'Altura del piso: ')+d.deckH+'"':'';
+  const lift=d.liftCap===undefined||d.liftCap===''?'':(n(d.liftCap)?(en?'Lift gate: ':'Lift gate: ')+Number(d.liftCap).toLocaleString('en-US')+' lbs':(en?'No lift gate':'Sin lift gate'));
+  const pay=n(d.payload)?(en?'Max payload: ':'Peso máximo: ')+Number(d.payload).toLocaleString('en-US')+' lbs':'';
+  const pal=n(d.pallets)?(en?'Pallets: ':'Pallets: ')+d.pallets:'';
+  const ex=TDIM_EXTRA.filter(x=>d[x[0]]).map(x=>en?({palletJack:'pallet jack',straps:'straps',loadBars:'load bars',blankets:'blankets'}[x[0]]):x[1].toLowerCase());
+  const eq=ex.length?(en?'Equipment: ':'Equipo: ')+ex.join(', '):'';
+  return [box,door,deck,lift,pay,pal,eq].filter(Boolean);
+}
+function truckDimsMissing(t){ const d=(t&&t.dims)||{}; return ['boxL','boxW','boxH','doorW','doorH'].filter(k=>!(parseFloat(d[k])>0)); }
+function truckDimsForm(t, prefix){
+  const d=(t&&t.dims)||{};
+  return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">'+TDIM.map(([k,l,u])=>'<div><label style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;">'+l+(u==='in'?' (pulgadas)':u==='lbs'?' (lbs)':'')+'</label><input type="number" min="0" step="'+(u==='in'?'0.5':'1')+'" inputmode="decimal" id="'+prefix+'-'+k+'" value="'+(d[k]!==undefined&&d[k]!==null?d[k]:'')+'" placeholder="'+(u==='in'?'Ej. 96':'')+'" oninput="tdHint(this)"/><div style="font-size:10px;color:var(--text3);min-height:12px;" data-hint>'+(u==='in'&&d[k]?tdFtIn(d[k]):'')+'</div></div>').join('')+'</div>'+
+    '<div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:6px;">'+TDIM_EXTRA.map(([k,l])=>'<label style="font-size:12px;display:flex;align-items:center;gap:4px;"><input type="checkbox" id="'+prefix+'-'+k+'" '+(d[k]?'checked':'')+'/> '+l+'</label>').join('')+'</div>';
+}
+function tdHint(inp){ const h=inp.parentNode.querySelector('[data-hint]'); if(h && /pulgadas/.test(inp.parentNode.textContent)) h.textContent=tdFtIn(inp.value); }
+function truckDimsRead(prefix){ const o={}; TDIM.forEach(([k])=>{ const v=document.getElementById(prefix+'-'+k).value; o[k]=v===''?'':parseFloat(v); }); TDIM_EXTRA.forEach(([k])=>{ o[k]=!!document.getElementById(prefix+'-'+k).checked; }); return o; }
+function truckDimsCopy(btn, truckId){
+  const t=(loadTrucks()||[]).find(x=>String(x.id)===String(truckId)); if(!t) return;
+  const lines=truckDimsText(t,{en:true}); if(!lines.length){ alert('Todavía no hay medidas para este camión.'); return; }
+  const msg=(t.makeModel?t.makeModel+' · ':'')+'Straight box truck'+(t.plate?' · plate '+t.plate:'')+'\n'+lines.join('\n');
+  const done=()=>{ if(btn) btn.textContent='✓ Copiado'; };
+  if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(msg).then(done,()=>prompt('Copia:',msg)); else prompt('Copia:',msg);
+}
+// ===== TRUCK CHECK (lo que pide el broker): 6 fotos del camión + 5 fotos de medidas con su número
+const TCHECK=[['front','Frente (Front)',null],['rear','Atrás (Rear)',null],['left','Lado izquierdo (Left side)',null],['right','Lado derecho (Right side)',null],['cargo','Área de carga (Cargo area)',null],['plate','Placa (License plate)',null],
+  ['m_len','Medida: largo por dentro (Length)','boxL'],['m_doorH','Medida: alto de la puerta (Height at door)','doorH'],['m_inH','Medida: alto por dentro (Height inside)','boxH'],['m_doorW','Medida: ancho de la puerta (Width at door)','doorW'],['m_inW','Medida: ancho por dentro (Width inside)','boxW']];
+const TCHECK_EN={front:'Front',rear:'Rear',left:'Left side',right:'Right side',cargo:'Cargo area',plate:'License plate',m_len:'Length (inside)',m_doorH:'Height at door',m_inH:'Height inside',m_doorW:'Width at door',m_inW:'Width inside'};
+async function tcLoad(tid){ if(!(fbReady&&db)||!tid) return {photos:{}}; try{ const s=await db.collection('docs').doc('check_'+tid).get(); return s.exists?(s.data()||{photos:{}}):{photos:{}}; }catch(e){ return {photos:{}}; } }
+function tcMissing(c){ return TCHECK.filter(x=>!(c&&c.photos&&c.photos[x[0]]&&c.photos[x[0]].id)).length; }
+// PDF con las 11 fotos y las medidas, listo para mandárselo al broker
+async function tcPdf(tid, btn){
+  const t=(loadTrucks()||[]).find(x=>String(x.id)===String(tid)); if(!t){ alert('No encontré el camión.'); return; }
+  const c=await tcLoad(tid); const old=btn?btn.textContent:''; if(btn) btn.textContent='⏳ Armando PDF…';
+  try{
+    const imgs={};
+    for(const [k] of TCHECK){ const p=c.photos&&c.photos[k]; if(p&&p.id){ try{ const j=await scriptPost({action:'get',id:p.id}); imgs[k]='data:'+(j.mime||'image/jpeg')+';base64,'+j.b64; }catch(e){} } }
+    if(!Object.keys(imgs).length){ alert('Todavía no hay fotos del truck check para este camión.'); return; }
+    const co=(loadCompany&&loadCompany())||{}; const d=t.dims||{}; const esc=x=>String(x==null?'':x).replace(/[&<>"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
+    const lines=truckDimsText(t,{en:true});
+    const cell=k=>imgs[k]?'<td style="width:50%;padding:6px;vertical-align:top;"><div style="font-weight:700;font-size:12px;margin-bottom:4px;">'+TCHECK_EN[k]+(TCHECK.find(x=>x[0]===k)[2]&&d[TCHECK.find(x=>x[0]===k)[2]]?': '+d[TCHECK.find(x=>x[0]===k)[2]]+'"':'')+'</div><img src="'+imgs[k]+'" style="width:100%;height:250px;object-fit:cover;border:1px solid #ccc;border-radius:6px;"/></td>':'';
+    const keys=TCHECK.map(x=>x[0]).filter(k=>imgs[k]); const rows=[]; for(let i=0;i<keys.length;i+=2) rows.push('<tr>'+cell(keys[i])+(keys[i+1]?cell(keys[i+1]):'<td></td>')+'</tr>');
+    const html='<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body style="font-family:Arial,sans-serif;color:#111;margin:0;padding:24px;width:768px;">'+
+      '<table style="width:100%;border-bottom:3px solid #0E1B3D;margin-bottom:10px;"><tr><td>'+(co.logo?'<img src="'+co.logo+'" style="height:56px;vertical-align:middle;margin-right:10px;"/>':'')+'<b style="font-size:18px;">'+esc(co.name||'YENAVI FREIGHT LLC')+'</b><br/><span style="font-size:11px;">'+(co.mc?'MC '+esc(co.mc):'')+(co.mc&&co.dot?' · ':'')+(co.dot?'DOT '+esc(co.dot):'')+'</span></td>'+
+      '<td style="text-align:right;"><b style="font-size:16px;color:#0E1B3D;">TRUCK CHECK</b><br/><span style="font-size:12px;">'+esc(t.name)+(t.makeModel?' · '+esc(t.makeModel):'')+(t.plate?' · Plate '+esc(t.plate):'')+'</span></td></tr></table>'+
+      (lines.length?'<div style="font-size:12px;line-height:1.6;background:#F1F5F9;border-radius:6px;padding:8px 10px;margin-bottom:8px;">'+lines.map(esc).join('<br/>')+'</div>':'')+
+      '<table style="width:100%;border-collapse:collapse;">'+rows.join('')+'</table></body></html>';
+    const fr=document.createElement('iframe'); fr.style.cssText='position:fixed;left:-10000px;top:0;width:816px;height:1056px;border:0;'; document.body.appendChild(fr);
+    let blob;
+    try{ const doc=fr.contentDocument; doc.open(); doc.write(html); doc.close();
+      await new Promise((ok,ko)=>{ const s=doc.createElement('script'); s.src='https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js'; s.onload=()=>ok(); s.onerror=()=>ko(new Error('no se pudo cargar el generador de PDF')); doc.head.appendChild(s); });
+      await new Promise(r=>setTimeout(r,500));
+      blob=await fr.contentWindow.html2pdf().set({margin:0,image:{type:'jpeg',quality:0.85},html2canvas:{scale:2,useCORS:true,windowWidth:816,backgroundColor:'#ffffff'},jsPDF:{unit:'pt',format:'letter'},pagebreak:{mode:['avoid-all']}}).from(doc.body).outputPdf('blob');
+    } finally { fr.remove(); }
+    const name='Truck_Check_'+String(t.name).replace(/\s+/g,'_')+(t.plate?'_'+t.plate:'')+'.pdf';
+    const file=new File([blob],name,{type:'application/pdf'});
+    if(navigator.canShare&&navigator.canShare({files:[file]})){ try{ await navigator.share({files:[file],title:'Truck check '+t.name}); return; }catch(e){ if(e&&e.name==='AbortError') return; } }
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },4000);
+  }catch(e){ alert('No se pudo armar el PDF: '+(e.message||e)); }
+  finally{ if(btn) btn.textContent=old; }
+}
+function adminSaveDims(id){
+  const trucks=loadTrucks(); const i=trucks.findIndex(t=>t.id===id); if(i<0) return;
+  trucks[i].dims=Object.assign({},truckDimsRead('tdm'+id),{updatedAt:new Date().toISOString(),by:(currentUser&&currentUser.username)||'admin'}); saveTrucks(trucks);
+  const m=document.getElementById('tdm-msg'+id); if(m){ m.textContent='✓ Guardado'; setTimeout(()=>{ m.textContent=''; },2500); }
+}
 function updateTruckField(id,field,value){
   const trucks=loadTrucks();
   const idx=trucks.findIndex(t=>t.id===id);
@@ -12499,6 +12761,7 @@ function exportMaintCSV(){
 }
 
 function renderMantenimiento(){
+  try{ odoLoad().then(ch=>{ if(ch && _currentSidebarId==='mantenimiento') renderMantenimiento(); }); }catch(e){}
   seedDefaultTrucks();
   const trucks=loadTrucks();
   const records=loadMaintenance();
@@ -12589,6 +12852,13 @@ function renderMantenimiento(){
         <div><label style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;">Millaje actual</label><input type="number" value="${t.mileage||0}" onchange="updateTruckField(${t.id},'mileage',this.value)"/></div>
         <div><label style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;">Millaje del último cambio de aceite</label><input type="number" value="${t.lastOilChangeMileage||0}" onchange="updateTruckField(${t.id},'lastOilChangeMileage',this.value)"/></div>
       </div>
+      ${odoMpgHTML(t.id)}
+      <details style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);" ${truckDimsMissing(t).length?'':''}>
+        <summary style="font-size:13px;font-weight:800;cursor:pointer;">📏 Medidas (para el broker) ${truckDimsMissing(t).length?'<span style="color:#B45309;font-size:11px;">· faltan</span>':'<span style="color:#16A34A;font-size:11px;">· completas</span>'}</summary>
+        <div style="margin-top:8px;">${truckDimsForm(t,'tdm'+t.id)}
+          <div style="display:flex;gap:8px;align-items:center;margin-top:8px;"><button class="btn-sm" onclick="adminSaveDims(${t.id})" style="background:var(--accent);color:#fff;border:none;">Guardar medidas</button><button class="btn-sm" onclick="truckDimsCopy(this,'${t.id}')">📋 Copiar para el broker</button><button class="btn-sm" onclick="tcPdf('${t.id}',this)">📸 PDF truck check</button><span id="tdm-msg${t.id}" style="font-size:12px;color:#16A34A;font-weight:700;"></span></div>
+          ${t.dims&&t.dims.by?`<div style="font-size:10px;color:var(--text3);margin-top:4px;">Actualizado ${fmtDate(String(t.dims.updatedAt||'').slice(0,10))} por ${t.dims.by}</div>`:''}</div>
+      </details>
       <div style="display:flex;justify-content:space-between;margin-top:12px;padding-top:10px;border-top:1px solid var(--border);font-size:12px;">
         <span style="color:var(--text3);">Último servicio</span>
         <span style="font-weight:600;">${lastService?fmtDate(lastService.date):'—'}</span>
@@ -14221,9 +14491,11 @@ function upqAdd(item){
     _upqData[item.qid]=item.dataUrl; delete rec.dataUrl; rec.idb=true;
     upqPutData(item.qid,item.dataUrl).catch(e=>{ console.warn('IndexedDB',e); const r=(_upq||[]).find(x=>x.qid===item.qid); if(r){ r.dataUrl=item.dataUrl; delete r.idb; upqSave(); } });
   }
-  _upq.push(rec); upqSave(); return item.qid;
+  _upq.push(rec); upqSave(); _upqBusy[item.qid]=Date.now()+90000; return item.qid;
 }
-function upqRemove(qid){ upqLoad(); const had=_upq.some(x=>x.qid===qid&&x.idb); _upq=_upq.filter(x=>x.qid!==qid); delete _upqData[qid]; if(had) upqDelData(qid); upqSave(); }
+// Mientras una foto se está subiendo directo, la fila no la vuelve a subir (antes se duplicaba en Drive)
+const _upqBusy={};
+function upqRemove(qid){ delete _upqBusy[qid]; upqLoad(); const had=_upq.some(x=>x.qid===qid&&x.idb); _upq=_upq.filter(x=>x.qid!==qid); delete _upqData[qid]; if(had) upqDelData(qid); upqSave(); }
 function upqLabel(k){ return ({bol:'BOL',pod:'POD',loaded:'foto de carga',unloaded:'foto de descarga',rc:'RC',rcsigned:'RC firmado',diesel:'recibo de diésel',dieseldash:'foto del Dashboard (millaje)',dieselodo:'foto del millaje',dieselpump:'foto de la bomba'})[k]||k; }
 // Aplica el resultado de Drive al viaje
 // Se hacen de uno en uno: si llegan varias fotos al mismo tiempo, no se pisan los cambios del viaje
@@ -14246,10 +14518,10 @@ async function _applyUpload0(item, res){
     t[pre+'DriveFileId']=res.id; t[pre+'DriveLink']=res.webViewLink; t[pre+'DriveThumb']=/^data:image\//.test(item.dataUrl||'')?thumb:null; t[pre+'UploadedAt']=new Date().toISOString();
   } else {
     t[k+'DriveFileId']=res.id; t[k+'DriveLink']=res.webViewLink; t[k+'DriveThumb']=thumb; t[k+'DriveStatus']='done';
-    if(k==='bol'||k==='pod'){ t[k+'Checklist']=item.checklist||null; t[k+'Approved']=false; t[k+'Rejected']=false; t[k+'RejectionNote']=null; }
+    if(k==='bol'||k==='pod'){ const byAdmin=!!(item.checklist&&item.checklist.admin); t[k+'Checklist']=item.checklist||null; t[k+'Approved']=byAdmin; t[k+'Rejected']=false; t[k+'RejectionNote']=null; if(byAdmin) t[k+'UploadedBy']='admin'; }
   }
   T[i]=t; await storeTrips(T);
-  if(k==='bol'||k==='pod'){
+  if((k==='bol'||k==='pod') && !(item.checklist&&item.checklist.admin)){
     try{ tgAddNotif(sanitizeForFirestore({tripId:t.id, driverName:t.driverName||(currentUser&&currentUser.name)||'', type:k+'_uploaded', city1:t.city1, city2:t.city2, ts:new Date().toISOString(), read:false})).catch(()=>{}); }catch(e){}
   }
   try{ if(typeof renderMiViaje==='function' && document.getElementById('page-miviaje')?.classList.contains('active')) renderMiViaje(); }catch(e){}
@@ -14258,7 +14530,7 @@ async function _applyUpload0(item, res){
   return true;
 }
 // Marca el estado "pendiente" en el viaje para que se vea en pantalla
-function markPending(item){ const p=window._tripWriteChain.then(()=>_markPending0(item)); window._tripWriteChain=p.catch(()=>{}); return p; }
+function markPending(item){ if(item&&item.qid) delete _upqBusy[item.qid]; const p=window._tripWriteChain.then(()=>_markPending0(item)); window._tripWriteChain=p.catch(()=>{}); return p; }
 async function _markPending0(item){
   const T=loadTrips(); const i=T.findIndex(t=>String(t.id)===String(item.tripId)); if(i<0) return;
   const t={...T[i]};
@@ -14277,6 +14549,7 @@ async function processUploadQueue(opts){
   _upqRunning=true; renderUploadBanner();
   try{
     for(const it of [...upqLoad()]){
+      if(!opts.force && _upqBusy[it.qid] && Date.now()<_upqBusy[it.qid]) continue;
       const trip=loadTrips().find(t=>String(t.id)===String(it.tripId));
       if(!trip){ if(Date.now()-(it.at||0)>7*86400000) upqRemove(it.qid); continue; }
       if(/^diesel/.test(it.kind) && !(trip.fuelLoads||[]).some(l=>String(l.loadId)===String(it.loadId))){ if(Date.now()-(it.at||0)>7*86400000) upqRemove(it.qid); continue; }
@@ -14293,7 +14566,7 @@ async function processUploadQueue(opts){
 function uploadNowClick(){
   const p=getGoogleDriveToken();
   const b=document.getElementById('upq-btn'); if(b){ b.disabled=true; b.textContent='⏳'; }
-  p.then(()=>processUploadQueue({silent:true})).catch(e=>{ alert('No se pudo conectar Google Drive: '+((e&&e.message)||e)+'\n\nSi el celular bloquea ventanas emergentes, permítelas para este sitio e intenta de nuevo.'); }).finally(()=>renderUploadBanner());
+  p.then(()=>processUploadQueue({silent:true,force:true})).catch(e=>{ alert('No se pudo conectar Google Drive: '+((e&&e.message)||e)+'\n\nSi el celular bloquea ventanas emergentes, permítelas para este sitio e intenta de nuevo.'); }).finally(()=>renderUploadBanner());
 }
 function renderUploadBanner(){
   if(typeof document==='undefined'||!document.body) return;
@@ -14973,6 +15246,78 @@ async function uploadFuelReceiptInBackground(tripId, loadId, file, kind){
 // ===== POD FIRMADO + FOTO DE DESCARGA: obligatorios para finalizar y fáciles de mandar al broker =====
 function tripDocReady(t,k){ return !!(t && (t[k+'DriveLink'] || ['pending','uploading','done'].includes(t[k+'DriveStatus']))); }
 function tripFinishMissing(t){ if(typeof currentUser!=='undefined' && currentUser && currentUser.role==='admin') return []; /* el administrador puede finalizar sin fotos */ const en=window.TL_LANG==='en'; const m=[]; if(!tripDocReady(t,'pod')) m.push(en?'Signed POD':'POD firmado'); if(!tripDocReady(t,'unloaded')) m.push(en?'Unloading photo':'Foto de la descarga'); return m; }
+// ===== ODÓMETRO DEL ELD: millas reales por viaje, MPG real y millaje del camión (lo graba el proyecto Yenavi ELD)
+window._odo=window._odo||{}; window._odoDaily=window._odoDaily||{}; let _odoAt=0;
+async function odoLoad(force){
+  if(!(typeof fbReady!=='undefined'&&fbReady&&db)) return false;
+  if(!force && Date.now()-_odoAt<3*60000) return false;
+  _odoAt=Date.now();
+  try{ const a=await db.collection('odo').get(); const o={}; a.forEach(d=>{ o[d.id]=d.data(); }); window._odo=o; }catch(e){}
+  try{ const b=await db.collection('odoDaily').get(); const o={}; b.forEach(d=>{ const x=d.data(); o[String(x.truckId||d.id.replace('truck_',''))]=x; }); window._odoDaily=o; }catch(e){}
+  try{ odoSyncTruckMileage(); }catch(e){}
+  return true;
+}
+function odoTrip(t){
+  const o=t&&window._odo[String(t.id)]; if(!o) return null;
+  const n=x=>x&&x.odo!=null?Number(x.odo):null;
+  const pu=n(o.pickup), del=n(o.delivery), st=n(o.start), prev=n(o.prevDelivery);
+  const loaded=pu!=null&&del!=null&&del>=pu?Math.round(del-pu):null;
+  const base=prev!=null&&pu!=null&&pu>=prev?prev:st;
+  const empty=pu!=null&&base!=null&&pu>=base?Math.round(pu-base):null;
+  if(loaded==null&&empty==null) return null;
+  return {loaded, empty, total:(loaded||0)+(empty||0), fromPrev:prev!=null&&base===prev};
+}
+function odoHTML(t){
+  const r=odoTrip(t); if(!r) return '';
+  const zipMi=(typeof tripDistance==='function'&&tripDistance(t).mi)||0;
+  let diff='';
+  if(r.loaded!=null&&zipMi>0){ const pct=(r.loaded-zipMi)/zipMi*100; const big=Math.abs(pct)>=10&&Math.abs(r.loaded-zipMi)>=20;
+    diff=` · ${TR('por ZIP','by ZIP')} ${zipMi.toLocaleString('en-US')} mi (<b style="color:${big?'#B91C1C':'#16A34A'};">${pct>=0?'+':''}${pct.toFixed(0)}%</b>${big?' ⚠️ '+TR('revisar','check'):''})`; }
+  return `<div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px;padding:8px 12px;margin:8px 0;font-size:12px;">
+    <b>🛣️ ${TR('Millas reales (odómetro del ELD)','Real miles (ELD odometer)')}</b><br/>
+    ${r.empty!=null?TR('Vacías','Empty')+' <b>'+r.empty.toLocaleString('en-US')+' mi</b>'+(r.fromPrev?'':' <span style="color:var(--text3);">('+TR('desde que empezó el viaje','since trip start')+')</span>'):''}${r.empty!=null&&r.loaded!=null?' · ':''}${r.loaded!=null?TR('Cargadas','Loaded')+' <b>'+r.loaded.toLocaleString('en-US')+' mi</b>':''}${diff}
+  </div>`;
+}
+// MPG real del camión: millas del odómetro ÷ galones de diésel en el periodo
+function odoMpg(truckId, days){
+  const D=window._odoDaily[String(truckId)]; if(!D||!D.days) return null;
+  const to=rpLocalISO(new Date()), from=rpLocalISO(new Date(Date.now()-days*86400000));
+  const ks=Object.keys(D.days).filter(k=>k>=from&&k<=to).sort(); if(ks.length<2) return null;
+  const last=D.last!=null&&D.lastAt&&rpLocalISO(new Date(D.lastAt))>=ks[ks.length-1]?Number(D.last):Number(D.days[ks[ks.length-1]]);
+  const miles=last-Number(D.days[ks[0]]); if(!(miles>0)) return null;
+  let gal=0; loadTrips().forEach(t=>{ if(tripTruckId(t)!==String(truckId)) return; (t.fuelLoads||[]).forEach(f=>{ if(f.type==='def'||f.tipo==='def'||f.tipo==='otro') return; const dd=f.date||t.date||''; if(dd>=ks[0]&&dd<=to) gal+=parseFloat(f.gal)||0; }); });
+  if(!(gal>0)) return {miles:Math.round(miles), gal:0, mpg:null};
+  return {miles:Math.round(miles), gal:Math.round(gal*10)/10, mpg:miles/gal};
+}
+function odoMpgHTML(truckId){
+  const w=odoMpg(truckId,7), m=odoMpg(truckId,28); const D=window._odoDaily[String(truckId)];
+  if(!D) return `<div style="font-size:11px;color:var(--text3);margin-top:6px;">⛽ ${TR('MPG real: esperando el odómetro del ELD','Real MPG: waiting for ELD odometer')}</div>`;
+  const f=x=>x&&x.mpg?x.mpg.toFixed(2)+' MPG <span style="color:var(--text3);">('+x.miles.toLocaleString('en-US')+' mi / '+x.gal+' gal)</span>':'—';
+  return `<div style="font-size:12px;margin-top:8px;padding-top:8px;border-top:1px solid var(--border);"><b>⛽ ${TR('MPG real (ELD)','Real MPG (ELD)')}</b><br/>${TR('Últimos 7 días','Last 7 days')}: <b>${f(w)}</b><br/>${TR('Últimos 28 días','Last 28 days')}: <b>${f(m)}</b>${D.last?`<br/><span style="color:var(--text3);">${TR('Odómetro','Odometer')}: ${Number(D.last).toLocaleString('en-US')} mi</span>`:''}</div>`;
+}
+// El millaje del camión (para el cambio de aceite) se actualiza solo con el odómetro del ELD
+function odoSyncTruckMileage(){
+  if(!(typeof currentUser!=='undefined'&&currentUser&&currentUser.role==='admin')) return;
+  const trucks=loadTrucks()||[]; let ch=false;
+  trucks.forEach(t=>{ const D=window._odoDaily[String(t.id)]; const v=D&&Number(D.last); if(v>0 && v>(parseFloat(t.mileage)||0) && v-(parseFloat(t.mileage)||0)<200000){ t.mileage=Math.round(v); t.mileageSrc='eld'; ch=true; } });
+  if(ch){ saveTrucks(trucks); try{ if(_currentSidebarId==='mantenimiento') renderMantenimiento(); }catch(e){} }
+}
+// Lo que reporta el chofer en el viaje: llegada/salida (detention) y recibos (lumper, báscula, peajes)
+const RCPT_LBL={lumper:'🏋️ Lumper',scale:'⚖️ Báscula',toll:'🛣️ Peaje',parking:'🅿️ Estacionamiento',wash:'🧽 Lavado',other:'🧾 Otro'};
+function tripExtrasHTML(t){
+  if(!t) return '';
+  const e=t.events||{}, R=t.receipts||[]; if(!e.puIn&&!e.delIn&&!R.length) return '';
+  const esc=x=>String(x==null?'':x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const h=iso=>iso?new Date(iso).toLocaleString('en-US',{month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'}):'—';
+  const dur=(a,b)=>{ if(!a) return ''; const m=Math.max(0,Math.round((Date.parse(b||new Date().toISOString())-Date.parse(a))/60000)); return Math.floor(m/60)+'h '+String(m%60).padStart(2,'0')+'m'; };
+  const row=(k,l)=>{ if(!e[k+'In']) return ''; const hrs=(Date.parse(e[k+'Out']||new Date().toISOString())-Date.parse(e[k+'In']))/3600000;
+    return `<div style="font-size:12px;padding:3px 0;">${l}: llegó <b>${h(e[k+'In'])}</b>${e[k+'Out']?' · salió <b>'+h(e[k+'Out'])+'</b>':' · <i>sigue ahí</i>'} · <b style="color:${hrs>=2?'#B91C1C':'inherit'};">${dur(e[k+'In'],e[k+'Out'])}</b>${hrs>=2?' ⏳ detention':''}</div>`; };
+  const tot=R.reduce((a,r)=>a+(parseFloat(r.amount)||0),0);
+  return `<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:10px 12px;margin:8px 0;">
+    ${(e.puIn||e.delIn)?`<div style="font-size:11px;font-weight:800;color:var(--text3);text-transform:uppercase;">⏱️ Llegadas y salidas (chofer)</div>${row('pu','📦 Pick up')}${row('del','🏁 Delivery')}`:''}
+    ${R.length?`<div style="font-size:11px;font-weight:800;color:var(--text3);text-transform:uppercase;margin-top:6px;">🧾 Recibos para cobrar al broker · $${tot.toFixed(2)}</div>${R.map(r=>`<div style="display:flex;justify-content:space-between;font-size:12px;padding:2px 0;"><span>${RCPT_LBL[r.type]||esc(r.type)}${r.note?' · '+esc(r.note):''}</span><span><b>$${(parseFloat(r.amount)||0).toFixed(2)}</b>${r.link?` <a href="${esc(r.link)}" target="_blank">foto</a>`:r.status==='nophoto'?' <span style="color:#B45309;">sin foto</span>':''}</span></div>`).join('')}`:''}
+  </div>`;
+}
 // Correo del broker para el POD: se ve en la tarjeta del viaje (En Tránsito e Historial) y se puede cambiar
 function podEmailHTML(t){
   if(!t) return '';
@@ -15402,8 +15747,12 @@ let _rtTripStart = null; // Date when trip started
 let _rtTripData = null;  // active trip object
 
 // ===== NOTIFICACIONES DE MOMENTOS CLAVE (inicio / cerca de destino / llegada) =====
+// Los avisos de ubicación (cerca / llegó / va tarde / detenido / velocidad) ahora los manda Google con el ELD cada 5 min (proyecto Yenavi ELD), 24/7.
+// La app ya no los manda para que no lleguen repetidos.
+const SERVER_ELD_ALERTS=true;
 async function fireKeyMoment(trip, type, extra){
   if(!trip) return;
+  if(SERVER_ELD_ALERTS && (type==='near'||type==='arrival'||type==='late')) return;
   { const fresh=(loadTrips()||[]).find(x=>String(x.id)===String(trip.id)); if((fresh&&fresh.notifFlags&&fresh.notifFlags[type]) || (trip.notifFlags&&trip.notifFlags[type])) return; } // ya se mandó este aviso para este viaje
   window._kmSent=window._kmSent||{}; const _kk=trip.id+'|'+type; if(window._kmSent[_kk]) return; window._kmSent[_kk]=1;
 
@@ -17314,7 +17663,6 @@ const DRIVER_SIDEBAR_ITEMS = [
   {id:'new',     icon:'➕', label:'Nuevo viaje'},
   {id:'miviaje', icon:'🚚', label:'Mi Viaje'},
   {id:'misganancias', icon:'💰', label:'Mis Ganancias'},
-  {id:'inspeccion', icon:'🔧', label:'Inspección'},
   {id:'gas',     icon:'⛽', label:'Gasolineras'},
 ];
 
@@ -17386,7 +17734,7 @@ function sidebarNav(id){
   if(id==='gas') renderGas();
   if(id==='miviaje') renderMiViaje();
   if(id==='misganancias') renderMisGanancias();
-  if(id==='inspeccion') renderInspeccion();
+  if(id==='inspeccion'){ if(currentUser&&currentUser.role==='driver'){ return sidebarNav('home'); } renderInspeccion(); }
   if(id==='ubicacion') renderUbicacion();
   if(id==='business') renderBusiness();
   if(id==='dashboard') renderWeekDash();

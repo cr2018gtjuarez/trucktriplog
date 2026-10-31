@@ -660,13 +660,16 @@
     <!-- DASHBOARD DEL DRIVER (solo driver) -->
     <div id="driver-dashboard" style="display:none;">
 
+      <!-- Documentos vencidos o por vencer -->
+      <div id="dd-docs-alert" style="display:none;margin-bottom:12px;cursor:pointer;border-radius:12px;padding:12px 16px;" onclick="sidebarNav('misdocs')"></div>
+
       <!-- Recordatorio de inspección vencida -->
       <div id="dd-insp-alert" style="display:none;margin-bottom:12px;cursor:pointer;background:var(--orange-bg);border:1px solid #FDE68A;border-radius:12px;padding:12px 16px;" onclick="sidebarNav('inspeccion')">
         <div style="font-size:13px;font-weight:700;color:var(--orange);" id="dd-insp-alert-text">⚠️ Inspección semanal vencida</div>
       </div>
 
       <!-- Recordatorio de cambio de aceite -->
-      <div id="dd-oil-alert" style="display:none;margin-bottom:12px;cursor:pointer;border-radius:12px;padding:12px 16px;" onclick="sidebarNav('inspeccion')">
+      <div id="dd-oil-alert" style="display:none;margin-bottom:12px;border-radius:12px;padding:12px 16px;">
         <div style="font-size:13px;font-weight:700;" id="dd-oil-alert-text">🛢️ Cambio de aceite</div>
       </div>
 
@@ -2186,6 +2189,9 @@
           <div id="mv-fuel-list"><div style="font-size:13px;color:var(--text3);text-align:center;padding:1rem;">Sin gastos registrados aún.</div></div>
         </div>
 
+        <!-- Detalles de la carga (del RC), llegadas/salidas y recibos -->
+        <div id="mv-extras" data-no-tr="1"></div>
+
         <!-- Fotos del viaje: Carga, Descarga, BOL, POD -->
         <div style="margin-bottom:1rem;">
           <div style="font-size:11px;font-weight:700;color:var(--text3);letter-spacing:.8px;text-transform:uppercase;margin-bottom:8px;">Documentos y fotos del viaje</div>
@@ -2364,6 +2370,19 @@
   </div>
 
   <!-- INSPECCIÓN SEMANAL (driver) -->
+  <!-- MIS DOCUMENTOS (driver): CDL, tarjeta médica, registro, seguro… con vencimiento y modo inspección -->
+  <div class="page" id="page-misdocs">
+    <button type="button" onclick="docsInspect()" style="width:100%;padding:14px;border:none;border-radius:14px;background:#B91C1C;color:#fff;font-size:16px;font-weight:800;margin-bottom:12px;">🚨 Modo inspección: enseñar documentos</button>
+    <div id="docs-summary"></div>
+    <div class="card"><div class="card-title">👤 Mis documentos</div><div id="docs-driver"></div></div>
+    <div class="card"><div class="card-title">🚚 Documentos del camión <span id="docs-truck-name" style="font-weight:600;color:var(--text3);"></span></div><div id="docs-truck"></div></div>
+    <div id="docs-tcheck"></div>
+    <div id="docs-dims"></div>
+    <div style="font-size:11px;color:var(--text3);margin:0 4px 16px;">Las fotos se guardan en tu celular para que las puedas enseñar aunque no tengas señal, y una copia queda en la oficina.</div>
+    <input type="file" id="docs-file" accept="image/*,application/pdf" style="display:none;" onchange="docsFilePicked(this)"/>
+    <input type="file" id="docs-cam" accept="image/*" capture="environment" style="display:none;" onchange="docsFilePicked(this)"/>
+  </div>
+
   <div class="page" id="page-inspeccion">
     <div id="insp-status-banner"></div>
 
@@ -2687,8 +2706,8 @@
 
   <div class="page" id="page-mantenimiento">
 
-    <!-- INSPECCIONES SEMANALES DE DRIVERS -->
-    <div class="card">
+    <!-- INSPECCIONES SEMANALES DE DRIVERS (quitadas) -->
+    <div class="card" style="display:none;">
       <div class="card-title">🔧 Inspecciones semanales de drivers</div>
       <div id="mt-inspections"><div class="empty">Sin inspecciones registradas aún.</div></div>
     </div>
@@ -3757,6 +3776,7 @@ function startRealtimeSync(){
       if(id==='business') renderBusiness();
       if(id==='miviaje') renderMiViaje();
       if(id==='misganancias') renderMisGanancias();
+      if(id==='misdocs') renderDocs();
       if(id==='reporte') renderReporte();
       if(id==='brokerreport') renderBrokerReport();
       if(id==='brokernamereport') renderBrokerNameReport();
@@ -6603,7 +6623,7 @@ function renderHome(){
         if(inspAlert){
           const lastInsp = getLastInspection(currentUser.username);
           const inspDays = lastInsp ? daysSince(lastInsp.date) : Infinity;
-          if(inspDays>7){
+          if(false){ // inspección semanal quitada de la app del chofer
             inspAlert.style.display = 'block';
             el('dd-insp-alert-text').textContent = lastInsp
               ? '⚠️ Inspección semanal vencida — hace '+inspDays+' días'
@@ -6615,7 +6635,8 @@ function renderHome(){
           // Recordatorio de cambio de aceite (basado en el camión de su última inspección)
           const oilAlert = el('dd-oil-alert');
           if(oilAlert){
-            const truck = lastInsp ? loadTrucks().find(t=>t.id===lastInsp.truckId) : null;
+            const myTid = currentUser.truckId!=null&&currentUser.truckId!=='' ? currentUser.truckId : (lastInsp?lastInsp.truckId:null);
+            const truck = myTid!=null ? loadTrucks().find(t=>String(t.id)===String(myTid)) : null;
             if(truck){
               const oil = getOilChangeStatus(truck);
               if(oil.status!=='ok'){
@@ -6673,6 +6694,7 @@ function renderHome(){
         const weekTotal = weekTrips.filter(t=>t.profitSet).reduce((a,t)=>a+(t.driver||0),0);
         const weekPending = weekTrips.filter(t=>t.profitSet && (t.driverPayStatus||'paid')!=='paid').reduce((a,t)=>a+(t.driver||0),0);
         if(el('dd-week-range'))   el('dd-week-range').textContent   = '· '+wkLabel(wkR);
+        try{ docsHomeBanner(); }catch(e){}
         if(el('dd-week-total'))   el('dd-week-total').textContent   = '$'+weekTotal.toFixed(0);
         if(el('dd-week-trips'))   el('dd-week-trips').textContent   = weekTrips.length;
         if(el('dd-week-pending')) el('dd-week-pending').textContent = '$'+weekPending.toFixed(0);
@@ -6839,7 +6861,7 @@ function renderHome(){
     if(pendingPay.length) alertItems.push({icon:'💵',title:`${pendingPay.length} viaje${pendingPay.length!==1?'s':''} sin cobrar`,sub:'Pago pendiente del load',val:'$'+fmtK(pendingPaySum),color:'var(--orange)',nav:'log'});
     if(pendingDispatch.length) alertItems.push({icon:'🧑\u200d💼',title:`${pendingDispatch.length} fee${pendingDispatch.length!==1?'s':''} de dispatcher`,sub:'Pendiente o por cobrar',val:'$'+fmtK(pendingDispatchSum),color:'var(--red)',nav:'log'});
     if(activeTrips.length) alertItems.push({icon:'🚚',title:`${activeTrips.length} viaje${activeTrips.length!==1?'s':''} en tránsito`,sub:'Actualmente en curso',val:'Ver →',color:'var(--accent)',nav:'entransito'});
-    if(overdueInsp.length) alertItems.push({icon:'🔧',title:`${overdueInsp.length} driver${overdueInsp.length!==1?'s':''} con inspección vencida`,sub:overdueInsp.map(u=>u.name).join(', '),val:'Ver →',color:'var(--orange)',nav:'mantenimiento'});
+    if(false&&overdueInsp.length) alertItems.push({icon:'🔧',title:`${overdueInsp.length} driver${overdueInsp.length!==1?'s':''} con inspección vencida`,sub:overdueInsp.map(u=>u.name).join(', '),val:'Ver →',color:'var(--orange)',nav:'mantenimiento'});
     if(trucksNeedingOil.length) alertItems.push({icon:'🛢️',title:`${trucksNeedingOil.length} camión${trucksNeedingOil.length!==1?'es':''} necesita cambio de aceite`,sub:trucksNeedingOil.map(t=>t.name).join(', '),val:'Ver →',color: trucksNeedingOil.some(t=>getOilChangeStatus(t).status==='overdue')?'var(--red)':'var(--orange)',nav:'mantenimiento'});
 
     const alertsEl=s('home-alerts');
@@ -7092,6 +7114,7 @@ async function logLocationHistoryPoint(username, point){
 }
 
 async function fireDriverAlert(type, extra){
+  if(typeof SERVER_ELD_ALERTS!=='undefined' && SERVER_ELD_ALERTS && (type==='stopped_long'||type==='speeding')) return;
   if(!currentUser) return;
   try{
     await tgAddNotif(sanitizeForFirestore({
@@ -8539,12 +8562,9 @@ function updateDriverAlertStrip(){
   const inspDays = lastInsp ? daysSince(lastInsp.date) : Infinity;
   let alertText = null;
 
-  if(inspDays>7){
-    alertText = lastInsp
-      ? 'Inspección semanal vencida — hace '+inspDays+' días'
-      : 'Aún no tienes ninguna inspección semanal registrada';
-  } else {
-    const truck = lastInsp ? loadTrucks().find(t=>t.id===lastInsp.truckId) : null;
+  {
+    const myTid = currentUser.truckId!=null&&currentUser.truckId!=='' ? currentUser.truckId : (lastInsp?lastInsp.truckId:null);
+    const truck = myTid!=null ? loadTrucks().find(t=>String(t.id)===String(myTid)) : null;
     if(truck){
       const oil = getOilChangeStatus(truck);
       if(oil.status==='overdue') alertText = truck.name+' — cambio de aceite vencido';
@@ -8563,7 +8583,7 @@ function updateDriverAlertStrip(){
 }
 
 function handleAlertStripClick(){
-  sidebarNav('inspeccion');
+  sidebarNav('home');
 }
 
 function getLastInspection(username){
@@ -10631,9 +10651,11 @@ function upqAdd(item){
     _upqData[item.qid]=item.dataUrl; delete rec.dataUrl; rec.idb=true;
     upqPutData(item.qid,item.dataUrl).catch(e=>{ console.warn('IndexedDB',e); const r=(_upq||[]).find(x=>x.qid===item.qid); if(r){ r.dataUrl=item.dataUrl; delete r.idb; upqSave(); } });
   }
-  _upq.push(rec); upqSave(); return item.qid;
+  _upq.push(rec); upqSave(); _upqBusy[item.qid]=Date.now()+90000; return item.qid;
 }
-function upqRemove(qid){ upqLoad(); const had=_upq.some(x=>x.qid===qid&&x.idb); _upq=_upq.filter(x=>x.qid!==qid); delete _upqData[qid]; if(had) upqDelData(qid); upqSave(); }
+// Mientras una foto se está subiendo directo, la fila no la vuelve a subir (antes se duplicaba en Drive)
+const _upqBusy={};
+function upqRemove(qid){ delete _upqBusy[qid]; upqLoad(); const had=_upq.some(x=>x.qid===qid&&x.idb); _upq=_upq.filter(x=>x.qid!==qid); delete _upqData[qid]; if(had) upqDelData(qid); upqSave(); }
 function upqLabel(k){ return ({bol:'BOL',pod:'POD',loaded:'foto de carga',unloaded:'foto de descarga',rc:'RC',rcsigned:'RC firmado',diesel:'recibo de diésel',dieseldash:'foto del Dashboard (millaje)',dieselodo:'foto del millaje',dieselpump:'foto de la bomba'})[k]||k; }
 // Aplica el resultado de Drive al viaje
 // Se hacen de uno en uno: si llegan varias fotos al mismo tiempo, no se pisan los cambios del viaje
@@ -10668,7 +10690,7 @@ async function _applyUpload0(item, res){
   return true;
 }
 // Marca el estado "pendiente" en el viaje para que se vea en pantalla
-function markPending(item){ const p=window._tripWriteChain.then(()=>_markPending0(item)); window._tripWriteChain=p.catch(()=>{}); return p; }
+function markPending(item){ if(item&&item.qid) delete _upqBusy[item.qid]; const p=window._tripWriteChain.then(()=>_markPending0(item)); window._tripWriteChain=p.catch(()=>{}); return p; }
 async function _markPending0(item){
   const T=loadTrips(); const i=T.findIndex(t=>String(t.id)===String(item.tripId)); if(i<0) return;
   const t={...T[i]};
@@ -10687,6 +10709,7 @@ async function processUploadQueue(opts){
   _upqRunning=true; renderUploadBanner();
   try{
     for(const it of [...upqLoad()]){
+      if(!opts.force && _upqBusy[it.qid] && Date.now()<_upqBusy[it.qid]) continue;
       const trip=loadTrips().find(t=>String(t.id)===String(it.tripId));
       if(!trip){ if(Date.now()-(it.at||0)>7*86400000) upqRemove(it.qid); continue; }
       if(/^diesel/.test(it.kind) && !(trip.fuelLoads||[]).some(l=>String(l.loadId)===String(it.loadId))){ if(Date.now()-(it.at||0)>7*86400000) upqRemove(it.qid); continue; }
@@ -10703,7 +10726,7 @@ async function processUploadQueue(opts){
 function uploadNowClick(){
   const p=getGoogleDriveToken();
   const b=document.getElementById('upq-btn'); if(b){ b.disabled=true; b.textContent='⏳'; }
-  p.then(()=>processUploadQueue({silent:true})).catch(e=>{ alert('No se pudo conectar Google Drive: '+((e&&e.message)||e)+'\n\nSi el celular bloquea ventanas emergentes, permítelas para este sitio e intenta de nuevo.'); }).finally(()=>renderUploadBanner());
+  p.then(()=>processUploadQueue({silent:true,force:true})).catch(e=>{ alert('No se pudo conectar Google Drive: '+((e&&e.message)||e)+'\n\nSi el celular bloquea ventanas emergentes, permítelas para este sitio e intenta de nuevo.'); }).finally(()=>renderUploadBanner());
 }
 function renderUploadBanner(){
   if(typeof document==='undefined'||!document.body) return;
@@ -10812,6 +10835,88 @@ async function proceedWithDocUpload(kind, file, tripId, input, checklist){
   input.value = '';
 }
 
+// ===== EN EL VIAJE: detalles de la carga (RC), llegué/salí (detention) y recibos (lumper, báscula, peajes) =====
+const RCPT_TYPES={lumper:'🏋️ Lumper',scale:'⚖️ Báscula (scale)',toll:'🛣️ Peaje (toll)',parking:'🅿️ Estacionamiento',wash:'🧽 Lavado de caja',other:'🧾 Otro'};
+function mvEsc(x){ return String(x==null?'':x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function mvHora(iso){ if(!iso) return ''; const d=new Date(iso); return d.toLocaleString('en-US',{weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}); }
+function mvDur(a,b){ const m=Math.max(0,Math.round((Date.parse(b||new Date().toISOString())-Date.parse(a))/60000)); return Math.floor(m/60)+' h '+String(m%60).padStart(2,'0')+' min'; }
+function mvRenderExtras(t){
+  const box=document.getElementById('mv-extras'); if(!box||!t) return;
+  const S=Array.isArray(t.rcStops)?t.rcStops:[]; const ev=t.events||{};
+  const stopsHtml=(S.length?S:[{type:'pickup',city:t.city1,state:t.state1,zip:t.z1},{type:'delivery',city:t.city2,state:t.state2,zip:t.z2}]).map(s=>{ const D=s.det||{};
+    const where=s.addr||D.addr||[s.city||D.place,s.state].filter(Boolean).join(', ')+(s.zip?' '+s.zip:'');
+    const when=[D.date||(s.date?fmtDate(s.date):''),D.time,D.kind&&!/^(ASAP)$/.test(D.kind)?D.kind:(D.kind==='ASAP'?'ASAP':'')].filter(Boolean).join(' · ');
+    return '<div style="border:1px solid var(--border);border-left:4px solid '+(s.type==='pickup'?'#2563EB':'#16A34A')+';border-radius:10px;padding:9px 11px;margin-bottom:8px;">'+
+      '<div style="font-size:11px;font-weight:800;color:'+(s.type==='pickup'?'#2563EB':'#16A34A')+';text-transform:uppercase;">'+(s.type==='pickup'?'📦 Pick up':'🏁 Delivery')+'</div>'+
+      (D.name?'<div style="font-size:14px;font-weight:800;">'+mvEsc(D.name)+'</div>':'')+
+      '<div style="font-size:13px;">'+mvEsc(where||'—')+'</div>'+
+      (when?'<div style="font-size:13px;margin-top:3px;">🕐 <b>'+mvEsc(when)+'</b></div>':'')+
+      (D.refs&&D.refs.length?'<div style="font-size:12px;margin-top:3px;">🔢 '+D.refs.map(mvEsc).join(' · ')+'</div>':'')+
+      (D.load?'<div style="font-size:12px;">📦 '+mvEsc(D.load)+'</div>':'')+
+      (D.phone?'<div style="font-size:13px;margin-top:3px;">📞 <a href="tel:'+mvEsc(String(D.phone).replace(/[^\d+]/g,''))+'">'+mvEsc(D.phone)+'</a></div>':'')+'</div>'; }).join('');
+  const notes=(t.rcNotes||[]).length?'<div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:10px;padding:9px 11px;margin-bottom:8px;"><div style="font-size:11px;font-weight:800;color:#B45309;margin-bottom:3px;">⚠️ INSTRUCCIONES DEL BROKER</div>'+t.rcNotes.map(n=>'<div style="font-size:12px;">• '+mvEsc(n)+'</div>').join('')+'</div>':'';
+  // Llegué / salí
+  const evRow=(k,lbl)=>{ const a=ev[k+'In'], b=ev[k+'Out'];
+    let h='<div style="border:1px solid var(--border);border-radius:10px;padding:9px 11px;margin-bottom:8px;"><div style="font-size:13px;font-weight:800;">'+lbl+'</div>';
+    if(!a) h+='<button type="button" onclick="mvCheck(\''+k+'\',\'In\')" style="width:100%;margin-top:6px;padding:11px;border:none;border-radius:10px;background:#1E3A8A;color:#fff;font-weight:800;font-size:14px;">📍 Llegué</button>';
+    else { const wait=mvDur(a,b), hrs=(Date.parse(b||new Date().toISOString())-Date.parse(a))/3600000;
+      h+='<div style="font-size:12px;margin-top:3px;">Llegó: <b>'+mvHora(a)+'</b>'+(b?' · Salió: <b>'+mvHora(b)+'</b>':'')+'</div>'+
+        '<div style="font-size:12px;'+(hrs>=2?'color:#B91C1C;font-weight:800;':'color:var(--text3);')+'">'+(b?'Tiempo en el lugar: ':'Lleva esperando: ')+wait+(hrs>=2?' · posible DETENTION':'')+'</div>'+
+        (!b?'<button type="button" onclick="mvCheck(\''+k+'\',\'Out\')" style="width:100%;margin-top:6px;padding:11px;border:none;border-radius:10px;background:#16A34A;color:#fff;font-weight:800;font-size:14px;">🚚 Ya salí</button>':''); }
+    return h+'</div>'; };
+  // Recibos
+  const R=t.receipts||[]; const tot=R.reduce((a,r)=>a+(parseFloat(r.amount)||0),0);
+  const rc='<div style="border:1px solid var(--border);border-radius:10px;padding:9px 11px;margin-bottom:8px;"><div style="display:flex;justify-content:space-between;align-items:center;"><div style="font-size:13px;font-weight:800;">🧾 Recibos de la carga</div><button class="btn-sm" onclick="mvReceiptOpen()" style="background:var(--accent);color:#fff;border:none;">+ Agregar</button></div>'+
+    '<div style="font-size:11px;color:var(--text3);">Lumper, báscula, peajes… La oficina se los cobra al broker.</div>'+
+    (R.length?R.map((r,i)=>'<div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;padding:6px 0;border-bottom:1px solid var(--border);"><span>'+(RCPT_TYPES[r.type]||r.type)+' <span style="font-size:11px;color:var(--text3);">'+mvHora(r.at)+(r.note?' · '+mvEsc(r.note):'')+'</span></span><b>$'+(parseFloat(r.amount)||0).toFixed(2)+(r.link?' <a href="'+mvEsc(r.link)+'" target="_blank" style="font-size:11px;">foto</a>':r.status==='uploading'?' <span style="font-size:10px;color:var(--text3);">subiendo…</span>':'')+'</b></div>').join('')+'<div style="text-align:right;font-size:13px;font-weight:800;margin-top:4px;">Total $'+tot.toFixed(2)+'</div>':'')+'</div>';
+  box.innerHTML='<div style="margin-bottom:1rem;"><div style="font-size:11px;font-weight:700;color:var(--text3);letter-spacing:.8px;text-transform:uppercase;margin-bottom:8px;">Detalles de la carga</div>'+stopsHtml+notes+
+    (!S.length?'<div style="font-size:11px;color:var(--text3);margin:-2px 0 8px;">La oficina todavía no sube el RC: cuando lo suba, aquí salen la cita, los números y las instrucciones.</div>':'')+'</div>'+
+    '<div style="margin-bottom:1rem;"><div style="font-size:11px;font-weight:700;color:var(--text3);letter-spacing:.8px;text-transform:uppercase;margin-bottom:8px;">Llegada y salida (para detention)</div>'+
+    evRow('pu','📦 Pick up · '+mvEsc(t.city1||'')) + evRow('del','🏁 Delivery · '+mvEsc(t.city2||''))+'</div>'+
+    '<div style="margin-bottom:1rem;">'+rc+'</div>';
+}
+async function mvCheck(stop,io){
+  const id=document.getElementById('mv-trip-id').value; const T=loadTrips(); const k=T.findIndex(x=>String(x.id)===String(id)); if(k<0) return;
+  const label=(stop==='pu'?'pick up':'delivery');
+  if(!confirm(io==='In'?'¿Confirmas que YA LLEGASTE al '+label+'?':'¿Confirmas que YA SALISTE del '+label+'?')) return;
+  const now=new Date().toISOString(); let pos=null;
+  try{ pos=await new Promise(res=>{ if(!navigator.geolocation) return res(null); navigator.geolocation.getCurrentPosition(p=>res({lat:p.coords.latitude,lon:p.coords.longitude}),()=>res(null),{timeout:8000,maximumAge:120000}); }); }catch(e){}
+  const ev=Object.assign({},T[k].events||{}); ev[stop+io]=now; if(pos) ev[stop+io+'Loc']=pos;
+  T[k]={...T[k],events:ev}; await storeTrips(T);
+  try{ const t=T[k]; const name=(stop==='pu'?(t.city1||''):(t.city2||'')); let msg;
+    if(io==='In') msg=(stop==='pu'?'📦':'🏁')+' <b>Llegó al '+label+'</b>\n'+(t.driverName||currentUser.name||'')+' · '+name+(t.rc?' · RC #'+t.rc:'')+'\n'+mvHora(now);
+    else msg='🚚 <b>Salió del '+label+'</b>\n'+(t.driverName||currentUser.name||'')+' · '+name+(t.rc?' · RC #'+t.rc:'')+'\nEstuvo '+mvDur(ev[stop+'In'],now)+((Date.parse(now)-Date.parse(ev[stop+'In']))/3600000>=2?' · ⏳ revisa si se cobra detention':'');
+    tgAddNotif(sanitizeForFirestore({tripId:t.id, driverName:t.driverName||'', type:'checkin', msg, city1:t.city1, city2:t.city2, ts:now, read:false})).catch(()=>{}); }catch(e){}
+  renderMiViaje();
+}
+function mvReceiptOpen(){
+  const old=document.getElementById('mv-rcpt'); if(old) old.remove();
+  const m=document.createElement('div'); m.id='mv-rcpt'; m.style.cssText='position:fixed;inset:0;background:rgba(15,23,42,.6);z-index:99999;display:flex;align-items:flex-end;justify-content:center;';
+  m.innerHTML='<div style="background:var(--card,#fff);color:var(--text);width:100%;max-width:520px;border-radius:18px 18px 0 0;padding:16px;">'+
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><div style="font-size:17px;font-weight:800;">🧾 Agregar recibo</div><button type="button" onclick="document.getElementById(\'mv-rcpt\').remove()" style="border:none;background:none;font-size:22px;color:var(--text3);">✕</button></div>'+
+    '<div class="field"><label>Tipo</label><select id="rc-type">'+Object.keys(RCPT_TYPES).map(k=>'<option value="'+k+'">'+RCPT_TYPES[k]+'</option>').join('')+'</select></div>'+
+    '<div class="field"><label>Monto ($)</label><input type="number" id="rc-amount" min="0" step="0.01" inputmode="decimal" placeholder="0.00"/></div>'+
+    '<div class="field"><label>Nota (opcional)</label><input type="text" id="rc-note" placeholder="Ej. 22 pallets"/></div>'+
+    '<div style="display:flex;gap:8px;margin:6px 0 10px;"><button type="button" class="btn-sm" onclick="document.getElementById(\'rc-cam\').click()" style="flex:1;">📷 Foto del recibo</button><button type="button" class="btn-sm" onclick="document.getElementById(\'rc-gal\').click()" style="flex:1;">🖼️ Galería</button></div>'+
+    '<input type="file" id="rc-cam" accept="image/*" capture="environment" style="display:none;" onchange="mvReceiptPhoto(this)"/><input type="file" id="rc-gal" accept="image/*" style="display:none;" onchange="mvReceiptPhoto(this)"/>'+
+    '<div id="rc-prev" style="font-size:12px;color:var(--text3);margin-bottom:8px;">Sin foto (la oficina la necesita para cobrarlo)</div>'+
+    '<button type="button" onclick="mvReceiptSave()" style="width:100%;padding:13px;border:none;border-radius:10px;background:#1E3A8A;color:#fff;font-weight:800;font-size:15px;">Guardar recibo</button></div>';
+  document.body.appendChild(m); m.dataset.img='';
+}
+async function mvReceiptPhoto(inp){ const f=inp.files&&inp.files[0]; if(!f) return; const m=document.getElementById('mv-rcpt'); let u=await docsReadFile(f); try{ u=await shrinkDataUrl(u,1600,0.75); }catch(e){} m.dataset.img=u; document.getElementById('rc-prev').innerHTML='<img src="'+u+'" style="max-height:120px;border-radius:8px;"/>'; }
+async function mvReceiptSave(){
+  const m=document.getElementById('mv-rcpt'); const amount=parseFloat(document.getElementById('rc-amount').value);
+  if(!(amount>0)){ alert('Escribe el monto del recibo.'); return; }
+  if(!m.dataset.img && !confirm('¿Guardar sin foto? La oficina necesita la foto para cobrarlo.')) return;
+  const id=document.getElementById('mv-trip-id').value; const T=loadTrips(); const k=T.findIndex(x=>String(x.id)===String(id)); if(k<0) return;
+  const r={type:document.getElementById('rc-type').value, amount:Math.round(amount*100)/100, note:document.getElementById('rc-note').value.trim().slice(0,80), at:new Date().toISOString(), by:currentUser.username, status:m.dataset.img?'uploading':'nophoto'};
+  const img=m.dataset.img; m.remove();
+  T[k]={...T[k],receipts:(T[k].receipts||[]).concat([r])}; await storeTrips(T); renderMiViaje();
+  try{ const t=T[k]; tgAddNotif(sanitizeForFirestore({tripId:t.id, driverName:t.driverName||'', type:'receipt', msg:'🧾 <b>Recibo: '+(RCPT_TYPES[r.type]||r.type).replace(/^\S+\s/,'')+' $'+r.amount.toFixed(2)+'</b>\n'+(t.driverName||'')+(t.rc?' · RC #'+t.rc:'')+(r.note?'\n'+r.note:'')+'\nCóbralo al broker.', city1:t.city1, city2:t.city2, ts:r.at, read:false})).catch(()=>{}); }catch(e){}
+  if(img){ try{ let j=null; if(typeof scriptMode==='function'&&scriptMode()) j=await scriptUpload(img, 'recibo_'+r.type+'_'+Date.now()+'.jpg', {folder:tripFolderName(T[k])});
+      const T2=loadTrips(); const k2=T2.findIndex(x=>String(x.id)===String(id)); if(k2>=0){ const L=(T2[k2].receipts||[]).map(x=>x.at===r.at?Object.assign({},x,{status:j?'ok':'nophoto',photoId:j&&j.id||'',link:j&&j.webViewLink||''}):x); T2[k2]={...T2[k2],receipts:L}; await storeTrips(T2); renderMiViaje(); }
+    }catch(e){ alert('El recibo se guardó, pero la foto no se pudo subir: '+(e.message||e)); } }
+}
 function renderMiViaje(){
   const trips = loadTrips();
   const username = currentUser ? currentUser.username : null;
@@ -10841,6 +10946,7 @@ function renderMiViaje(){
     emptyCard.style.display = 'none';
     document.getElementById('mv-trip-id').value = activeTrip.id;
     try{ renderMiFinishReq(activeTrip); }catch(e){}
+    try{ mvRenderExtras(activeTrip); }catch(e){ console.warn('mvExtras',e); }
     document.getElementById('mv-city1').textContent = activeTrip.city1 + ', ' + activeTrip.state1;
     document.getElementById('mv-z1').textContent = activeTrip.z1;
     document.getElementById('mv-city2').textContent = activeTrip.city2 + ', ' + activeTrip.state2;
@@ -11794,8 +11900,12 @@ let _rtTripStart = null; // Date when trip started
 let _rtTripData = null;  // active trip object
 
 // ===== NOTIFICACIONES DE MOMENTOS CLAVE (inicio / cerca de destino / llegada) =====
+// Los avisos de ubicación (cerca / llegó / va tarde / detenido / velocidad) ahora los manda Google con el ELD cada 5 min (proyecto Yenavi ELD), 24/7.
+// La app ya no los manda para que no lleguen repetidos.
+const SERVER_ELD_ALERTS=true;
 async function fireKeyMoment(trip, type, extra){
   if(!trip) return;
+  if(SERVER_ELD_ALERTS && (type==='near'||type==='arrival'||type==='late')) return;
   { const fresh=(loadTrips()||[]).find(x=>String(x.id)===String(trip.id)); if((fresh&&fresh.notifFlags&&fresh.notifFlags[type]) || (trip.notifFlags&&trip.notifFlags[type])) return; } // ya se mandó este aviso para este viaje
   window._kmSent=window._kmSent||{}; const _kk=trip.id+'|'+type; if(window._kmSent[_kk]) return; window._kmSent[_kk]=1;
 
@@ -12445,6 +12555,289 @@ function wkSat(d){ const r=new Date(d.getFullYear(),d.getMonth(),d.getDate()); r
 function wkRange(off){ const sat=wkSat(new Date()); sat.setDate(sat.getDate()+7*(off||0)); const fri=new Date(sat); fri.setDate(fri.getDate()+6); return {from:wkYmd(sat), to:wkYmd(fri), sat, fri}; }
 function tripWorkDate(t){ if(!t) return ''; if(t.deliveryDate) return t.deliveryDate; if(t.endTime){ const d=new Date(t.endTime); if(!isNaN(d)) return wkYmd(d); } return t.date||''; }
 function wkLabel(r){ const f=d=>(d.getMonth()+1)+'/'+d.getDate(); return (window.TL_LANG==='en'?'Sat ':'sáb ')+f(r.sat)+' – '+(window.TL_LANG==='en'?'Fri ':'vie ')+f(r.fri); }
+// ===== MEDIDAS DEL CAMIÓN (para contestarle al broker): caja por dentro, puerta, lift gate, peso y pallets
+const TDIM=[['boxL','Largo de la caja (por dentro)','in'],['boxW','Ancho de la caja (por dentro)','in'],['boxH','Alto de la caja (por dentro)','in'],
+  ['doorW','Ancho de la puerta','in'],['doorH','Alto de la puerta','in'],['deckH','Altura del piso al suelo','in'],
+  ['payload','Peso máximo de carga','lbs'],['pallets','Pallets que caben (48x40)','#'],['liftCap','Capacidad del lift gate (0 = no tiene)','lbs']];
+const TDIM_EXTRA=[['palletJack','Pallet jack'],['straps','Straps'],['loadBars','Barras de carga (load bars)'],['blankets','Cobijas (blankets)']];
+function tdFtIn(v){ v=parseFloat(v); if(!(v>0)) return ''; const f=Math.floor(v/12), i=Math.round(v-f*12); return f?f+"'"+(i?i+'"':''):i+'"'; }
+function truckDimsText(t, opts){
+  const d=(t&&t.dims)||{}; const en=opts&&opts.en; const n=v=>parseFloat(v)>0;
+  const box=[d.boxL,d.boxW,d.boxH].every(n)?(en?'Box inside (LxWxH): ':'Caja por dentro (L x A x Al): ')+d.boxL+'" x '+d.boxW+'" x '+d.boxH+'" ('+tdFtIn(d.boxL)+' x '+tdFtIn(d.boxW)+' x '+tdFtIn(d.boxH)+')':'';
+  const door=[d.doorW,d.doorH].every(n)?(en?'Door opening (WxH): ':'Puerta (A x Al): ')+d.doorW+'" x '+d.doorH+'"':'';
+  const deck=n(d.deckH)?(en?'Deck height: ':'Altura del piso: ')+d.deckH+'"':'';
+  const lift=d.liftCap===undefined||d.liftCap===''?'':(n(d.liftCap)?(en?'Lift gate: ':'Lift gate: ')+Number(d.liftCap).toLocaleString('en-US')+' lbs':(en?'No lift gate':'Sin lift gate'));
+  const pay=n(d.payload)?(en?'Max payload: ':'Peso máximo: ')+Number(d.payload).toLocaleString('en-US')+' lbs':'';
+  const pal=n(d.pallets)?(en?'Pallets: ':'Pallets: ')+d.pallets:'';
+  const ex=TDIM_EXTRA.filter(x=>d[x[0]]).map(x=>en?({palletJack:'pallet jack',straps:'straps',loadBars:'load bars',blankets:'blankets'}[x[0]]):x[1].toLowerCase());
+  const eq=ex.length?(en?'Equipment: ':'Equipo: ')+ex.join(', '):'';
+  return [box,door,deck,lift,pay,pal,eq].filter(Boolean);
+}
+function truckDimsMissing(t){ const d=(t&&t.dims)||{}; return ['boxL','boxW','boxH','doorW','doorH'].filter(k=>!(parseFloat(d[k])>0)); }
+function truckDimsForm(t, prefix){
+  const d=(t&&t.dims)||{};
+  return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">'+TDIM.map(([k,l,u])=>'<div><label style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;">'+l+(u==='in'?' (pulgadas)':u==='lbs'?' (lbs)':'')+'</label><input type="number" min="0" step="'+(u==='in'?'0.5':'1')+'" inputmode="decimal" id="'+prefix+'-'+k+'" value="'+(d[k]!==undefined&&d[k]!==null?d[k]:'')+'" placeholder="'+(u==='in'?'Ej. 96':'')+'" oninput="tdHint(this)"/><div style="font-size:10px;color:var(--text3);min-height:12px;" data-hint>'+(u==='in'&&d[k]?tdFtIn(d[k]):'')+'</div></div>').join('')+'</div>'+
+    '<div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:6px;">'+TDIM_EXTRA.map(([k,l])=>'<label style="font-size:12px;display:flex;align-items:center;gap:4px;"><input type="checkbox" id="'+prefix+'-'+k+'" '+(d[k]?'checked':'')+'/> '+l+'</label>').join('')+'</div>';
+}
+function tdHint(inp){ const h=inp.parentNode.querySelector('[data-hint]'); if(h && /pulgadas/.test(inp.parentNode.textContent)) h.textContent=tdFtIn(inp.value); }
+function truckDimsRead(prefix){ const o={}; TDIM.forEach(([k])=>{ const v=document.getElementById(prefix+'-'+k).value; o[k]=v===''?'':parseFloat(v); }); TDIM_EXTRA.forEach(([k])=>{ o[k]=!!document.getElementById(prefix+'-'+k).checked; }); return o; }
+function truckDimsCopy(btn, truckId){
+  const t=(loadTrucks()||[]).find(x=>String(x.id)===String(truckId)); if(!t) return;
+  const lines=truckDimsText(t,{en:true}); if(!lines.length){ alert('Todavía no hay medidas para este camión.'); return; }
+  const msg=(t.makeModel?t.makeModel+' · ':'')+'Straight box truck'+(t.plate?' · plate '+t.plate:'')+'\n'+lines.join('\n');
+  const done=()=>{ if(btn) btn.textContent='✓ Copiado'; };
+  if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(msg).then(done,()=>prompt('Copia:',msg)); else prompt('Copia:',msg);
+}
+// ===== TRUCK CHECK (lo que pide el broker): 6 fotos del camión + 5 fotos de medidas con su número
+const TCHECK=[['front','Frente (Front)',null],['rear','Atrás (Rear)',null],['left','Lado izquierdo (Left side)',null],['right','Lado derecho (Right side)',null],['cargo','Área de carga (Cargo area)',null],['plate','Placa (License plate)',null],
+  ['m_len','Medida: largo por dentro (Length)','boxL'],['m_doorH','Medida: alto de la puerta (Height at door)','doorH'],['m_inH','Medida: alto por dentro (Height inside)','boxH'],['m_doorW','Medida: ancho de la puerta (Width at door)','doorW'],['m_inW','Medida: ancho por dentro (Width inside)','boxW']];
+const TCHECK_EN={front:'Front',rear:'Rear',left:'Left side',right:'Right side',cargo:'Cargo area',plate:'License plate',m_len:'Length (inside)',m_doorH:'Height at door',m_inH:'Height inside',m_doorW:'Width at door',m_inW:'Width inside'};
+async function tcLoad(tid){ if(!(fbReady&&db)||!tid) return {photos:{}}; try{ const s=await db.collection('docs').doc('check_'+tid).get(); return s.exists?(s.data()||{photos:{}}):{photos:{}}; }catch(e){ return {photos:{}}; } }
+function tcMissing(c){ return TCHECK.filter(x=>!(c&&c.photos&&c.photos[x[0]]&&c.photos[x[0]].id)).length; }
+// PDF con las 11 fotos y las medidas, listo para mandárselo al broker
+async function tcPdf(tid, btn){
+  const t=(loadTrucks()||[]).find(x=>String(x.id)===String(tid)); if(!t){ alert('No encontré el camión.'); return; }
+  const c=await tcLoad(tid); const old=btn?btn.textContent:''; if(btn) btn.textContent='⏳ Armando PDF…';
+  try{
+    const imgs={};
+    for(const [k] of TCHECK){ const p=c.photos&&c.photos[k]; if(p&&p.id){ try{ const j=await scriptPost({action:'get',id:p.id}); imgs[k]='data:'+(j.mime||'image/jpeg')+';base64,'+j.b64; }catch(e){} } }
+    if(!Object.keys(imgs).length){ alert('Todavía no hay fotos del truck check para este camión.'); return; }
+    const co=(loadCompany&&loadCompany())||{}; const d=t.dims||{}; const esc=x=>String(x==null?'':x).replace(/[&<>"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
+    const lines=truckDimsText(t,{en:true});
+    const cell=k=>imgs[k]?'<td style="width:50%;padding:6px;vertical-align:top;"><div style="font-weight:700;font-size:12px;margin-bottom:4px;">'+TCHECK_EN[k]+(TCHECK.find(x=>x[0]===k)[2]&&d[TCHECK.find(x=>x[0]===k)[2]]?': '+d[TCHECK.find(x=>x[0]===k)[2]]+'"':'')+'</div><img src="'+imgs[k]+'" style="width:100%;height:250px;object-fit:cover;border:1px solid #ccc;border-radius:6px;"/></td>':'';
+    const keys=TCHECK.map(x=>x[0]).filter(k=>imgs[k]); const rows=[]; for(let i=0;i<keys.length;i+=2) rows.push('<tr>'+cell(keys[i])+(keys[i+1]?cell(keys[i+1]):'<td></td>')+'</tr>');
+    const html='<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body style="font-family:Arial,sans-serif;color:#111;margin:0;padding:24px;width:768px;">'+
+      '<table style="width:100%;border-bottom:3px solid #0E1B3D;margin-bottom:10px;"><tr><td>'+(co.logo?'<img src="'+co.logo+'" style="height:56px;vertical-align:middle;margin-right:10px;"/>':'')+'<b style="font-size:18px;">'+esc(co.name||'YENAVI FREIGHT LLC')+'</b><br/><span style="font-size:11px;">'+(co.mc?'MC '+esc(co.mc):'')+(co.mc&&co.dot?' · ':'')+(co.dot?'DOT '+esc(co.dot):'')+'</span></td>'+
+      '<td style="text-align:right;"><b style="font-size:16px;color:#0E1B3D;">TRUCK CHECK</b><br/><span style="font-size:12px;">'+esc(t.name)+(t.makeModel?' · '+esc(t.makeModel):'')+(t.plate?' · Plate '+esc(t.plate):'')+'</span></td></tr></table>'+
+      (lines.length?'<div style="font-size:12px;line-height:1.6;background:#F1F5F9;border-radius:6px;padding:8px 10px;margin-bottom:8px;">'+lines.map(esc).join('<br/>')+'</div>':'')+
+      '<table style="width:100%;border-collapse:collapse;">'+rows.join('')+'</table></body></html>';
+    const fr=document.createElement('iframe'); fr.style.cssText='position:fixed;left:-10000px;top:0;width:816px;height:1056px;border:0;'; document.body.appendChild(fr);
+    let blob;
+    try{ const doc=fr.contentDocument; doc.open(); doc.write(html); doc.close();
+      await new Promise((ok,ko)=>{ const s=doc.createElement('script'); s.src='https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js'; s.onload=()=>ok(); s.onerror=()=>ko(new Error('no se pudo cargar el generador de PDF')); doc.head.appendChild(s); });
+      await new Promise(r=>setTimeout(r,500));
+      blob=await fr.contentWindow.html2pdf().set({margin:0,image:{type:'jpeg',quality:0.85},html2canvas:{scale:2,useCORS:true,windowWidth:816,backgroundColor:'#ffffff'},jsPDF:{unit:'pt',format:'letter'},pagebreak:{mode:['avoid-all']}}).from(doc.body).outputPdf('blob');
+    } finally { fr.remove(); }
+    const name='Truck_Check_'+String(t.name).replace(/\s+/g,'_')+(t.plate?'_'+t.plate:'')+'.pdf';
+    const file=new File([blob],name,{type:'application/pdf'});
+    if(navigator.canShare&&navigator.canShare({files:[file]})){ try{ await navigator.share({files:[file],title:'Truck check '+t.name}); return; }catch(e){ if(e&&e.name==='AbortError') return; } }
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },4000);
+  }catch(e){ alert('No se pudo armar el PDF: '+(e.message||e)); }
+  finally{ if(btn) btn.textContent=old; }
+}
+let _tcCur=null, _tcPick=null;
+async function tcDriverRender(){
+  const box=document.getElementById('docs-tcheck'); if(!box) return; const tid=docsMyTruckId(); if(!tid){ box.innerHTML=''; return; }
+  _tcCur=await tcLoad(tid); const c=_tcCur; const t=(loadTrucks()||[]).find(x=>String(x.id)===String(tid))||{}; const dims=t.dims||{}; const miss=tcMissing(c);
+  box.innerHTML='<div class="card"><div class="card-title">📸 Truck check (fotos para el broker)</div>'+
+    '<div style="font-size:12px;color:'+(miss?'#B45309':'#16A34A')+';font-weight:700;margin-bottom:8px;">'+(miss?'Faltan '+miss+' de '+TCHECK.length+' fotos':'✅ Completo')+'</div>'+
+    '<div style="font-size:11px;color:var(--text3);margin-bottom:8px;">Toma las fotos de día, con el camión completo. En las medidas, que se vea la cinta y el número.</div>'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">'+TCHECK.map(([k,l,dk])=>{ const p=c.photos&&c.photos[k]; const src=(docsCacheGet()['tc_'+tid+'_'+k])||'';
+      return '<div style="border:1px solid var(--border);border-radius:10px;padding:6px;background:'+(p&&p.id?'#F0FDF4':'var(--bg3)')+';">'+
+        '<div style="font-size:11px;font-weight:800;min-height:28px;">'+(p&&p.id?'✅ ':'⬜ ')+l+'</div>'+
+        (src?'<img src="'+src+'" style="width:100%;height:80px;object-fit:cover;border-radius:6px;"/>':'')+
+        (dk?'<input type="number" inputmode="decimal" step="0.5" placeholder="pulgadas" value="'+(dims[dk]||'')+'" onchange="tcSetMeasure(\''+dk+'\',this.value)" style="width:100%;margin-top:4px;padding:6px;border:1px solid var(--border);border-radius:6px;background:var(--card,#fff);color:var(--text);font-size:14px;"/>':'')+
+        '<button type="button" class="btn-sm" onclick="tcPickPhoto(\''+k+'\')" style="width:100%;margin-top:4px;">📷 '+(p&&p.id?'Cambiar':'Tomar foto')+'</button></div>'; }).join('')+'</div>'+
+    '<input type="file" id="tc-cam" accept="image/*" capture="environment" style="display:none;" onchange="tcPhotoPicked(this)"/></div>';
+}
+function tcPickPhoto(k){ _tcPick=k; const i=document.getElementById('tc-cam'); i.value=''; i.click(); }
+async function tcPhotoPicked(inp){
+  const f=inp.files&&inp.files[0]; if(!f||!_tcPick) return; const k=_tcPick, tid=docsMyTruckId();
+  if(!(fbReady&&db)){ alert('Necesitas señal para subir la foto.'); return; }
+  let u=await docsReadFile(f); try{ u=await shrinkDataUrl(u,1600,0.8); }catch(e){}
+  const busy=document.createElement('div'); busy.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:99999;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;'; busy.textContent='Subiendo foto…'; document.body.appendChild(busy);
+  try{ let j={}; if(typeof scriptMode==='function'&&scriptMode()) j=await scriptUpload(u,'truckcheck_'+k+'_'+Date.now()+'.jpg',{folder:'TruckCheck_camion_'+tid});
+    const ref=db.collection('docs').doc('check_'+tid); const s=await ref.get(); const c=s.exists?s.data():{photos:{}}; c.photos=c.photos||{};
+    c.photos[k]={id:j.id||'',link:j.webViewLink||'',at:new Date().toISOString(),by:currentUser.username}; c.truckId=tid; await ref.set(c);
+    docsCacheSet('tc_'+tid+'_'+k,u);
+  }catch(e){ alert('No se pudo subir: '+(e.message||e)); }
+  finally{ busy.remove(); tcDriverRender(); }
+}
+function tcSetMeasure(dk,v){ const tid=docsMyTruckId(); const trucks=loadTrucks(); const i=trucks.findIndex(t=>String(t.id)===String(tid)); if(i<0) return;
+  const dims=Object.assign({},trucks[i].dims||{}); dims[dk]=v===''?'':parseFloat(v); dims.updatedAt=new Date().toISOString(); dims.by=currentUser.username; trucks[i]=Object.assign({},trucks[i],{dims}); saveTrucks(trucks);
+  const dd=document.getElementById('docs-dims'); if(dd) dd.innerHTML=drvDimsHTML(); }
+function drvSaveDims(){
+  const tid=docsMyTruckId(); if(!tid){ alert('No tienes camión asignado.'); return; }
+  const trucks=loadTrucks(); const i=trucks.findIndex(t=>String(t.id)===String(tid)); if(i<0){ alert('No encontré tu camión.'); return; }
+  trucks[i]=Object.assign({},trucks[i],{dims:Object.assign({},truckDimsRead('tdd'),{updatedAt:new Date().toISOString(),by:currentUser.username})});
+  saveTrucks(trucks); alert('✓ Medidas guardadas. La oficina ya las puede ver.'); renderDocs();
+}
+function drvDimsHTML(){
+  const tid=docsMyTruckId(); const t=(loadTrucks()||[]).find(x=>String(x.id)===String(tid)); if(!t) return '';
+  const L=truckDimsText(t), miss=truckDimsMissing(t);
+  return '<div class="card"><div class="card-title">📏 Medidas de mi camión</div>'+
+    (L.length?'<div style="font-size:13px;line-height:1.6;margin-bottom:8px;">'+L.map(mvEsc).join('<br/>')+'</div>':'')+
+    (miss.length?'<div style="font-size:12px;color:#B45309;font-weight:700;margin-bottom:6px;">Faltan medidas: mídelas con una cinta (en pulgadas) y guárdalas. Los brokers las piden.</div>':'')+
+    '<details'+(miss.length?' open':'')+'><summary style="font-size:13px;font-weight:700;cursor:pointer;color:var(--accent);">'+(miss.length?'Escribir medidas':'Cambiar medidas')+'</summary><div style="margin-top:8px;">'+truckDimsForm(t,'tdd')+
+    '<button type="button" onclick="drvSaveDims()" style="width:100%;margin-top:10px;padding:12px;border:none;border-radius:10px;background:#1E3A8A;color:#fff;font-weight:800;">Guardar medidas</button></div></details>'+
+    '<div style="font-size:11px;color:var(--text3);margin-top:6px;">Mide por DENTRO de la caja: largo de la pared del frente a la puerta, ancho de pared a pared y alto del piso al techo. La puerta: el hueco libre cuando está abierta.</div></div>';
+}
+// ===== MIS DOCUMENTOS (driver) =====
+// Firestore: docs/drv_<usuario> (licencia, tarjeta médica) y docs/truck_<id> (registro, seguro, IFTA, inspección anual, permisos).
+// Las fotos van a Drive (servicio de fotos) y se guardan también en el celular para verlas sin señal.
+const DOC_TYPES={
+  cdl:{who:'drv',ic:'🪪',es:'Licencia CDL',en:'CDL license',exp:true},
+  medical:{who:'drv',ic:'🩺',es:'Tarjeta médica (Medical Card)',en:'Medical card',exp:true},
+  registration:{who:'truck',ic:'📄',es:'Registro del camión (Cab card)',en:'Truck registration (cab card)',exp:true},
+  insurance:{who:'truck',ic:'🛡️',es:'Seguro (aseguranza)',en:'Insurance',exp:true},
+  ifta:{who:'truck',ic:'⛽',es:'IFTA (licencia)',en:'IFTA license',exp:true},
+  annual:{who:'truck',ic:'🔧',es:'Inspección anual DOT',en:'Annual DOT inspection',exp:true},
+  permit:{who:'truck',ic:'📑',es:'Permisos (IRP / UCR / otros)',en:'Permits (IRP / UCR / other)',exp:false}
+};
+const DOCS_IMG_KEY='trucklog_mydocs_imgs';
+let _docs={drv:null,truck:null}, _docsLoaded=false, _docsPick=null;
+function docsMyTruckId(){ const u=currentUser||{}; if(u.truckId!=null&&u.truckId!=='') return String(u.truckId); try{ const t=loadTrips().filter(x=>x.driverUser===u.username&&x.truckId!=null).sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')))[0]; return t?String(t.truckId):''; }catch(e){ return ''; } }
+function docsIds(){ return {drv:'drv_'+(currentUser&&currentUser.username), truck:docsMyTruckId()?'truck_'+docsMyTruckId():''}; }
+function docsCacheGet(){ try{ return JSON.parse(localStorage.getItem(DOCS_IMG_KEY))||{}; }catch(e){ return {}; } }
+function docsCacheSet(k,v){ const c=docsCacheGet(); if(v) c[k]=v; else delete c[k]; try{ localStorage.setItem(DOCS_IMG_KEY,JSON.stringify(c)); }catch(e){ /* sin espacio: se queda solo en Drive */ } }
+function docsMetaCacheKey(){ return 'trucklog_mydocs_meta_'+(currentUser&&currentUser.username); }
+async function docsLoad(force){
+  if(_docsLoaded && !force) return;
+  try{ const m=JSON.parse(localStorage.getItem(docsMetaCacheKey())||'null'); if(m){ _docs=m; } }catch(e){}
+  if(!(fbReady&&db)) return;
+  const ids=docsIds();
+  try{ const a=await db.collection('docs').doc(ids.drv).get(); _docs.drv=a.exists?a.data():{items:{}}; }catch(e){}
+  if(ids.truck){ try{ const b=await db.collection('docs').doc(ids.truck).get(); _docs.truck=b.exists?b.data():{items:{}}; }catch(e){} } else _docs.truck=null;
+  _docsLoaded=true; try{ localStorage.setItem(docsMetaCacheKey(),JSON.stringify(_docs)); }catch(e){}
+}
+function docsItem(type){ const w=DOC_TYPES[type].who; const box=_docs[w]; return box&&box.items?box.items[type]||null:null; }
+function docsStatus(it,type){
+  if(!it||!((it.files||[]).length)) return {k:'none',txt:'Falta',col:'#64748B',bg:'var(--bg3)'};
+  if(!DOC_TYPES[type].exp || !it.exp) return {k:'ok',txt:it.exp?'':'Sin fecha de vencimiento',col:'#16A34A',bg:'#F0FDF4'};
+  const days=Math.round((Date.parse(it.exp+'T12:00:00')-Date.parse(wkYmd(new Date())+'T12:00:00'))/86400000);
+  if(days<0) return {k:'exp',days,txt:'VENCIDO hace '+(-days)+' día'+(days!==-1?'s':''),col:'#B91C1C',bg:'#FEF2F2'};
+  if(days<=30) return {k:'soon',days,txt:'Vence en '+days+' día'+(days!==1?'s':''),col:'#B45309',bg:'#FFFBEB'};
+  return {k:'ok',days,txt:'Vigente hasta '+fmtDate(it.exp),col:'#16A34A',bg:'#F0FDF4'};
+}
+async function renderDocs(){
+  await docsLoad(true);
+  const ids=docsIds(), tk=(loadTrucks?loadTrucks():[]).find(t=>'truck_'+t.id===ids.truck);
+  document.getElementById('docs-truck-name').textContent=tk?'· '+tk.name:'';
+  const row=type=>{ const T=DOC_TYPES[type], it=docsItem(type), st=docsStatus(it,type), n=(it&&it.files||[]).length;
+    return '<div style="border:1px solid var(--border);border-left:5px solid '+st.col+';border-radius:12px;padding:10px 12px;margin-bottom:8px;background:'+st.bg+';">'+
+      '<div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start;"><div><div style="font-size:14px;font-weight:800;color:var(--text);">'+T.ic+' '+T.es+'</div>'+
+      '<div style="font-size:12px;font-weight:700;color:'+st.col+';">'+(st.k==='none'?'⚠️ Falta subirlo':st.txt)+'</div>'+(n?'<div style="font-size:11px;color:var(--text3);">'+n+' foto'+(n>1?'s':'')+(it.updatedAt?' · actualizado '+fmtDate(String(it.updatedAt).slice(0,10)):'')+(it.expBy==='foto'?' · fecha leída de la foto':'')+'</div>':'')+(it&&it.read?'<div style="font-size:11px;color:var(--text2);">'+Object.keys(it.read).filter(k=>k!=='at').map(k=>k.replace('_',' ')+': <b>'+mgEsc(it.read[k])+'</b>').join(' · ')+'</div>':'')+'</div>'+
+      (n?'<button class="btn-sm" onclick="docsView(\''+type+'\')">👁️ Ver</button>':'')+'</div>'+
+      '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">'+
+        '<button class="btn-sm" onclick="docsPick(\''+type+'\',\'cam\')">📷 '+(n?'Cambiar':'Tomar foto')+'</button>'+
+        '<button class="btn-sm" onclick="docsPick(\''+type+'\',\'file\')">🖼️ Galería / PDF</button>'+
+        (n?'<button class="btn-sm" onclick="docsPick(\''+type+'\',\'cam\',true)">➕ Agregar reverso</button>':'')+
+        (T.exp?'<label style="font-size:11px;color:var(--text3);display:flex;align-items:center;gap:4px;">Vence <input type="date" value="'+((it&&it.exp)||'')+'" onchange="docsSetExp(\''+type+'\',this.value)" style="padding:4px;border:1px solid var(--border);border-radius:6px;background:var(--bg3);color:var(--text);"/></label>':'')+
+      '</div></div>'; };
+  document.getElementById('docs-driver').innerHTML=Object.keys(DOC_TYPES).filter(t=>DOC_TYPES[t].who==='drv').map(row).join('');
+  { const dd=document.getElementById('docs-dims'); if(dd) dd.innerHTML=drvDimsHTML(); }
+  try{ tcDriverRender(); }catch(e){}
+  document.getElementById('docs-truck').innerHTML=ids.truck?Object.keys(DOC_TYPES).filter(t=>DOC_TYPES[t].who==='truck').map(row).join(''):'<div class="empty">No tienes camión asignado. Pídele a la oficina que te asigne uno.</div>';
+  const all=Object.keys(DOC_TYPES).filter(t=>(DOC_TYPES[t].who==='drv'||ids.truck)&&!(t==='permit'&&!docsItem(t))).map(t=>docsStatus(docsItem(t),t));
+  const bad=all.filter(s=>s.k==='exp'||s.k==='none').length, soon=all.filter(s=>s.k==='soon').length;
+  document.getElementById('docs-summary').innerHTML=(bad||soon)?'<div style="background:'+(bad?'#FEF2F2':'#FFFBEB')+';border:1px solid '+(bad?'#FECACA':'#FDE68A')+';color:'+(bad?'#B91C1C':'#B45309')+';border-radius:12px;padding:10px 12px;margin-bottom:12px;font-size:13px;font-weight:700;">'+(bad?'⚠️ '+bad+' documento'+(bad>1?'s':'')+' vencido'+(bad>1?'s':'')+' o sin subir. ':'')+(soon?'⏳ '+soon+' por vencer.':'')+'</div>':'<div style="background:#F0FDF4;border:1px solid #BBF7D0;color:#15803D;border-radius:12px;padding:10px 12px;margin-bottom:12px;font-size:13px;font-weight:700;">✅ Todos tus documentos están al día.</div>';
+  try{ docsHomeBanner(); }catch(e){}
+}
+function docsHomeBanner(){
+  const b=document.getElementById('dd-docs-alert'); if(!b) return;
+  const ids=docsIds(); const list=Object.keys(DOC_TYPES).filter(t=>(DOC_TYPES[t].who==='drv'||ids.truck)&&t!=='permit').map(t=>({t,s:docsStatus(docsItem(t),t)}));
+  const exp=list.filter(x=>x.s.k==='exp'), none=list.filter(x=>x.s.k==='none'), soon=list.filter(x=>x.s.k==='soon');
+  if(!exp.length&&!none.length&&!soon.length){ b.style.display='none'; return; }
+  const red=exp.length||list.find(x=>x.t==='medical'&&x.s.k==='none')||list.find(x=>x.t==='cdl'&&x.s.k==='none');
+  b.style.display='block'; b.style.background=red?'#FEF2F2':'var(--orange-bg)'; b.style.border='1px solid '+(red?'#FECACA':'#FDE68A');
+  const nm=x=>DOC_TYPES[x.t].es.split(' (')[0];
+  b.innerHTML='<div style="font-size:13px;font-weight:800;color:'+(red?'#B91C1C':'var(--orange)')+';">📁 '+(exp.length?'Vencido: '+exp.map(nm).join(', ')+'. ':'')+(none.length?'Falta subir: '+none.map(nm).join(', ')+'. ':'')+(soon.length?'Por vencer: '+soon.map(x=>nm(x)+' ('+x.s.days+' d)').join(', ')+'.':'')+'</div><div style="font-size:11px;color:var(--text3);margin-top:2px;">Toca aquí para subirlos →</div>';
+}
+// Lee fechas y datos de la foto (texto del OCR de Google). Devuelve {exp:'AAAA-MM-DD', fields:{...}}
+function docsParse(type, text){
+  const T=String(text||'').toUpperCase().replace(/\r/g,''); if(!T.trim()) return null;
+  const MON={JAN:1,FEB:2,MAR:3,APR:4,MAY:5,JUN:6,JUL:7,AUG:8,SEP:9,SEPT:9,OCT:10,NOV:11,DEC:12};
+  const dates=[]; const iso=(y,m,d)=>{ y=+y; if(y<100) y+=2000; if(m<1||m>12||d<1||d>31||y<2000||y>2060) return null; return y+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0'); };
+  let m; const rx1=/(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})/g; while((m=rx1.exec(T))){ const v=iso(m[3],+m[1],+m[2]); if(v) dates.push({v,i:m.index}); }
+  const rx2=/(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})/g; while((m=rx2.exec(T))){ const v=iso(m[1],+m[2],+m[3]); if(v) dates.push({v,i:m.index}); }
+  const rx3=/\b(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEPT?|OCT|NOV|DEC)[A-Z]*\.?\s+(\d{1,2}),?\s+(\d{4})/g; while((m=rx3.exec(T))){ const v=iso(m[3],MON[m[1]],+m[2]); if(v) dates.push({v,i:m.index}); }
+  const rx4=/\b(\d{1,2})\s+(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEPT?|OCT|NOV|DEC)[A-Z]*\.?\s+(\d{4})/g; while((m=rx4.exec(T))){ const v=iso(m[3],MON[m[2]],+m[1]); if(v) dates.push({v,i:m.index}); }
+  if(!dates.length) return null;
+  // La fecha que está junto a "EXP / EXPIRES / EXPIRATION / VENCE / VALID UNTIL / TO" gana; si no, la fecha futura más lejana
+  const keys=/(EXP(IRES|IRATION)?(\s+DATE)?|EXPIRA|VENCE|VENCIMIENTO|VALID\s+(THRU|THROUGH|UNTIL)|GOOD\s+THRU|EXPIRATION\s+DATE|POLICY\s+(PERIOD|EXPIRATION)|TO:?)\b/g;
+  const keyIdx=[]; while((m=keys.exec(T))) keyIdx.push(m.index);
+  const today=wkYmd(new Date());
+  let best=null;
+  if(keyIdx.length){ dates.forEach(d=>{ const dist=Math.min(...keyIdx.map(k=>d.i>=k?d.i-k:(k-d.i)*3)); if(dist<=60 && (!best||dist<best.dist||(dist===best.dist&&d.v>best.v))) best={v:d.v,dist}; }); }
+  if(!best){ const fut=dates.filter(d=>d.v>today).sort((a,b)=>b.v.localeCompare(a.v)); if(fut.length) best={v:fut[0].v}; }
+  const fields={};
+  if(type==='cdl'){ const c=T.match(/\bCLASS\s*:?\s*([ABC])\b/); if(c) fields.clase=c[1]; const e=T.match(/\bEND(ORSEMENTS?|S)?\s*:?\s*((?:[HNPSTX]\b\s*){1,6})/); if(e) fields.endosos=e[2].replace(/\s+/g,'').trim(); const st=T.match(/\b(TEXAS|CALIFORNIA|FLORIDA|ARIZONA|NEW MEXICO|OKLAHOMA|LOUISIANA|GEORGIA|ILLINOIS|NEW YORK|NEVADA|COLORADO|TENNESSEE|ARKANSAS)\b/); if(st) fields.estado=st[1]; }
+  if(type==='medical'){ const n=T.match(/NATIONAL\s+REGISTRY\s*(NUMBER|NO\.?)?\s*:?\s*(\d{6,12})/); if(n) fields.registro_medico=n[2]; if(/WEARING CORRECTIVE LENSES|CORRECTIVE LENSES/.test(T)) fields.condicion='Usa lentes'; if(/HEARING AID/.test(T)) fields.condicion=(fields.condicion?fields.condicion+', ':'')+'Aparato auditivo'; if(/\b(1|2|3)\s*(YEAR|MONTH)/.test(T)){ const y=T.match(/\b(\d{1,2})\s*(YEAR|MONTH)S?\b/); if(y) fields.vigencia=y[1]+' '+(y[2]==='YEAR'?'año(s)':'mes(es)'); } }
+  if(type==='registration'){ const p=T.match(/\bPLATE\s*(NO\.?|NUMBER|#)?\s*:?\s*([A-Z0-9]{5,8})\b/); if(p) fields.placa=p[2]; const v=T.match(/\b([A-HJ-NPR-Z0-9]{17})\b/); if(v) fields.vin=v[1]; }
+  if(type==='insurance'){ const p=T.match(/POLICY\s*(NO\.?|NUMBER|#)\s*:?\s*([A-Z0-9\-]{5,20})/); if(p) fields.poliza=p[2]; }
+  return {exp:best?best.v:null, fields};
+}
+function docsPick(type,how,add){ _docsPick={type,add:!!add}; const el=document.getElementById(how==='cam'?'docs-cam':'docs-file'); el.value=''; el.click(); }
+function docsReadFile(f){ return new Promise((ok,ko)=>{ const r=new FileReader(); r.onload=()=>ok(r.result); r.onerror=ko; r.readAsDataURL(f); }); }
+async function docsFilePicked(inp){
+  const f=inp.files&&inp.files[0]; if(!f||!_docsPick) return;
+  const {type,add}=_docsPick, T=DOC_TYPES[type];
+  if(!(fbReady&&db)){ alert('Necesitas señal para subir documentos.'); return; }
+  let dataUrl=await docsReadFile(f);
+  if(/^data:image\//.test(dataUrl)){ try{ dataUrl=await shrinkDataUrl(dataUrl,1800,0.8); }catch(e){} }
+  const busy=document.createElement('div'); busy.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:99999;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:16px;'; busy.textContent='Subiendo '+T.es+'…'; document.body.appendChild(busy);
+  try{
+    const ids=docsIds(); const docId=T.who==='drv'?ids.drv:ids.truck;
+    let file={id:'',link:'',mime:(/^data:([^;,]+)/.exec(dataUrl)||[])[1]||'image/jpeg'};
+    if(typeof scriptMode==='function'&&scriptMode()){ const j=await scriptUpload(dataUrl, type+'_'+(currentUser.username)+'_'+Date.now()+(file.mime==='application/pdf'?'.pdf':'.jpg'), {folder:'Documentos_'+(T.who==='drv'?currentUser.username:docId)}); file.id=j.id||''; file.link=j.webViewLink||''; }
+    const ref=db.collection('docs').doc(docId);
+    const snap=await ref.get(); const cur=snap.exists?snap.data():{items:{}}; cur.items=cur.items||{};
+    const it=cur.items[type]||{}; const files=add?(it.files||[]).concat([file]):[file];
+    cur.items[type]=Object.assign({},it,{files:files.slice(-3),updatedAt:new Date().toISOString(),by:currentUser.username});
+    if(T.who==='drv'){ cur.username=currentUser.username; cur.name=currentUser.name||''; } else cur.truckId=docsMyTruckId();
+    await ref.set(cur);
+    if(!add){ const c=docsCacheGet(); Object.keys(c).filter(k=>k.startsWith(docId+'_'+type+'_')).forEach(k=>docsCacheSet(k,null)); }
+    if(file.mime!=='application/pdf') docsCacheSet(docId+'_'+type+'_'+(cur.items[type].files.length-1), dataUrl);
+    // Leer la fecha de vencimiento (y datos importantes) de la foto
+    if(T.exp && file.mime!=='application/pdf'){
+      busy.textContent='Leyendo la fecha de vencimiento…';
+      let info=null; try{ const j=await scriptPost({action:'ocr', b64:String(dataUrl).split(',')[1], mime:file.mime, name:'doc.jpg'}); info=docsParse(type, j.text||''); }catch(e){}
+      if(info && (info.exp || info.fields)){ cur.items[type].read=Object.assign({},info.fields||{}, {at:new Date().toISOString()}); if(info.exp){ cur.items[type].expRead=info.exp; } await ref.set(cur); }
+      busy.remove();
+      if(info && info.exp){
+        if(confirm('Leí en la foto que '+T.es+' vence el '+fmtDate(info.exp)+'.\n\n¿Es correcto? (Cancelar = la escribo yo)')){ await docsSetExp(type, info.exp, true); }
+        else setTimeout(()=>alert('Escribe la fecha correcta en "Vence".'),50);
+      } else if(!cur.items[type].exp) alert('Listo. No pude leer la fecha en la foto: escríbela en "Vence".');
+    } else if(T.exp && !cur.items[type].exp) setTimeout(()=>alert('Listo. Ahora pon la fecha de vencimiento ("Vence").'),100);
+  }catch(e){ alert('No se pudo subir: '+(e.message||e)); }
+  finally{ busy.remove(); renderDocs(); }
+}
+async function docsSetExp(type,v,leida){
+  if(!(fbReady&&db)){ alert('Necesitas señal.'); return; }
+  const T=DOC_TYPES[type], ids=docsIds(), docId=T.who==='drv'?ids.drv:ids.truck; const ref=db.collection('docs').doc(docId);
+  try{ const sn=await ref.get(); const cur=sn.exists?sn.data():{items:{}}; cur.items=cur.items||{}; cur.items[type]=Object.assign({},cur.items[type]||{},{exp:v||'',expBy:leida?'foto':'manual',updatedAt:new Date().toISOString(),by:currentUser.username});
+    if(T.who==='drv'){ cur.username=currentUser.username; cur.name=currentUser.name||''; } else cur.truckId=docsMyTruckId(); await ref.set(cur); }catch(e){ alert('No se pudo guardar: '+(e.message||e)); }
+  renderDocs();
+}
+async function docsImage(type,i){
+  const T=DOC_TYPES[type], ids=docsIds(), docId=T.who==='drv'?ids.drv:ids.truck, k=docId+'_'+type+'_'+i;
+  const c=docsCacheGet(); if(c[k]) return {src:c[k]};
+  const f=((docsItem(type)||{}).files||[])[i]; if(!f) return null;
+  if(f.id && typeof scriptPost==='function'){ try{ const j=await scriptPost({action:'get',id:f.id}); const src='data:'+(j.mime||'image/jpeg')+';base64,'+j.b64; if(!/pdf/.test(j.mime||'')){ docsCacheSet(k,src); return {src}; } return {src,pdf:true,link:f.link}; }catch(e){} }
+  return f.link?{link:f.link}:null;
+}
+function docsViewer(slides){
+  const v=document.createElement('div'); v.id='docs-viewer'; v.style.cssText='position:fixed;inset:0;background:#000;z-index:99999;display:flex;flex-direction:column;';
+  let i=0; const paint=()=>{ const s=slides[i];
+    v.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;color:#fff;"><div style="font-weight:800;font-size:15px;">'+s.title+'<div style="font-size:12px;font-weight:600;opacity:.8;">'+s.sub+'</div></div><button id="dv-x" style="border:none;background:#fff;color:#000;border-radius:10px;padding:8px 14px;font-weight:800;">Cerrar</button></div>'+
+      '<div style="flex:1;display:flex;align-items:center;justify-content:center;overflow:auto;">'+(s.src&&!s.pdf?'<img src="'+s.src+'" style="max-width:100%;max-height:100%;object-fit:contain;"/>':s.src&&s.pdf?'<iframe src="'+s.src+'" style="width:100%;height:100%;border:0;background:#fff;"></iframe>':s.link?'<a href="'+s.link+'" target="_blank" style="color:#fff;font-size:16px;">Abrir documento</a>':'<div style="color:#fff;">'+(s.err||'Sin foto')+'</div>')+'</div>'+
+      (slides.length>1?'<div style="display:flex;gap:10px;padding:10px;"><button id="dv-p" style="flex:1;padding:14px;border:none;border-radius:12px;font-size:16px;font-weight:800;">◀ Anterior</button><div style="color:#fff;align-self:center;">'+(i+1)+'/'+slides.length+'</div><button id="dv-n" style="flex:1;padding:14px;border:none;border-radius:12px;font-size:16px;font-weight:800;">Siguiente ▶</button></div>':'');
+    v.querySelector('#dv-x').onclick=()=>v.remove(); const p=v.querySelector('#dv-p'), n=v.querySelector('#dv-n'); if(p) p.onclick=()=>{ i=(i-1+slides.length)%slides.length; paint(); }; if(n) n.onclick=()=>{ i=(i+1)%slides.length; paint(); }; };
+  paint(); document.body.appendChild(v);
+}
+async function docsSlides(types){
+  const out=[];
+  for(const t of types){ const it=docsItem(t); const n=(it&&it.files||[]).length; const st=docsStatus(it,t);
+    for(let i=0;i<n;i++){ const im=await docsImage(t,i); out.push(Object.assign({title:DOC_TYPES[t].ic+' '+DOC_TYPES[t].en+' / '+DOC_TYPES[t].es, sub:(n>1?(i===0?'Front / Frente':'Back / Reverso')+' · ':'')+(it.exp?'Exp. '+fmtDate(it.exp):'')+(st.k==='exp'?' · ⚠️ EXPIRED':'')}, im||{err:'No se pudo abrir (sin señal y sin copia en el celular)'})); } }
+  return out;
+}
+async function docsView(type){ await docsLoad(); const s=await docsSlides([type]); if(s.length) docsViewer(s); }
+async function docsInspect(){
+  await docsLoad(); const ids=docsIds();
+  const order=['cdl','medical','registration','insurance','ifta','annual','permit'].filter(t=>DOC_TYPES[t].who==='drv'||ids.truck);
+  const s=await docsSlides(order); if(!s.length){ alert('Todavía no has subido documentos.'); return; } docsViewer(s);
+}
+
 // ===== MIS GANANCIAS (driver) =====
 // Tablero del driver: SOLO su pago y su diésel (nada del valor de la carga, broker ni ganancia de la empresa) + boletas de pago
 let mgMode='week', mgOff=0;
@@ -12496,7 +12889,7 @@ function mgData(from,to){
   return {mine, pay, paid, pending:pay-paid, fuel, miles:mine.reduce((a,t)=>a+mgMiles(t),0), adj, adjTotal, net:pay+adjTotal, waiting:mine.filter(t=>!t.profitSet).length};
 }
 function renderMisGanancias(){
-  mgLoadAdj();
+  mgLoadAdj(); mgLoadSigned();
   document.querySelectorAll('#page-misganancias .mg-tab').forEach(b=>{ const on=b.dataset.m===mgMode; b.style.background=on?'var(--accent)':'var(--bg3)'; b.style.color=on?'#fff':'var(--text2)'; b.style.border='1px solid '+(on?'var(--accent)':'var(--border2)'); b.style.flex='1'; });
   const P=mgPeriod();
   document.getElementById('mg-nav').style.display=(mgMode==='week'||mgMode==='month')?'flex':'none';
@@ -12544,9 +12937,479 @@ function mgRenderStubs(){
       '<div style="flex:1;"><div style="font-size:13px;font-weight:800;color:var(--text);">'+wkLabel(r)+(off===0?' <span style="font-size:10px;color:var(--accent);">(en curso)</span>':'')+'</div>'+
       '<div style="font-size:11px;color:var(--text3);">'+D.mine.length+' viaje'+(D.mine.length!==1?'s':'')+' · ⛽ '+mgMoney(D.fuel.cost)+(D.pending>0?' · <span style="color:var(--orange);font-weight:700;">pendiente '+mgMoney(D.pending)+'</span>':'')+'</div></div>'+
       '<div style="font-size:15px;font-weight:800;color:var(--green);">'+mgMoney(D.net)+'</div>'+
-      '<button class="btn-sm" onclick="mgDownloadStub(\''+r.from+'\',\''+r.to+'\')" style="white-space:nowrap;">📄 Descargar</button></div>');
+      '<div style="display:flex;flex-direction:column;gap:4px;align-items:stretch;">'+
+      '<button class="btn-sm" onclick="mgDownloadStub(\''+r.from+'\',\''+r.to+'\')" style="white-space:nowrap;">📄 Descargar</button>'+
+      (mgSignedOf(r.from)?'<span style="font-size:11px;font-weight:800;color:#16A34A;text-align:center;">✅ Firmada '+mgSignedOf(r.from).txt+'</span>'
+        :(off===0?'':'<button class="btn-sm" onclick="mgOpenSign(\''+r.from+'\',\''+r.to+'\')" style="white-space:nowrap;background:#1E3A8A;color:#fff;border-color:#1E3A8A;">✍️ Firmar</button>'))+
+      '</div></div>');
   }
   box.innerHTML=rows.length?rows.join(''):'<div class="empty">Todavía no tienes boletas.</div>';
+}
+// ===== FIRMA DE LA BOLETA DE PAGO: el chofer firma en la pantalla → PDF a tu correo y a la carpeta "YENAVI — Pagos de choferes" =====
+const STUB_KEY='yenavi-pagos-8Tz3';
+let _mgSigned={}, _mgSignedLoaded=false;
+function mgSignedOf(from){ return _mgSigned[from]||null; }
+async function mgLoadSigned(){
+  if(_mgSignedLoaded || !fbReady || !db || !currentUser) return; _mgSignedLoaded=true;
+  try{ const sn=await db.collection('payStubs').where('driverUser','==',currentUser.username).get();
+    sn.forEach(d=>{ const x=d.data(); if(x&&x.from){ const dt=x.signedAt?new Date(x.signedAt):null; _mgSigned[x.from]=Object.assign({},x,{txt:dt&&!isNaN(dt)?(dt.getMonth()+1)+'/'+dt.getDate():''}); } });
+    mgRenderStubs(); }catch(e){ _mgSignedLoaded=false; }
+}
+function stubUrl(){ try{ return String((loadCompany()||{}).stubUrl||'').trim(); }catch(e){ return ''; } }
+function mgStubPayload(from,to){
+  const D=mgData(from,to), co=(typeof loadCompany==='function'&&loadCompany())||{}, u=currentUser||{};
+  const name=[u.firstName,u.lastName].filter(Boolean).join(' ')||u.name||u.username||'';
+  return {D, name, stub:{
+    driver:name, username:u.username||'', from, to, periodo:fmtDate(from)+' – '+fmtDate(to),
+    company:{name:co.name||'YENAVI FREIGHT LLC', address:co.address||'', phone:co.phone||'', mc:co.mc||'', dot:co.dot||'', logo:(co.logo&&String(co.logo).length<400000)?co.logo:''},
+    trips:D.mine.map(t=>{ const f=mgFuel(t); return {delivered:fmtDate(tripWorkDate(t)), rc:t.rc||'', route:(t.city1||t.z1||'—')+(t.state1?', '+t.state1:'')+' → '+(t.city2||t.z2||'—')+(t.state2?', '+t.state2:''), miles:fmtNum(mgMiles(t)), diesel:f.cost?mgMoney(f.cost)+' ('+f.gal.toFixed(1)+' gal)':'—', pay:t.profitSet?mgMoney(t.driver):'Pending', status:!t.profitSet?'—':(t.driverPayStatus||'paid')==='paid'?'Paid':'Pending'}; }),
+    adj:D.adj.map(a=>({date:fmtDate(a.date), concept:((MG_ADJ_TYPES[a.type]||{}).en||a.type)+' / '+((MG_ADJ_TYPES[a.type]||{}).es||'')+(a.note?' — '+a.note:''), amount:mgMoney(mgAdjSigned(a))})),
+    pay:D.pay, adjTotal:D.adjTotal, net:D.net, paid:D.paid, pending:D.pending, miles:fmtNum(D.miles), fuelCost:D.fuel.cost, fuelGal:D.fuel.gal.toFixed(1)
+  }};
+}
+// Driver Settlement: mismo formato que el comprobante que imprime el admin en Reportes → Pago a drivers
+function mgSettlementHTML(from,to,sig){
+  const fromF=from, toF=to;
+  const filtered=mgData(from,to).mine.slice().sort((a,b)=>tripWorkDate(a).localeCompare(tripWorkDate(b)));
+  const _u=currentUser||{}; const driverF=[_u.firstName,_u.lastName].filter(Boolean).join(' ')||_u.name||_u.username||'';
+  const totalPay    = filtered.filter(t=>t.profitSet).reduce((a,t)=>a+(t.driver||0),0);
+  const totalLoad   = filtered.filter(t=>t.profitSet).reduce((a,t)=>a+(t.loadVal||0),0);
+  const totalExtras = filtered.reduce((a,t)=>a+(t.extrasTotal||0),0);
+  const adjList     = mgAdjFor(fromF,toF);
+  const adjTotal    = adjList.reduce((a,x)=>a+mgAdjSigned(x),0);
+  const grandPay    = totalPay + adjTotal;
+  const usd = v=>(v<0?'-$':'$')+Math.abs(v).toFixed(2);
+  const adjRows = adjList.map(a=>{ const v=mgAdjSigned(a); return `<tr><td class="date">${fmtDate(a.date)}</td><td>${(MG_ADJ_TYPES[a.type]||{}).en||a.type}${driverF==='all'?' — '+a.driverName:''}</td><td>${a.note||''}</td><td class="right" style="font-weight:700;color:${v<0?'#B42318':'#15803D'};">${v<0?'-':'+'}$${Math.abs(v).toFixed(2)}</td></tr>`; }).join('');
+  const co = (typeof loadCompany==='function'&&loadCompany())||{};
+  const driverUser = currentUser||null;
+  const driverFullName = driverF==='all' ? 'All Drivers' : (driverUser ? [driverUser.firstName, driverUser.lastName].filter(Boolean).join(' ') || driverUser.name || driverF : driverF);
+  const driverName  = driverF==='all' ? 'All Drivers' : driverF;
+  const driverPhone = driverUser ? (driverUser.phone||'') : '';
+  const initials    = driverFullName.split(' ').map(w=>w[0]||'').join('').toUpperCase().slice(0,2);
+  const periodoEN   = fromF||toF ? `${fromF?fmtDate(fromF):'—'} to ${toF?fmtDate(toF):'—'}` : 'All records';
+  const periodoES   = fromF||toF ? `${fromF?fmtDate(fromF):'—'} al ${toF?fmtDate(toF):'—'}` : 'Todos los registros';
+  const today       = fmtDate(wkYmd(new Date()));
+  const todayFull   = new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
+
+  // ── Rows para página 2 (reporte de viajes) ──
+  const rows2 = filtered.map((t,i)=>`
+    <tr class="${i%2===1?'alt':''}">
+      <td class="num">${i+1}</td>
+      <td class="date">${fmtDate(tripWorkDate(t))}</td>
+      <td>${t.city1||'—'}${t.state1?', '+t.state1:''}</td>
+      <td>${t.city2||'—'}${t.state2?', '+t.state2:''}</td>
+      <td class="right pay ${t.profitSet?'green':'muted'}">${t.profitSet?'$'+fmt(t.driver):'Pending'}</td>
+      <td class="right" style="font-size:10px;font-weight:700;color:${(t.driverPayStatus||'paid')==='paid'?'#16A34A':'#D97706'};">${(t.driverPayStatus||'paid')==='paid'?'Paid':'Pending'}</td>
+    </tr>
+    ${t.extras&&t.extras.length?t.extras.map(ex=>`
+    <tr style="background:#FEF9F0;">
+      <td></td>
+      <td colspan="2" style="padding:5px 12px;font-size:11px;color:#92400E;">↳ 🔧 ${ex.tipo}${ex.desc?' — '+ex.desc:''}</td>
+      <td colspan="2" style="padding:5px 12px;font-size:11px;color:#92400E;text-align:right;">Extra expense</td>
+      <td style="padding:5px 12px;font-size:11px;font-weight:700;color:#B45309;text-align:right;">- $${fmt(ex.monto||0)}</td>
+    </tr>`).join(''):''}
+  `).join('');
+
+
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<title>Driver Report — ${driverFullName}</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Inter',sans-serif;color:#0F172A;background:#fff;font-size:13px;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+
+  /* ── PAGES ── */
+  .sheet{max-width:900px;margin:0 auto;padding:48px 52px;}
+  .page-break{page-break-after:always;break-after:page;}
+
+  /* ── PAGE 1: B&W VOUCHER ── */
+  .bw-header{border-bottom:3px solid #000;padding-bottom:16px;margin-bottom:24px;display:flex;justify-content:space-between;align-items:flex-end;}
+  .bw-title{font-size:28px;font-weight:900;color:#000;letter-spacing:-1px;text-transform:uppercase;}
+  .bw-doc-info{text-align:right;}
+  .bw-doc-label{font-size:10px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.7px;}
+  .bw-doc-val{font-size:13px;font-weight:600;color:#000;margin-top:2px;}
+
+  .bw-driver-block{border:2px solid #000;border-radius:4px;padding:16px 20px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;}
+  .bw-driver-label{font-size:10px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.7px;margin-bottom:4px;}
+  .bw-driver-name{font-size:22px;font-weight:900;color:#000;letter-spacing:-.5px;}
+  .bw-driver-period{font-size:12px;color:#333;margin-top:3px;}
+  .bw-amount-block{text-align:right;border-left:2px solid #000;padding-left:24px;}
+  .bw-amount-label{font-size:10px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.7px;margin-bottom:4px;}
+  .bw-amount-val{font-size:36px;font-weight:900;color:#000;letter-spacing:-1px;line-height:1;}
+
+  .bw-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:0;border:2px solid #000;border-radius:4px;margin-bottom:20px;overflow:hidden;}
+  .bw-sum-box{padding:14px 16px;border-right:1px solid #000;text-align:center;}
+  .bw-sum-box:last-child{border-right:none;}
+  .bw-sum-label{font-size:10px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;}
+  .bw-sum-val{font-size:22px;font-weight:900;color:#000;}
+  .bw-sum-sub{font-size:10px;color:#666;margin-top:3px;}
+
+  .bw-line-items{border:2px solid #000;border-radius:4px;overflow:hidden;margin-bottom:20px;}
+  .bw-line-header{background:#000;color:#fff;padding:10px 18px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;}
+  .bw-line-row{display:flex;justify-content:space-between;align-items:center;padding:11px 18px;border-bottom:1px solid #ccc;}
+  .bw-line-row:last-child{border-bottom:none;}
+  .bw-line-row.total{border-top:2px solid #000;background:#f0f0f0;}
+  .bw-line-desc{font-size:13px;color:#000;}
+  .bw-line-desc small{display:block;font-size:11px;color:#555;margin-top:2px;}
+  .bw-line-amount{font-size:14px;font-weight:700;color:#000;}
+  .bw-line-row.total .bw-line-desc{font-size:14px;font-weight:800;}
+  .bw-line-row.total .bw-line-amount{font-size:20px;font-weight:900;}
+
+  /* ── SHARED: SIGNATURE ── */
+  .sig-section{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-bottom:24px;}
+  .sig-box{padding-top:10px;}
+  .sig-label{font-size:10px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.7px;margin-bottom:36px;}
+  .sig-line{border-top:1.5px solid #000;padding-top:6px;}
+  .sig-name{font-size:12px;font-weight:600;color:#000;}
+
+  /* ── SHARED: FOOTER ── */
+  .footer-band{border-top:1px solid #ccc;padding-top:10px;display:flex;justify-content:space-between;align-items:center;}
+  .footer-left{font-size:10px;color:#666;line-height:1.6;}
+  .footer-right{font-size:10px;color:#666;text-align:right;line-height:1.6;}
+
+  /* ── PAGE 2: HEADER BAND (keeps color) ── */
+  .header-band{
+    background:linear-gradient(135deg,#1e3a8a 0%,#1E3A8A 100%);
+    border-radius:16px;padding:28px 32px;
+    display:flex;justify-content:space-between;align-items:center;
+    margin-bottom:28px;position:relative;overflow:hidden;
+  }
+  .header-band::before{content:'';position:absolute;top:-30px;right:-30px;width:160px;height:160px;border-radius:50%;background:rgba(255,255,255,.07);}
+  .header-band::after{content:'';position:absolute;bottom:-40px;right:80px;width:100px;height:100px;border-radius:50%;background:rgba(255,255,255,.05);}
+  .brand{position:relative;}
+  .brand-name{font-size:22px;font-weight:900;color:#fff;letter-spacing:-0.5px;}
+  .brand-name span{color:#93C5FD;}
+  .brand-sub{font-size:11px;color:rgba(255,255,255,.55);margin-top:3px;font-weight:500;letter-spacing:.3px;}
+  .doc-type{position:relative;text-align:right;}
+  .doc-title{font-size:13px;font-weight:700;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px;}
+  .doc-date{font-size:11px;color:rgba(255,255,255,.45);}
+
+  /* ── PAGE 2: DRIVER CARD ── */
+  .driver-card{display:flex;align-items:center;gap:18px;background:#F8FAFF;border:1px solid #E2E8F8;border-radius:14px;padding:20px 24px;margin-bottom:24px;}
+  .driver-avatar{width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,#1E3A8A,#172E6E);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;color:#fff;flex-shrink:0;box-shadow:0 4px 12px rgba(37,99,235,.35);}
+  .driver-info{flex:1;}
+  .driver-label{font-size:10px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px;}
+  .driver-name{font-size:20px;font-weight:800;color:#0F172A;letter-spacing:-.3px;}
+  .driver-period{font-size:12px;color:#64748B;margin-top:3px;}
+
+  /* ── PAGE 2: TABLE ── */
+  .table-wrap{border:1px solid #E2E8F0;border-radius:14px;overflow:hidden;margin-bottom:28px;}
+  .table-header{background:#F8FAFC;padding:14px 20px;border-bottom:1px solid #E2E8F0;display:flex;justify-content:space-between;align-items:center;}
+  .table-title{font-size:12px;font-weight:700;color:#0F172A;}
+  .table-count{font-size:11px;color:#94A3B8;background:#fff;border:1px solid #E2E8F0;border-radius:20px;padding:3px 10px;}
+  table{width:100%;border-collapse:collapse;}
+  thead tr{background:#F1F5F9;}
+  th{padding:11px 14px;text-align:left;font-size:10px;font-weight:700;color:#64748B;letter-spacing:.7px;text-transform:uppercase;border-bottom:1px solid #E2E8F0;}
+  th.right{text-align:right;}
+  td{padding:11px 14px;border-bottom:1px solid #F1F5F9;color:#0F172A;vertical-align:middle;}
+  tr.alt td{background:#FAFBFF;}
+  tr:last-child td{border-bottom:none;}
+  td.num{color:#CBD5E1;font-size:11px;font-weight:600;width:32px;}
+  td.date{font-weight:600;white-space:nowrap;color:#334155;}
+  td.right{text-align:right;}
+  td.miles{font-weight:600;color:#334155;}
+  td.unit{font-size:10px;color:#94A3B8;}
+  td.green{color:#15803D;font-weight:700;}
+  td.muted{color:#CBD5E1;font-style:italic;}
+  .total-row{background:linear-gradient(135deg,#1e3a8a,#1E3A8A)!important;}
+  .total-row td{border-bottom:none!important;padding:14px!important;}
+  .total-label{font-size:12px;font-weight:800;color:#fff;letter-spacing:.5px;text-transform:uppercase;}
+  .total-miles{font-size:13px;font-weight:700;color:rgba(255,255,255,.8);text-align:right;}
+  .total-pay{font-size:18px;font-weight:900;color:#fff;text-align:right;}
+
+  /* ── PAGE 2: KPI ── */
+  .kpi-row{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:28px;}
+  .kpi{border-radius:12px;padding:18px 20px;}
+  .kpi.blue{background:#EEF2F9;border:1.5px solid #CBD5E8;}
+  .kpi.slate{background:#F8FAFC;border:1.5px solid #E2E8F0;}
+  .kpi.green{background:#F0FDF4;border:1.5px solid #BBF7D0;}
+  .kpi-icon{font-size:22px;margin-bottom:10px;}
+  .kpi-label{font-size:10px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;margin-bottom:5px;}
+  .kpi.blue .kpi-label{color:#3557A6;}
+  .kpi.slate .kpi-label{color:#64748B;}
+  .kpi.green .kpi-label{color:#16A34A;}
+  .kpi-value{font-size:26px;font-weight:900;letter-spacing:-.5px;line-height:1;}
+  .kpi.blue .kpi-value{color:#172E6E;}
+  .kpi.slate .kpi-value{color:#0F172A;}
+  .kpi.green .kpi-value{color:#15803D;}
+  .kpi-sub{font-size:10px;color:#94A3B8;margin-top:5px;}
+
+  @media print{
+    body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+    .sheet{padding:24px 28px;}
+    .no-print{display:none!important;}
+    .page-break{page-break-after:always;break-after:page;}
+  }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════
+     PAGE 1 — PAYMENT VOUCHER (B&W, payment only)
+══════════════════════════════════════════════ -->
+<div class="sheet page-break">
+
+  <!-- HEADER -->
+  <div class="bw-header">
+    <div style="display:flex;align-items:center;gap:14px;">
+      ${co.logo?`<img src="${co.logo}" style="width:54px;height:54px;object-fit:contain;border-radius:8px;border:1px solid #ddd;flex-shrink:0;"/>`:''}
+      <div>
+        ${co.name?`<div style="font-size:20px;font-weight:900;color:#000;letter-spacing:-.5px;">${co.name}</div>`:''}
+        ${co.address?`<div style="font-size:11px;color:#444;margin-top:2px;">📍 ${co.address}</div>`:''}
+        ${co.phone?`<div style="font-size:11px;color:#444;margin-top:1px;">📞 ${applyPhoneFmt(co.phone)}</div>`:''}
+        ${co.mc||co.dot?`<div style="font-size:10px;color:#666;margin-top:3px;">${co.mc?'MC: '+co.mc:''}${co.mc&&co.dot?' &nbsp;|&nbsp; ':''}${co.dot?'DOT: '+co.dot:''}</div>`:''}
+        ${!co.name?`<div class="bw-title">Driver Settlement</div>`:''}
+      </div>
+    </div>
+    <div class="bw-doc-info">
+      ${co.name?`<div style="font-size:16px;font-weight:900;color:#000;text-align:right;margin-bottom:6px;">Driver Settlement</div>`:''}
+      <div class="bw-doc-label">Date Issued</div>
+      <div class="bw-doc-val">${todayFull}</div>
+      <div class="bw-doc-label" style="margin-top:8px;">Period</div>
+      <div class="bw-doc-val">${periodoEN}</div>
+    </div>
+  </div>
+
+  <!-- DRIVER INFO -->
+  <div style="margin-bottom:28px;padding:20px 24px;border:2px solid #000;border-radius:4px;">
+    <div style="font-size:10px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.7px;margin-bottom:6px;">Driver</div>
+    <div style="font-size:26px;font-weight:900;color:#000;letter-spacing:-.5px;">${driverFullName}</div>
+    ${driverPhone?`<div style="font-size:13px;color:#333;margin-top:4px;">📞 ${applyPhoneFmt(driverPhone)}</div>`:''}
+  </div>
+
+  <!-- PAYMENT AMOUNT — centro de atención -->
+  <div style="border:3px solid #000;border-radius:4px;padding:32px;text-align:center;margin-bottom:28px;">
+    <div style="font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">Net Pay</div>
+    <div style="font-size:64px;font-weight:900;color:#000;letter-spacing:-2px;line-height:1;">${usd(grandPay)}</div>
+    <div style="font-size:13px;color:#555;margin-top:10px;">Period: ${periodoEN}</div>
+  </div>
+  ${adjList.length?`<div class="bw-line-items">
+    <div class="bw-line-header">Settlement Summary</div>
+    <div class="bw-line-row"><div class="bw-line-desc">Gross Pay<small>${filtered.length} load${filtered.length!==1?'s':''}</small></div><div class="bw-line-amount">$${totalPay.toFixed(2)}</div></div>
+    ${adjList.map(a=>{ const v=mgAdjSigned(a); return `<div class="bw-line-row"><div class="bw-line-desc">${(MG_ADJ_TYPES[a.type]||{}).en||a.type}<small>${fmtDate(a.date)}${a.note?' · '+a.note:''}</small></div><div class="bw-line-amount">${v<0?'-':'+'}$${Math.abs(v).toFixed(2)}</div></div>`; }).join('')}
+    <div class="bw-line-row total"><div class="bw-line-desc">Net Pay</div><div class="bw-line-amount">${usd(grandPay)}</div></div>
+  </div>`:''}
+
+  <!-- FIRMA DEL DRIVER -->
+  <div style="margin-top:48px;">
+    ${sig?`<div style="font-size:10px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.7px;margin-bottom:4px;">Driver Signature</div><img src="${sig.img}" style="height:70px;display:block;margin-bottom:2px;"/>`:`<div style="font-size:10px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.7px;margin-bottom:52px;">Driver Signature</div>`}
+    <div style="border-top:2px solid #000;width:55%;padding-top:10px;">
+      <div style="font-size:15px;font-weight:900;color:#000;letter-spacing:-.3px;">${driverFullName}</div>
+      <div style="font-size:11px;color:#555;margin-top:6px;">Date: ${sig?sig.when:todayFull}</div>${sig?`<div style="font-size:10px;color:#555;margin-top:4px;">Signed electronically in the YENAVI app · user ${sig.user}<br/>${sig.statement}</div>`:''}
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="footer-band" style="margin-top:40px;">
+    <div class="footer-left">This document is an official payment record.</div>
+    <div class="footer-right"><strong>${todayFull}</strong></div>
+  </div>
+
+</div><!-- end page 1 -->
+
+
+<!-- ══════════════════════════════════════════════
+     PAGE 2 — TRIP REPORT (Detailed)
+══════════════════════════════════════════════ -->
+<div class="sheet">
+
+  <!-- HEADER B&W page 2 -->
+  <div class="bw-header">
+    <div style="display:flex;align-items:center;gap:14px;">
+      ${co.logo?`<img src="${co.logo}" style="width:54px;height:54px;object-fit:contain;border-radius:8px;border:1px solid #ddd;flex-shrink:0;"/>`:''}
+      <div>
+        ${co.name?`<div style="font-size:20px;font-weight:900;color:#000;letter-spacing:-.5px;">${co.name}</div>`:''}
+        ${co.address?`<div style="font-size:11px;color:#444;margin-top:2px;">📍 ${co.address}</div>`:''}
+        ${co.phone?`<div style="font-size:11px;color:#444;margin-top:1px;">📞 ${applyPhoneFmt(co.phone)}</div>`:''}
+        ${co.mc||co.dot?`<div style="font-size:10px;color:#666;margin-top:3px;">${co.mc?'MC: '+co.mc:''}${co.mc&&co.dot?' &nbsp;|&nbsp; ':''}${co.dot?'DOT: '+co.dot:''}</div>`:''}
+        ${!co.name?`<div class="bw-title">Settlement Detail</div>`:''}
+      </div>
+    </div>
+    <div class="bw-doc-info">
+      ${co.name?`<div style="font-size:16px;font-weight:900;color:#000;text-align:right;margin-bottom:6px;">Settlement Detail</div>`:''}
+      <div class="bw-doc-label">Date Issued</div>
+      <div class="bw-doc-val">${todayFull}</div>
+      <div class="bw-doc-label" style="margin-top:8px;">Period</div>
+      <div class="bw-doc-val">${periodoEN}</div>
+    </div>
+  </div>
+
+  <!-- DRIVER -->
+  <div class="bw-driver-block">
+    <div>
+      <div class="bw-driver-label">Driver Name</div>
+      <div class="bw-driver-name">${driverFullName}</div>
+      <div class="bw-driver-period">📅 ${periodoEN}</div>
+      ${driverPhone?`<div class="bw-driver-period">📞 ${applyPhoneFmt(driverPhone)}</div>`:""}
+    </div>
+    <div class="bw-amount-block">
+      <div class="bw-amount-label">Net Pay</div>
+      <div class="bw-amount-val">${usd(grandPay)}</div>
+    </div>
+  </div>
+
+  <!-- PAYMENT BREAKDOWN POR VIAJE -->
+
+  <!-- TABLE -->
+  <div class="table-wrap">
+    <div class="table-header">
+      <div class="table-title">📋 Load Detail</div>
+      <div class="table-count">${filtered.length} records</div>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Delivery Date</th>
+          <th>Origin</th>
+          <th>Destination</th>
+          <th class="right">Driver Pay</th>
+          <th class="right">Status</th>
+        </tr>
+      </thead>
+      <tbody>${rows2}</tbody>
+      <tbody>
+        <tr class="total-row">
+          <td colspan="4"><span class="total-label">Gross Pay</span></td>
+          <td><span class="total-pay">$${totalPay.toFixed(2)}</span></td>
+          <td></td>
+        </tr>
+        ${totalExtras>0?`<tr style="background:#FEF3C7;">
+          <td colspan="4" style="padding:10px 14px;font-size:12px;font-weight:700;color:#92400E;">🔧 Total extra expenses for the period</td>
+          <td style="padding:10px 14px;font-size:13px;font-weight:800;color:#B45309;text-align:right;">- $${totalExtras.toFixed(2)}</td>
+        </tr>`:''}
+      </tbody>
+    </table>
+  </div>
+  ${adjList.length?`<div class="table-wrap">
+    <div class="table-header"><div class="table-title">💵 Settlement Adjustments</div><div class="table-count">${adjList.length} records</div></div>
+    <table><thead><tr><th>Date</th><th>Type</th><th>Note</th><th class="right">Amount</th></tr></thead>
+    <tbody>${adjRows}
+      <tr class="total-row"><td colspan="3"><span class="total-label">Net Pay (Gross ${usd(totalPay)} ${adjTotal<0?'−':'+'} Adjustments ${usd(Math.abs(adjTotal))})</span></td><td><span class="total-pay">${usd(grandPay)}</span></td></tr>
+    </tbody></table>
+  </div>`:''}
+
+  <!-- SIGNATURES -->
+  <div class="sig-section">
+    <div class="sig-box">
+      ${sig?`<img src="${sig.img}" style="height:48px;display:block;margin:0 auto 2px;"/>`:''}
+      <div class="sig-label">Driver Signature</div>
+      <div class="sig-name">${driverFullName}${sig?`<div style="font-size:9px;font-weight:400;color:#555;">${sig.when}</div>`:''}</div>
+    </div>
+    <div class="sig-box">
+      <div class="sig-label">Authorized by</div>
+      <div class="sig-name">Administrator</div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="footer-band">
+    <div class="footer-left">
+      Automatically generated by the system<br/>
+    </div>
+    <div class="footer-right">
+      This document is an official payment record<br/>
+      <strong>${todayFull}</strong>
+    </div>
+  </div>
+
+</div><!-- end page 2 -->
+
+
+</body>
+</html>`;
+  return html;
+}
+
+// HTML → PDF en el celular (con la misma apariencia), para mandarlo firmado
+const H2P_URL='https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+// El PDF se arma DENTRO de un marco aparte, con sus propios estilos, para que se vea igual que el comprobante del admin
+async function mgSettlementPdfB64(html){
+  const fr=document.createElement('iframe'); fr.style.cssText='position:fixed;left:-10000px;top:0;width:816px;height:1056px;border:0;'; document.body.appendChild(fr);
+  try{
+    const doc=fr.contentDocument; doc.open(); doc.write(html); doc.close();
+    await new Promise((ok,ko)=>{ const s=doc.createElement('script'); s.src=H2P_URL; s.onload=()=>ok(); s.onerror=()=>ko(new Error('no se pudo cargar el generador de PDF')); doc.head.appendChild(s); });
+    await new Promise(r=>setTimeout(r,600));
+    try{ await doc.fonts.ready; }catch(e){}
+    const W=fr.contentWindow;
+    const dataUri=await W.html2pdf().set({margin:0,image:{type:'jpeg',quality:0.92},html2canvas:{scale:2,useCORS:true,windowWidth:816,backgroundColor:'#ffffff'},jsPDF:{unit:'pt',format:'letter',orientation:'portrait'},pagebreak:{mode:['css'],after:'.page-break'}}).from(doc.body).outputPdf('datauristring');
+    return String(dataUri).split(',')[1];
+  } finally { fr.remove(); }
+}
+function mgShowSettlement(from,to){ const h=mgSettlementHTML(from,to,null); let w=null; try{ w=window.open('','_blank'); }catch(e){} if(w&&w.document){ w.document.open(); w.document.write(h); w.document.close(); } }
+function mgOpenSign(from,to){
+  const P=mgStubPayload(from,to), D=P.D;
+  if(!stubUrl()){ alert('Todavía no está activada la firma de boletas. Avísale a la oficina.'); return; }
+  if(D.waiting){ alert('Esta semana tiene '+D.waiting+' viaje(s) sin pago calculado. Cuando la oficina los calcule, ya la puedes firmar.'); return; }
+  const old=document.getElementById('mg-sign-modal'); if(old) old.remove();
+  const m=document.createElement('div'); m.id='mg-sign-modal';
+  m.style.cssText='position:fixed;inset:0;background:rgba(15,23,42,.6);z-index:99999;display:flex;align-items:flex-end;justify-content:center;';
+  const statement='Confirmo que revisé esta boleta y que el pago neto de '+mgMoney(D.net)+' del '+fmtDate(from)+' al '+fmtDate(to)+' es correcto. / I confirm I reviewed this pay stub and the net pay is correct.';
+  m.innerHTML='<div style="background:var(--card,#fff);color:var(--text);width:100%;max-width:520px;border-radius:18px 18px 0 0;padding:16px;max-height:94vh;overflow:auto;">'+
+    '<div style="display:flex;justify-content:space-between;align-items:center;"><div style="font-size:17px;font-weight:800;">✍️ Firmar boleta de pago</div><button type="button" onclick="document.getElementById(\'mg-sign-modal\').remove()" style="border:none;background:none;font-size:22px;color:var(--text3);">✕</button></div>'+
+    '<div style="font-size:13px;color:var(--text3);margin:2px 0 10px;">'+wkLabel({sat:new Date(from+'T12:00:00'),fri:new Date(to+'T12:00:00')})+' · '+D.mine.length+' viaje'+(D.mine.length!==1?'s':'')+'</div>'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">'+
+      '<div style="background:var(--green-bg);border-radius:10px;padding:10px;text-align:center;"><div style="font-size:10px;font-weight:700;color:var(--green2);">PAGO NETO</div><div style="font-size:20px;font-weight:800;color:var(--green);">'+mgMoney(D.net)+'</div></div>'+
+      '<div style="background:#EFF6FF;border-radius:10px;padding:10px;text-align:center;"><div style="font-size:10px;font-weight:700;color:#1D4ED8;">DIÉSEL</div><div style="font-size:20px;font-weight:800;color:#1D4ED8;">'+mgMoney(D.fuel.cost)+'</div></div></div>'+
+    '<button type="button" class="btn-sm" onclick="mgShowSettlement(\''+from+'\',\''+to+'\')" style="width:100%;margin-bottom:10px;">📄 Ver la boleta completa</button>'+
+    '<label style="display:flex;gap:8px;align-items:flex-start;font-size:13px;margin-bottom:10px;"><input type="checkbox" id="mg-sign-ok" style="margin-top:3px;width:18px;height:18px;"/><span>'+mgEsc(statement)+'</span></label>'+
+    '<div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:4px;">Firma aquí con el dedo:</div>'+
+    '<canvas id="mg-sign-pad" style="width:100%;height:170px;background:#fff;border:2px dashed #94A3B8;border-radius:12px;touch-action:none;display:block;"></canvas>'+
+    '<div style="display:flex;gap:8px;margin-top:10px;"><button type="button" class="btn-sm" onclick="mgSignClear()" style="flex:1;">🧽 Borrar firma</button>'+
+    '<button type="button" id="mg-sign-send" onclick="mgSignSend(\''+from+'\',\''+to+'\')" style="flex:2;padding:12px;border:none;border-radius:10px;background:#1E3A8A;color:#fff;font-weight:800;font-size:15px;">Firmar y enviar</button></div>'+
+    '<div id="mg-sign-msg" style="font-size:13px;margin-top:8px;"></div></div>';
+  m.dataset.statement=statement;
+  document.body.appendChild(m);
+  mgSignInit();
+}
+let _mgPad=null;
+function mgSignInit(){
+  const c=document.getElementById('mg-sign-pad'); if(!c) return;
+  const r=c.getBoundingClientRect(), dpr=Math.max(1,window.devicePixelRatio||1);
+  c.width=Math.round(r.width*dpr); c.height=Math.round(r.height*dpr);
+  const ctx=c.getContext('2d'); ctx.scale(dpr,dpr); ctx.lineWidth=2.6; ctx.lineCap='round'; ctx.lineJoin='round'; ctx.strokeStyle='#0F172A';
+  _mgPad={c,ctx,drawing:false,ink:0,last:null};
+  const pos=e=>{ const b=c.getBoundingClientRect(); return {x:e.clientX-b.left, y:e.clientY-b.top}; };
+  c.onpointerdown=e=>{ e.preventDefault(); try{ c.setPointerCapture(e.pointerId); }catch(x){} _mgPad.drawing=true; _mgPad.last=pos(e); ctx.beginPath(); ctx.arc(_mgPad.last.x,_mgPad.last.y,1.2,0,Math.PI*2); ctx.fillStyle='#0F172A'; ctx.fill(); };
+  c.onpointermove=e=>{ if(!_mgPad.drawing) return; e.preventDefault(); const p=pos(e); ctx.beginPath(); ctx.moveTo(_mgPad.last.x,_mgPad.last.y); ctx.lineTo(p.x,p.y); ctx.stroke(); _mgPad.ink+=Math.hypot(p.x-_mgPad.last.x,p.y-_mgPad.last.y); _mgPad.last=p; };
+  c.onpointerup=c.onpointercancel=c.onpointerleave=()=>{ _mgPad.drawing=false; };
+}
+function mgSignClear(){ if(!_mgPad) return; _mgPad.ctx.clearRect(0,0,_mgPad.c.width,_mgPad.c.height); _mgPad.ink=0; }
+function mgSignatureData(){ // firma recortada, fondo blanco, PNG chiquito
+  const c=_mgPad.c, out=document.createElement('canvas'); out.width=520; out.height=180; const o=out.getContext('2d');
+  o.fillStyle='#fff'; o.fillRect(0,0,520,180); o.drawImage(c,0,0,520,180); return out.toDataURL('image/png');
+}
+async function mgSignSend(from,to){
+  const msg=document.getElementById('mg-sign-msg'), btn=document.getElementById('mg-sign-send'), modal=document.getElementById('mg-sign-modal');
+  const bad=t=>{ msg.style.color='#DC2626'; msg.style.fontWeight='700'; msg.textContent=t; };
+  if(!document.getElementById('mg-sign-ok').checked) return bad('Marca la casilla para confirmar que revisaste tu boleta.');
+  if(!_mgPad || _mgPad.ink<60) return bad('Firma en el recuadro con el dedo.');
+  if(navigator.onLine===false) return bad('Sin señal. Intenta cuando tengas internet.');
+  const P=mgStubPayload(from,to), now=new Date();
+  P.stub.signature=mgSignatureData();
+  P.stub.signedAt=now.toISOString();
+  P.stub.signedAtTxt=now.toLocaleString('en-US',{timeZone:'America/Chicago',weekday:'short',month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit',timeZoneName:'short'});
+  P.stub.statement=modal.dataset.statement||'';
+  btn.disabled=true; btn.textContent='Enviando…'; msg.style.color='var(--text3)'; msg.style.fontWeight='400'; msg.textContent='Guardando tu firma y mandando la boleta a la oficina…';
+  try{
+    try{ P.stub.pdfB64=await mgSettlementPdfB64(mgSettlementHTML(from,to,{img:P.stub.signature, when:P.stub.signedAtTxt, user:currentUser.username, statement:mgEsc(P.stub.statement)})); }catch(e){ console.warn('pdf',e); }
+    const ctl=(typeof AbortController!=='undefined')?new AbortController():null; const tmo=setTimeout(()=>{ try{ ctl&&ctl.abort(); }catch(e){} },90000);
+    let r; try{ r=await fetch(stubUrl(),{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({key:STUB_KEY,action:'sign',stub:P.stub}),signal:ctl?ctl.signal:undefined}); } finally{ clearTimeout(tmo); }
+    const txt=await r.text(); let j=null; try{ j=JSON.parse(txt); }catch(e){}
+    if(!j||!j.ok) throw new Error((j&&j.error)||('respuesta '+r.status));
+    const rec={driverUser:currentUser.username, driverName:P.name, from, to, net:P.D.net, pay:P.D.pay, adjTotal:P.D.adjTotal, trips:P.D.mine.length, signedAt:P.stub.signedAt, fileId:j.fileId||'', url:j.url||''};
+    try{ if(fbReady&&db) await db.collection('payStubs').doc(currentUser.username+'_'+from).set(rec); }catch(e){}
+    _mgSigned[from]=Object.assign({},rec,{txt:(now.getMonth()+1)+'/'+now.getDate()});
+    modal.remove(); mgRenderStubs();
+    alert('✅ Boleta firmada y enviada a la oficina.');
+  }catch(e){
+    btn.disabled=false; btn.textContent='Firmar y enviar';
+    bad('No se pudo enviar: '+(e&&e.name==='AbortError'?'tardó demasiado':(e.message||e))+'. Intenta otra vez.');
+  }
 }
 function mgDownloadCurrent(){ const P=mgPeriod(); mgDownloadStub(P.from,P.to,P.title); }
 // Boleta de pago (Driver Settlement): solo pago del driver, diésel y ajustes
@@ -13410,7 +14273,7 @@ const DRIVER_SIDEBAR_ITEMS = [
   {id:'new',     icon:'➕', label:'Nuevo viaje'},
   {id:'miviaje', icon:'🚚', label:'Mi Viaje'},
   {id:'misganancias', icon:'💰', label:'Mis Ganancias'},
-  {id:'inspeccion', icon:'🔧', label:'Inspección'},
+  {id:'misdocs', icon:'📁', label:'Mis Documentos'},
   {id:'gas',     icon:'⛽', label:'Gasolineras'},
 ];
 
@@ -13482,7 +14345,8 @@ function sidebarNav(id){
   if(id==='gas') renderGas();
   if(id==='miviaje') renderMiViaje();
   if(id==='misganancias') renderMisGanancias();
-  if(id==='inspeccion') renderInspeccion();
+  if(id==='misdocs') renderDocs();
+  if(id==='inspeccion'){ if(currentUser&&currentUser.role==='driver'){ return sidebarNav('home'); } renderInspeccion(); }
   if(id==='ubicacion') renderUbicacion();
   if(id==='business') renderBusiness();
   if(id==='dashboard') renderDashboard();

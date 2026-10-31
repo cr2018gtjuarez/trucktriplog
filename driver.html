@@ -673,6 +673,20 @@
         <div style="font-size:13px;font-weight:700;" id="dd-oil-alert-text">🛢️ Cambio de aceite</div>
       </div>
 
+
+      <!-- ¿En cuánto llegas? (cuando te llaman para una carga) -->
+      <div class="card" id="de-card" style="border:2px solid #1E3A8A;margin-bottom:12px;">
+        <div style="font-size:15px;font-weight:800;margin-bottom:2px;">📞 ¿En cuánto llegas al pick up?</div>
+        <div style="font-size:12px;color:var(--text3);margin-bottom:10px;">Cuando te llamen: escribe el ZIP del pick up. Se usa tu ubicación de ahorita.</div>
+        <div style="display:flex;gap:8px;">
+          <input id="de-zip" type="text" inputmode="numeric" maxlength="5" placeholder="ZIP del pick up" onkeydown="if(event.key==='Enter') deCalc()" style="flex:1;min-width:0;font-size:16px;padding:10px 12px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg3);color:var(--text);"/>
+          <button type="button" onclick="deCalc()" style="padding:10px 16px;border-radius:10px;border:none;background:#1E3A8A;color:#fff;font-weight:800;font-size:14px;cursor:pointer;">Calcular</button>
+        </div>
+        <details style="margin-top:8px;"><summary style="font-size:12px;color:var(--text3);cursor:pointer;">Horas de manejo que te quedan hoy</summary>
+          <input id="de-hours" type="number" min="0" max="11" step="0.5" value="11" style="margin-top:6px;width:120px;font-size:15px;padding:8px 10px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg3);color:var(--text);"/>
+        </details>
+        <div id="de-res" style="margin-top:10px;"></div>
+      </div>
       <!-- Viaje activo -->
       <div id="dd-active-wrap" style="display:none;margin-bottom:12px;">
         <div class="card" style="border:2px solid #BBF7D0;background:var(--green-bg);cursor:pointer;" onclick="sidebarNav('miviaje')">
@@ -14286,6 +14300,95 @@ const DRIVER_SIDEBAR_ITEMS = [
 ];
 
 
+
+
+// ===== ETA DEL CHOFER: "¿en cuánto llegas?" (ubicación del teléfono + ZIP del pick up) =====
+const DL_TZ={CT:'America/New_York',DE:'America/New_York',DC:'America/New_York',GA:'America/New_York',ME:'America/New_York',MD:'America/New_York',MA:'America/New_York',NH:'America/New_York',NJ:'America/New_York',NY:'America/New_York',NC:'America/New_York',OH:'America/New_York',PA:'America/New_York',RI:'America/New_York',SC:'America/New_York',VT:'America/New_York',VA:'America/New_York',WV:'America/New_York',MI:'America/New_York',
+  AL:'America/Chicago',AR:'America/Chicago',IL:'America/Chicago',IA:'America/Chicago',LA:'America/Chicago',MN:'America/Chicago',MS:'America/Chicago',MO:'America/Chicago',OK:'America/Chicago',WI:'America/Chicago',
+  CO:'America/Denver',MT:'America/Denver',NM:'America/Denver',UT:'America/Denver',WY:'America/Denver',AZ:'America/Phoenix',CA:'America/Los_Angeles',NV:'America/Los_Angeles',WA:'America/Los_Angeles',AK:'America/Anchorage',HI:'Pacific/Honolulu'};
+function dlTz(st,lat,lon){ st=String(st||'').toUpperCase();
+  if(st==='TX') return lon<-104.9?'America/Denver':'America/Chicago';
+  if(st==='FL') return lon<-85.0?'America/Chicago':'America/New_York';
+  if(st==='TN') return lon>-85.1?'America/New_York':'America/Chicago';
+  if(st==='KY') return lon<-86.0?'America/Chicago':'America/New_York';
+  if(st==='IN') return lon<-86.9?'America/Chicago':'America/New_York';
+  if(st==='ND') return lon<-101.0?'America/Denver':'America/Chicago';
+  if(st==='SD') return lon<-100.6?'America/Denver':'America/Chicago';
+  if(st==='NE') return lon<-101.2?'America/Denver':'America/Chicago';
+  if(st==='KS') return lon<-101.4?'America/Denver':'America/Chicago';
+  if(st==='OR') return (lat<44.5&&lon>-117.3)?'America/Denver':'America/Los_Angeles';
+  if(st==='ID') return lat>45.6?'America/Los_Angeles':'America/Denver';
+  return DL_TZ[st]||'America/Chicago'; }
+function dlLocal(ms,tz){ try{ return new Date(ms).toLocaleString('en-US',{timeZone:tz,weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit',timeZoneName:'short'}); }catch(e){ return new Date(ms).toLocaleString('en-US'); } }
+
+function deT(es,en){ try{ return window.TL_LANG==='en'?en:es; }catch(e){ return es; } }
+const DE_MPH=55, DE_LOAD_H=2;
+function deDriveHours(h,avail){ let t=0,rem=h,a=avail,since=0; while(rem>0.001){ if(a<=0){ t+=10; a=11; since=0; continue; } const c=Math.min(rem,a,8-since); if(c<=0){ t+=0.5; since=0; continue; } t+=c; rem-=c; a-=c; since+=c; } return t; }
+const _deGeo={};
+async function deRevGeo(lat,lon){
+  const k=lat.toFixed(3)+','+lon.toFixed(3); if(_deGeo[k]) return _deGeo[k];
+  try{ const r=await fetch('https://nominatim.openstreetmap.org/reverse?format=json&zoom=16&addressdetails=1&lat='+lat+'&lon='+lon); if(!r.ok) return null; const j=await r.json(); const a=j.address||{};
+    const o={city:a.city||a.town||a.village||a.hamlet||a.county||'', st:((a['ISO3166-2-lvl4']||'').split('-')[1]||''), zip:String(a.postcode||'').slice(0,5)}; _deGeo[k]=o; return o; }catch(e){ return null; }
+}
+function deEsc(x){ return String(x==null?'':x).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+// Dónde estoy: GPS del teléfono; si no deja, la última ubicación del ELD de mi camión
+function deMyPosition(){
+  return new Promise(res=>{
+    const viaEld=async()=>{ try{ const tid=currentUser&&currentUser.truckId; if(tid==null||tid===''||!(typeof fbReady!=='undefined'&&fbReady&&db)) return res(null);
+        const d=await db.collection('locations').doc('truck_'+tid).get(); if(!d.exists) return res(null); const v=d.data(); const tm=typeof v.time==='number'?v.time:Date.parse(v.time);
+        if(v.lat==null||v.lon==null) return res(null); res({lat:+v.lat,lon:+v.lon,src:'eld',ago:isNaN(tm)?null:Math.round((Date.now()-tm)/60000)}); }catch(e){ res(null); } };
+    if(!navigator.geolocation) return viaEld();
+    let done=false; const to=setTimeout(()=>{ if(!done){ done=true; viaEld(); } },15000);
+    navigator.geolocation.getCurrentPosition(p=>{ if(done) return; done=true; clearTimeout(to); res({lat:p.coords.latitude,lon:p.coords.longitude,src:'gps'}); },
+      ()=>{ if(done) return; done=true; clearTimeout(to); viaEld(); }, {enableHighAccuracy:false,timeout:12000,maximumAge:300000});
+  });
+}
+async function deCalc(){
+  const zip=(document.getElementById('de-zip')?.value||'').trim(), res=document.getElementById('de-res'); if(!res) return;
+  const msg=(c,t)=>{ res.innerHTML='<div style="font-size:13px;font-weight:700;color:'+c+';">'+t+'</div>'; };
+  if(!/^\d{5}$/.test(zip)) return msg('#DC2626',deT('Escribe el ZIP del pick up (5 números).','Enter the pick up ZIP (5 digits).'));
+  msg('var(--text3)',deT('Buscando dónde estás…','Finding your location…'));
+  const [me,pu]=await Promise.all([deMyPosition(), fetchZip(zip)]);
+  if(!pu) return msg('#DC2626',deT('No encontré ese ZIP.','ZIP not found.'));
+  if(!me) return msg('#DC2626',deT('No pude ver tu ubicación. Activa la ubicación del teléfono para esta app e intenta otra vez.','Could not get your location. Turn on location for this app and try again.'));
+  msg('var(--text3)',deT('Calculando la ruta…','Calculating the route…'));
+  const avail=Math.max(0,Math.min(11,parseFloat(document.getElementById('de-hours')?.value)));
+  const hrs=isNaN(avail)?11:avail;
+  const here=await deRevGeo(me.lat,me.lon)||{};
+  const road=async(a,b)=>{ const r=await fetchRoadRoute(a.lat,a.lon,b.lat,b.lon); return r?{mi:r.miles,est:false}:{mi:haversineKm(a.lat,a.lon,b.lat,b.lon)*0.621371*1.2,est:true}; };
+  const now=Date.now(); const out=[];
+  // Directo desde donde estoy
+  const d1=await road(me,pu); const h1=deDriveHours(d1.mi/DE_MPH,hrs);
+  out.push({t:deT('Directo desde donde estás','Straight from where you are'),mi:d1.mi,drive:d1.mi/DE_MPH,eta:now+h1*3600000,est:d1.est});
+  // Si voy cargado: primero entrego
+  const mine=loadTrips().filter(t=>t.tripStatus==='active'&&(t.driverUser===currentUser.username||(!t.driverUser&&t.driverName===currentUser.name)));
+  const act=mine[0]; let dz=null;
+  if(act&&act.z2) dz=await fetchZip(act.z2);
+  if(dz){
+    const a=await road(me,dz), b=await road(dz,pu); const ha=deDriveHours(a.mi/DE_MPH,hrs); const left=Math.max(0,hrs-a.mi/DE_MPH);
+    const hb=deDriveHours(b.mi/DE_MPH,left); const eta=now+(ha+DE_LOAD_H+hb)*3600000;
+    out.push({t:deT('Después de entregar en ','After delivering in ')+(act.city2||dz.city)+', '+(act.state2||dz.abbr),mi:a.mi+b.mi,drive:(a.mi+b.mi)/DE_MPH,eta,est:a.est||b.est,first:true});
+  }
+  const tzHere=dlTz(here.st,me.lat,me.lon), tzPu=dlTz(pu.abbr,pu.lat,pu.lon);
+  const hereTxt=[here.city,here.st].filter(Boolean).join(', ')+(here.zip?' '+here.zip:'');
+  const best=out[out.length-1];
+  const N=v=>Math.round(v).toLocaleString('en-US'), H=h=>{ const m=Math.round(h*60); return Math.floor(m/60)+' h '+String(m%60).padStart(2,'0')+' min'; };
+  const msgEn='Hi, this is '+((currentUser.firstName||currentUser.name||'').split(' ')[0]||'the driver')+' with YENAVI FREIGHT. I am in '+(hereTxt||'my current location')+', about '+N(best.mi)+' miles from '+pu.city+', '+pu.abbr+' '+zip+'. My ETA to the pick up is '+dlLocal(best.eta,tzPu)+'.';
+  res.innerHTML=
+    '<div style="font-size:12.5px;color:var(--text2);margin-bottom:8px;">📍 '+deT('Estás en ','You are in ')+'<b>'+deEsc(hereTxt||deT('tu ubicación','your location'))+'</b> · '+deEsc(dlLocal(now,tzHere))+
+      (me.src==='eld'?'<br><span style="color:#B45309;">'+deT('Ubicación del ELD de tu camión','Location from your truck ELD')+(me.ago!=null?' ('+deT('hace ','')+me.ago+' min'+deT('',' ago')+')':'')+'</span>':'')+'</div>'+
+    '<div style="font-size:12.5px;color:var(--text2);margin-bottom:8px;">📦 Pick up: <b>'+deEsc(pu.city+', '+pu.abbr+' '+zip)+'</b></div>'+
+    out.map(o=>'<div style="border:1.5px solid '+(o===best?'#1E3A8A':'var(--border)')+';border-radius:12px;padding:10px 12px;margin-bottom:8px;background:'+(o===best?'#EEF2FF':'var(--bg3)')+';">'+
+      '<div style="font-size:12px;font-weight:700;color:var(--text3);">'+deEsc(o.t)+'</div>'+
+      '<div style="font-size:20px;font-weight:900;color:#1E3A8A;margin:2px 0;">'+deEsc(dlLocal(o.eta,tzPu))+'</div>'+
+      '<div style="font-size:12.5px;color:var(--text2);">'+N(o.mi)+' mi'+(o.est?' ('+deT('aprox.','approx.')+')':'')+' · '+deT('manejo ','driving ')+H(o.drive)+(o.first?' · +'+DE_LOAD_H+' h '+deT('para descargar','to unload'):'')+
+      (deDriveHours(o.drive,hrs)-o.drive>0.01&&!o.first?' · '+deT('incluye descansos','includes breaks'):'')+'</div></div>').join('')+
+    '<div style="font-size:11px;color:var(--text3);margin:2px 0 8px;">'+deT('Hora del lugar del pick up. Calculado a ','Pick up local time. Based on ')+DE_MPH+' mph '+deT('con descansos de 30 min cada 8 h y 10 h al terminar tus horas.','with 30-min breaks every 8 h and 10 h off when your hours run out.')+'</div>'+
+    '<textarea id="de-msg" readonly style="width:100%;height:78px;font-size:12.5px;border:1px solid var(--border);border-radius:10px;padding:8px;background:var(--bg3);color:var(--text);">'+deEsc(msgEn)+'</textarea>'+
+    '<button type="button" onclick="deCopy(this)" style="margin-top:6px;width:100%;padding:10px;border:none;border-radius:10px;background:#1E3A8A;color:#fff;font-weight:800;font-size:14px;">📋 '+deT('Copiar mensaje (inglés)','Copy message')+'</button>';
+}
+function deCopy(btn){ const t=document.getElementById('de-msg'); if(!t) return; const ok=()=>{ btn.textContent='✓ '+deT('Copiado','Copied'); };
+  if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(t.value).then(ok,()=>{ t.select(); document.execCommand('copy'); ok(); }); else { t.select(); document.execCommand('copy'); ok(); } }
 
 // ===== BARRA DE ABAJO (celular): lo más usado a un toque, y "Menú" abre el menú completo =====
 function bottomNavItems(role){

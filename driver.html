@@ -10712,7 +10712,15 @@ async function processUploadQueue(opts){
       if(!opts.force && _upqBusy[it.qid] && Date.now()<_upqBusy[it.qid]) continue;
       const trip=loadTrips().find(t=>String(t.id)===String(it.tripId));
       if(!trip){ if(Date.now()-(it.at||0)>7*86400000) upqRemove(it.qid); continue; }
-      if(/^diesel/.test(it.kind) && !(trip.fuelLoads||[]).some(l=>String(l.loadId)===String(it.loadId))){ if(Date.now()-(it.at||0)>7*86400000) upqRemove(it.qid); continue; }
+      if(/^diesel/.test(it.kind) && !(trip.fuelLoads||[]).some(l=>String(l.loadId)===String(it.loadId))){
+        // La foto es de una carga de diésel que nunca se guardó (se cerró la app antes de guardar). Si la piden a mano
+        // o ya pasó media hora, la foto se guarda en la carpeta del viaje en Drive para no perderla, y sale de la fila.
+        if(opts.force || Date.now()-(it.at||0)>30*60000){
+          try{ const du=await upqDataOf(it); if(du) await uploadPhotoToDrive(trip, it.kind, du, {silent:true}); upqRemove(it.qid); window._upqOrphanSaved=(window._upqOrphanSaved||0)+1; }
+          catch(e){ it.tries=(it.tries||0)+1; it.lastErr=String((e&&e.message)||e); upqSave(); if(e&&e.auth) break; }
+        } else { it.lastErr=(window.TL_LANG==='en'?'that diesel load is not saved yet':'esa carga de diésel todavía no se guarda'); }
+        continue;
+      }
       try{
         const du=await upqDataOf(it);
         if(!du){ console.warn('foto pendiente sin datos',it.kind); upqRemove(it.qid); continue; }
@@ -10726,7 +10734,7 @@ async function processUploadQueue(opts){
 function uploadNowClick(){
   const p=getGoogleDriveToken();
   const b=document.getElementById('upq-btn'); if(b){ b.disabled=true; b.textContent='⏳'; }
-  p.then(()=>processUploadQueue({silent:true,force:true})).then(()=>{ const q=upqLoad(); if(q.length){ const e=(q.find(x=>x.lastErr)||{}).lastErr; alert((window.TL_LANG==='en'?'Could not upload yet: ':'Todavía no se pudo subir: ')+(e||(window.TL_LANG==='en'?'no answer from the photo service':'el servicio de fotos no contestó'))); } }).catch(e=>{ alert('No se pudo conectar Google Drive: '+((e&&e.message)||e)+'\n\nSi el celular bloquea ventanas emergentes, permítelas para este sitio e intenta de nuevo.'); }).finally(()=>renderUploadBanner());
+  window._upqOrphanSaved=0; p.then(()=>processUploadQueue({silent:true,force:true})).then(()=>{ const q=upqLoad(); if(window._upqOrphanSaved){ alert(window.TL_LANG==='en'?'The receipt photo was saved in the trip folder in Google Drive, but that diesel load had not been saved. Add the diesel load again.':'La foto del recibo se guardó en Google Drive (carpeta del viaje), pero esa carga de diésel no se había guardado. Vuelve a agregar la carga de diésel.'); window._upqOrphanSaved=0; } if(q.length){ const e=(q.find(x=>x.lastErr)||{}).lastErr; alert((window.TL_LANG==='en'?'Could not upload yet: ':'Todavía no se pudo subir: ')+(e||(window.TL_LANG==='en'?'no answer from the photo service':'el servicio de fotos no contestó'))); } }).catch(e=>{ alert('No se pudo conectar Google Drive: '+((e&&e.message)||e)+'\n\nSi el celular bloquea ventanas emergentes, permítelas para este sitio e intenta de nuevo.'); }).finally(()=>renderUploadBanner());
 }
 function renderUploadBanner(){
   if(typeof document==='undefined'||!document.body) return;

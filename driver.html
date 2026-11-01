@@ -13662,7 +13662,7 @@ function mgStatsHTML(D){
     W.map(w=>'<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;"><div style="font-size:9px;color:var(--text3);margin-bottom:2px;white-space:nowrap;">'+(w.pay?'$'+Math.round(w.pay/100)/10+'k':'')+'</div><div style="width:100%;height:'+Math.max(2,w.pay/wm*80).toFixed(0)+'px;background:'+(w.r.from===wkRange(0).from?'var(--green)':'var(--accent)')+';border-radius:4px 4px 0 0;"></div><div style="font-size:9px;color:var(--text3);margin-top:3px;">'+(w.r.sat.getMonth()+1)+'/'+w.r.sat.getDate()+'</div></div>').join('')+'</div>';
   return h;
 }
-// ===== MI MERCADO (chofer): dónde y con quién gana más por milla. Solo con SU pago, nunca el valor de la carga =====
+// ===== MI MERCADO (chofer): rate por milla de la carga (valor de la carga ÷ millas) por estado, zona, broker y ruta =====
 const DMK_GRID={AK:[0,0],ME:[11,0],WI:[6,1],VT:[10,1],NH:[11,1],WA:[1,2],ID:[2,2],MT:[3,2],ND:[4,2],MN:[5,2],IL:[6,2],MI:[7,2],NY:[9,2],MA:[10,2],
   OR:[1,3],NV:[2,3],WY:[3,3],SD:[4,3],IA:[5,3],IN:[6,3],OH:[7,3],PA:[8,3],NJ:[9,3],CT:[10,3],RI:[11,3],
   CA:[1,4],UT:[2,4],CO:[3,4],NE:[4,4],MO:[5,4],KY:[6,4],WV:[7,4],VA:[8,4],MD:[9,4],DE:[10,4],
@@ -13679,16 +13679,16 @@ const DMK_RAMP=['#DCE3F2','#AFC0E2','#7C95CB','#4A68AE','#1E3A8A'];
 function dmkRegion(st){ for(const r in DMK_REGIONS) if(DMK_REGIONS[r].includes(st)) return r; return 'Otro'; }
 const DMK={period:0, side:'o', metric:'rate'};
 function dmkSet(k,v){ DMK[k]=v; renderDmk(); }
-function dmkAgg(list,keyFn){ const m={}; list.forEach(t=>{ const k=keyFn(t); if(!k) return; const a=m[k]=m[k]||{k,n:0,pay:0,mi:0}; a.n++; a.pay+=parseFloat(t.driver)||0; a.mi+=mgMiles(t); }); return Object.values(m).map(a=>Object.assign(a,{rate:a.mi>0?a.pay/a.mi:null})); }
+function dmkAgg(list,keyFn){ const m={}; list.forEach(t=>{ const k=keyFn(t); if(!k) return; const a=m[k]=m[k]||{k,n:0,pay:0,mi:0}; a.n++; a.pay+=parseFloat(t.loadVal)||0; a.mi+=mgMiles(t); }); return Object.values(m).map(a=>Object.assign(a,{rate:a.mi>0?a.pay/a.mi:null})); }
 function renderDmk(){
   const T=drvT, M=mgMoney, body=document.getElementById('dmk-body'); if(!body) return;
   const seg=(id,key,opts)=>{ const e=document.getElementById(id); if(e) e.innerHTML=opts.map(o=>'<button type="button" class="'+(DMK[key]===o[0]?'on':'')+'" onclick="dmkSet(\''+key+'\','+JSON.stringify(o[0]).replace(/"/g,"'")+')">'+o[1]+'</button>').join(''); };
   document.getElementById('dmk-title').textContent=T('Mi mercado','My market');
-  document.getElementById('dmk-sub').textContent=T('Dónde y con qué brokers ganas más por milla. Todo con tu pago.','Where and with which brokers you earn the most per mile. All based on your pay.');
+  document.getElementById('dmk-sub').textContent=T('Rate por milla de tus cargas: lo que pagó la carga ÷ las millas. Ej. $4,000 ÷ 2,000 mi = $2.00/mi.','Rate per mile of your loads: what the load paid ÷ miles. E.g. $4,000 ÷ 2,000 mi = $2.00/mi.');
   seg('dmk-period','period',[[30,T('30 días','30 days')],[90,T('90 días','90 days')],[365,T('12 meses','12 months')],[0,T('Todo','All')]]);
   seg('dmk-side','side',[['o','Pick up'],['d','Delivery']]);
   seg('dmk-metric','metric',[['rate',T('Por milla','Per mile')],['n',T('Viajes','Trips')]]);
-  let trips=loadTrips().filter(t=>mgMine(t) && t.tripStatus==='completed' && t.profitSet && (parseFloat(t.driver)||0)>0 && mgMiles(t)>0);
+  let trips=loadTrips().filter(t=>mgMine(t) && t.tripStatus==='completed' && t.profitSet && (parseFloat(t.loadVal)||0)>0 && mgMiles(t)>0);
   if(DMK.period>0){ const d=new Date(); d.setDate(d.getDate()-DMK.period+1); const from=wkYmd(d); trips=trips.filter(t=>tripWorkDate(t)>=from); }
   if(!trips.length){ body.innerHTML='<div class="card"><div class="empty">'+T('Todavía no hay viajes con pago en este periodo.','No paid trips in this period yet.')+'</div></div>'; return; }
   const st=t=>String((DMK.side==='o'?t.state1:t.state2)||'').trim().toUpperCase().slice(0,2);
@@ -13703,9 +13703,9 @@ function renderDmk(){
   const sideTxt=DMK.side==='o'?T('de pick up','pick up'):T('de entrega','delivery');
   const kpi=(l,v,s,dark,t)=>'<div class="dmk-kpi'+(dark?' dark':'')+'"><div class="l">'+l+'</div><div class="v'+(t?' t':'')+'">'+v+'</div><div class="s">'+s+'</div></div>';
   let h='<div class="dmk-kpis">'+
-    kpi(T('Tu pago por milla','Your pay per mile'),M(all.rate)+'/mi',all.n+' '+T(all.n===1?'viaje':'viajes',all.n===1?'trip':'trips')+' · '+fmtNum(Math.round(all.mi))+' mi',true)+
-    kpi(T('Zona que más te paga','Best paying region'),bReg?mgEsc(bReg.k):'—',bReg?M(bReg.rate)+'/mi · '+bReg.n+' '+T('viajes','trips'):'',false,true)+
-    kpi(T('Broker que más te paga','Best paying broker'),bBro?mgEsc(bBro.k):'—',bBro?M(bBro.rate)+'/mi · '+bBro.n+' '+T('viajes','trips'):T('Sin broker capturado','No broker recorded'),false,true)+
+    kpi(T('Rate promedio por milla','Average rate per mile'),M(all.rate)+'/mi',all.n+' '+T(all.n===1?'viaje':'viajes',all.n===1?'trip':'trips')+' · '+fmtNum(Math.round(all.mi))+' mi',true)+
+    kpi(T('Zona que paga mejor','Best paying region'),bReg?mgEsc(bReg.k):'—',bReg?M(bReg.rate)+'/mi · '+bReg.n+' '+T('viajes','trips'):'',false,true)+
+    kpi(T('Broker que paga mejor','Best paying broker'),bBro?mgEsc(bBro.k):'—',bBro?M(bBro.rate)+'/mi · '+bBro.n+' '+T('viajes','trips'):T('Sin broker capturado','No broker recorded'),false,true)+
     kpi(T('Estado con más cargas','State with most loads'),topS?topS.k:'—',topS?topS.n+' '+T('viajes','trips')+' '+sideTxt:'',false,true)+'</div>';
   // Mapa
   const val=a=>a?(DMK.metric==='n'?a.n:a.rate):null;
@@ -13719,9 +13719,9 @@ function renderDmk(){
   const list=(title,arr,note)=>{ if(!arr.length) return ''; const bk=(best(arr)||{}).k; const mx=Math.max(...arr.map(a=>a.rate||0),0.01);
     return '<div class="card"><div class="card-title">'+title+'</div>'+(note?'<div style="font-size:11px;color:var(--text3);margin:-4px 0 6px;">'+note+'</div>':'')+
       arr.slice().sort((a,b)=>(b.rate||0)-(a.rate||0)).slice(0,8).map(a=>'<div class="dmk-row"><div class="n">'+mgEsc(a.k)+(a.k===bk?'<span class="dmk-tag">'+T('Mejor','Best')+'</span>':'')+(a.n<2?'<span class="dmk-tag few">'+T('pocos datos','little data')+'</span>':'')+
-        '<small>'+a.n+' '+T(a.n===1?'viaje':'viajes',a.n===1?'trip':'trips')+' · '+fmtNum(Math.round(a.mi))+' mi · '+M(a.pay)+'</small></div><div class="dmk-bar"><span style="width:'+(a.rate?Math.max(4,a.rate/mx*100):0).toFixed(0)+'%"></span></div><div class="r">'+(a.rate!=null?M(a.rate):'—')+'<small>'+T('por milla','per mile')+'</small></div></div>').join('')+'</div>'; };
+        '<small>'+a.n+' '+T(a.n===1?'viaje':'viajes',a.n===1?'trip':'trips')+' · '+fmtNum(Math.round(a.mi))+' mi</small></div><div class="dmk-bar"><span style="width:'+(a.rate?Math.max(4,a.rate/mx*100):0).toFixed(0)+'%"></span></div><div class="r">'+(a.rate!=null?M(a.rate):'—')+'<small>'+T('rate / milla','rate / mile')+'</small></div></div>').join('')+'</div>'; };
   h+=list('📍 '+T('Por zona','By region')+' <span style="font-weight:600;color:var(--text3);font-size:12px;">· '+sideTxt+'</span>',regions);
-  h+=list('🏆 '+T('Brokers: con quién ganas más','Brokers: who pays you best'),brokers,T('Por milla, con tu pago.','Per mile, based on your pay.'));
+  h+=list('🏆 '+T('Brokers: quién paga mejor','Brokers: who pays best'),brokers,T('Rate por milla de sus cargas.','Rate per mile of their loads.'));
   h+=list('🛣️ '+T('Rutas (estado a estado)','Lanes (state to state)'),lanes);
   // Diésel por estado (de tus cargas con lugar)
   const fs={}; loadTrips().filter(mgMine).forEach(t=>(t.fuelLoads||[]).forEach(f=>{ if(!(f.tipo==='diesel'||!f.tipo)) return; const m=String(f.place||'').match(/,\s*([A-Z]{2})\b/); if(!m||!(f.gal>0)) return; const a=fs[m[1]]=fs[m[1]]||{k:m[1],gal:0,cost:0,n:0}; a.gal+=+f.gal; a.cost+=+f.cost||0; a.n++; }));

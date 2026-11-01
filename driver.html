@@ -7169,6 +7169,7 @@ function renderHome(){
           }
           if(el('dd-active-pct')) el('dd-active-pct').textContent = pctTxt;
           if(el('dd-active-eta')) el('dd-active-eta').textContent = etaTxt;
+          try{ rtRefine(false); }catch(e){}
           const docKeys = ['loadedDriveStatus','unloadedDriveStatus','bolDriveStatus','podDriveStatus'];
           const docsOk = docKeys.every(k=>activeTrip[k]==='done');
           const docsEl = el('dd-active-docs');
@@ -12682,7 +12683,92 @@ function updateRealtimePanel(){
     if(showBreak && s('rt-break-text')){
       s('rt-break-text').textContent = `Próximo descanso en ${miToBreak.toLocaleString()} mi (~${minToBreak} min)`;
     }
-  }
+  }  try{ rtRefine(false); }catch(e){}
+}
+
+
+// ===== ETA AL DELIVERY (igual que en la app del admin): ubicación real (celular o ELD), millas por carretera,
+// descansos de horas de servicio y comparación con la cita. Llena el panel "En tiempo real" y la tarjeta de Inicio.
+const DRV_LIVE_H=6; let _drvEtaCache={}; window._rtRef=null; let _rtRefBusy=false;
+function drvT(es,en){ return window.TL_LANG==='en'?en:es; }
+function drvHosLeft(){ try{ const v=parseFloat(localStorage.getItem('trucklog_hos_left_drv')); return isNaN(v)?11:Math.max(0,Math.min(11,v)); }catch(e){ return 11; } }
+function drvHosSet(v){ try{ if(v===''||isNaN(parseFloat(v))) localStorage.removeItem('trucklog_hos_left_drv'); else localStorage.setItem('trucklog_hos_left_drv',String(Math.max(0,Math.min(11,parseFloat(v))))); }catch(e){} window._rtRef=null; rtRefine(true); }
+async function drvLocation(t){
+  const now=Date.now(); let best=null;
+  if(_rtDriverPos && window._rtPhoneAt && now-window._rtPhoneAt<5*60000) best={lat:_rtDriverPos.lat,lon:_rtDriverPos.lon,time:window._rtPhoneAt,src:'phone',moving:null,speed:null};
+  try{ const tid=(t.truckId!=null&&t.truckId!=='')?t.truckId:(currentUser&&currentUser.truckId);
+    if(tid!=null&&tid!==''&&typeof fbReady!=='undefined'&&fbReady&&db){ const sn=await db.collection('locations').doc('truck_'+tid).get();
+      if(sn.exists){ const d=sn.data(); const tm=typeof d.time==='number'?d.time:Date.parse(d.time);
+        if(d.lat!=null&&d.lon!=null&&!isNaN(tm)&&(!best||tm>best.time)) best={lat:+d.lat,lon:+d.lon,time:tm,src:'eld',moving:d.movingStatus||null,speed:d.speedMph!=null?d.speedMph:null}; } } }catch(e){}
+  return best;
+}
+async function drvDeliveryEta(t){
+  const now=Date.now();
+  const dz=t.z2&&(ZC[t.z2]||await fetchZip(t.z2));
+  const dest=(t.deliveryAddress&&t.destLat!=null)?{lat:+t.destLat,lon:+t.destLon}:(dz?{lat:dz.lat,lon:dz.lon}:null); if(!dest) return null;
+  const loc=await drvLocation(t); let from=null, src='pickup', ago=null;
+  if(loc && now-loc.time<=DRV_LIVE_H*3600000){ from={lat:loc.lat,lon:loc.lon}; src=loc.src; ago=Math.round((now-loc.time)/60000); }
+  else { const pz=t.z1&&(ZC[t.z1]||await fetchZip(t.z1)); if(pz) from=(t.pickupAddress&&t.origLat!=null)?{lat:+t.origLat,lon:+t.origLon}:{lat:pz.lat,lon:pz.lon}; }
+  if(!from) return null;
+  const key=[from.lat.toFixed(2),from.lon.toFixed(2),dest.lat.toFixed(3),dest.lon.toFixed(3)].join(',');
+  let miles=_drvEtaCache[key]&&now-_drvEtaCache[key].at<15*60000?_drvEtaCache[key].mi:null, est=false;
+  if(miles==null){ const rt=await fetchRoadRoute(from.lat,from.lon,dest.lat,dest.lon);
+    if(rt) miles=rt.miles; else { miles=haversineKm(from.lat,from.lon,dest.lat,dest.lon)*0.621371*1.2; est=true; }
+    if(!est) _drvEtaCache[key]={mi:miles,at:now}; }
+  miles=Math.round(miles);
+  const avail=drvHosLeft(); const arrived=src!=='pickup'&&miles<=3; const drive=miles/DE_MPH;
+  const tot=arrived?0:deDriveHours(drive,avail); const eta=now+tot*3600000;
+  let status=null, lateDays=0;
+  if(t.deliveryDate){ const d=new Date(eta); const etaDay=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    if(etaDay<t.deliveryDate) status='early'; else if(etaDay===t.deliveryDate) status='ontime'; else { status='late'; lateDays=Math.round((Date.parse(etaDay+'T12:00:00')-Date.parse(t.deliveryDate+'T12:00:00'))/86400000); } }
+  const total=Math.round((t.pickupAddress&&t.deliveryAddress&&t.routeMiles>0)?t.routeMiles:(t.roadMiles>0?t.roadMiles:(t.routeMiles||0)));
+  const done=total?Math.max(0,Math.min(total,total-miles)):null;
+  return {t,src,ago,loc,miles,est,tot,drive,eta,arrived,status,lateDays,total,done,at:now};
+}
+function drvWhen(ms){ const d=new Date(ms), t0=new Date(); t0.setHours(0,0,0,0); const dd=Math.round((new Date(ms).setHours(0,0,0,0)-t0)/86400000);
+  const day=dd===0?drvT('Hoy','Today'):dd===1?drvT('Mañana','Tomorrow'):d.toLocaleDateString(window.TL_LANG==='en'?'en-US':'es-US',{weekday:'short',month:'short',day:'numeric'});
+  return {day, time:d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}; }
+function drvHM(h){ const m=Math.round(h*60); return Math.floor(m/60)+'h '+String(m%60).padStart(2,'0')+'min'; }
+function rtApplyRef(){
+  const R=window._rtRef; if(!R) return; const s=id=>document.getElementById(id);
+  const cur=(loadTrips()||[]).find(x=>String(x.id)===String((s('mv-trip-id')||{}).value)) || _rtTripData;
+  if(cur && String(cur.id)!==String(R.t.id)) return;
+  const pct=R.total>0&&R.src!=='pickup'?Math.round(R.done/R.total*100):0;
+  if(s('rt-miles-done')) s('rt-miles-done').textContent=(R.src==='pickup'?'—':(R.done||0).toLocaleString('en-US'))+' mi';
+  if(s('rt-miles-left')) s('rt-miles-left').textContent=R.miles.toLocaleString('en-US')+' mi';
+  if(s('rt-miles-pct')) s('rt-miles-pct').textContent=R.src==='pickup'?drvT('sin ubicación','no location'):pct+'% '+drvT('completado','complete');
+  if(s('rt-total-mi-label')) s('rt-total-mi-label').textContent=R.total?drvT('de ','of ')+R.total.toLocaleString('en-US')+' mi':'';
+  if(s('rt-progress-bar')) s('rt-progress-bar').style.width=Math.min(pct,100)+'%';
+  if(s('rt-remaining')) s('rt-remaining').textContent=R.arrived?drvT('¡Llegaste!','You arrived!'):drvHM(R.tot);
+  const w=drvWhen(R.eta);
+  if(s('rt-eta-time')) s('rt-eta-time').textContent=R.arrived?drvT('¡Llegaste!','Arrived!'):w.time;
+  if(s('rt-eta-date')) s('rt-eta-date').textContent=R.arrived?'':w.day+(R.tot>R.drive+0.4?' · '+drvT('con descanso','incl. rest'):'');
+  const srcTxt=R.src==='eld'?drvT('ELD del camión · hace '+R.ago+' min','Truck ELD · '+R.ago+' min ago'):R.src==='phone'?drvT('GPS del celular','Phone GPS'):drvT('Sin ubicación reciente: calculado desde el pick up','No recent location: calculated from pick up');
+  if(s('rt-eta-note')) s('rt-eta-note').textContent=srcTxt+(R.est?' · '+drvT('millas aprox.','approx. miles'):'');
+  const dot=s('rt-gps-dot'), lbl=s('rt-gps-label');
+  if(dot&&lbl&&R.loc&&R.src!=='pickup'){ dot.style.background=R.loc.moving==='stopped'?'#DC2626':'#16A34A';
+    lbl.textContent=(R.loc.moving==='driving'?drvT('Manejando','Driving')+(R.loc.speed?' · '+R.loc.speed+' mph':''):R.loc.moving==='stopped'?drvT('Detenido','Stopped'):(R.src==='eld'?'ELD':'GPS'))+' · '+(R.src==='eld'?drvT('hace '+R.ago+' min',R.ago+' min ago'):drvT('ahora','now')); }
+  let st=s('rt-eta-status');
+  if(!st && s('rt-eta-note')){ st=document.createElement('div'); st.id='rt-eta-status'; st.style.cssText='font-size:12px;margin-top:3px;'; s('rt-eta-note').parentNode.appendChild(st); }
+  if(st){ const appt=R.t.deliveryDate?drvT('Cita ','Appt ')+fmtDate(R.t.deliveryDate)+' · ':'';
+    st.innerHTML=appt+(R.arrived?'<b style="color:#16A34A;">'+drvT('Ya llegaste','Arrived')+'</b>':R.status==='late'?'<b style="color:#DC2626;">'+drvT('Tarde por '+R.lateDays+' día(s)',R.lateDays+' day(s) late')+'</b>':R.status==='ontime'?'<b style="color:#C2410C;">'+drvT('Llegas el día de la cita','Arrives on appointment day')+'</b>':R.status==='early'?'<b style="color:#16A34A;">'+drvT('A tiempo','On time')+'</b>':'<span style="color:var(--text3);">'+drvT('sin fecha de cita','no appointment date')+'</span>'); }
+  let hb=s('rt-hos-row');
+  if(!hb && s('rt-break-box')){ hb=document.createElement('div'); hb.id='rt-hos-row'; hb.style.cssText='padding:8px 14px;border-top:1px solid var(--border);font-size:12px;color:var(--text2);display:flex;align-items:center;gap:8px;';
+    hb.innerHTML='<span style="flex:1;">'+drvT('Horas de manejo que te quedan hoy','Driving hours left today')+'</span><input id="rt-hos-left" type="number" min="0" max="11" step="0.5" style="width:72px;font-size:14px;padding:6px 8px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg3);color:var(--text);" onchange="drvHosSet(this.value)"/>';
+    s('rt-break-box').parentNode.insertBefore(hb, s('rt-break-box')); }
+  const hi=s('rt-hos-left'); if(hi&&document.activeElement!==hi) hi.value=drvHosLeft();
+  if(s('rt-break-box')) s('rt-break-box').style.display='none';
+  // Tarjeta de Inicio
+  if(s('dd-active-pct')) s('dd-active-pct').textContent=R.src==='pickup'?'—':pct+'%';
+  if(s('dd-active-eta')) s('dd-active-eta').textContent=R.arrived?drvT('¡Llegaste!','Arrived!'):(w.day===drvT('Hoy','Today')?'':w.day+' ')+w.time;
+}
+async function rtRefine(force){
+  const t=(loadTrips()||[]).find(x=>String(x.id)===String((document.getElementById('mv-trip-id')||{}).value)) || _rtTripData
+    || (loadTrips()||[]).find(x=>x.tripStatus==='active'&&currentUser&&(x.driverUser===currentUser.username||(!x.driverUser&&x.driverName===currentUser.name)));
+  if(!t||t.tripStatus!=='active') return;
+  if(!force && window._rtRef && String(window._rtRef.t.id)===String(t.id) && Date.now()-window._rtRef.at<60000) { rtApplyRef(); return; }
+  if(_rtRefBusy) return; _rtRefBusy=true;
+  try{ const R=await drvDeliveryEta(t); if(R){ window._rtRef=R; rtApplyRef(); } }catch(e){ console.warn('rtRefine',e); } finally{ _rtRefBusy=false; }
 }
 
 // ===== REPORTE GASTOS (admin) =====

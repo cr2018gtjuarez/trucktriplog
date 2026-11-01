@@ -689,6 +689,9 @@
     .mk-metric{grid-template-columns:1fr 1fr!important;margin:0!important;min-width:200px;}
     .mk-metric button{padding:5px 10px;font-size:12px;}
     .mk-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px;}
+    .dmk-lmap{height:250px;border-radius:12px;overflow:hidden;border:1px solid var(--border2);position:relative;z-index:0;isolation:isolate;background:#E8EEF5;}
+    .dmk-lbl{background:transparent;border:none;box-shadow:none;color:#0F172A;font-weight:900;font-size:10px;line-height:1.1;text-align:center;padding:0;text-shadow:0 0 3px #fff,0 0 3px #fff;}
+    .dmk-lbl::before{display:none;}
     .dmk-seg{display:flex;background:var(--bg3);border:1px solid var(--border2);border-radius:11px;padding:3px;gap:3px;}
     .dmk-seg button{flex:1;border:none;background:transparent;border-radius:8px;padding:8px 4px;font-weight:800;font-size:12.5px;color:var(--text3);cursor:pointer;font-family:inherit;white-space:nowrap;}
     .dmk-seg button.on{background:var(--bg2);color:#1E3A8A;box-shadow:0 1px 3px rgba(15,23,42,.15);}
@@ -13719,10 +13722,12 @@ function renderDmk(){
   const val=a=>a?(DMK.metric==='n'?a.n:a.rate):null;
   const vals=states.map(val).filter(v=>v!=null&&v>0), lo=Math.min(...vals), hi=Math.max(...vals);
   const step=v=>{ if(v==null||!(v>0)) return -1; if(hi===lo) return 4; return Math.min(4,Math.floor((v-lo)/(hi-lo)*5)); };
-  h+='<div class="card"><div class="card-title">🗺️ '+T('Mapa por estado','Map by state')+' <span style="font-weight:600;color:var(--text3);font-size:12px;">· '+sideTxt+'</span></div><div class="mk-map-wrap"><div class="mk-map">'+
+  const dmkGrid='<div class="mk-map-wrap"><div class="mk-map">'+
     Object.entries(DMK_GRID).map(([k,[c,r]])=>{ const a=byS[k], v=val(a), i=step(v); const sty='grid-column:'+(c+1)+';grid-row:'+(r+1)+';'+(i>=0?'background:'+DMK_RAMP[i]+';color:'+(i>=3?'#fff':'#0F172A')+';':'');
       const lab=i>=0?(DMK.metric==='n'?a.n:'$'+a.rate.toFixed(2)):''; return '<div class="mk-st'+(i<0?' mk-none':'')+'" style="'+sty+'">'+k+(lab!==''?'<small>'+lab+'</small>':'')+'</div>'; }).join('')+
-    '</div></div><div class="mk-legend"><span>'+(DMK.metric==='n'?T('Menos viajes','Fewer trips'):T('Paga menos','Pays less'))+'</span>'+DMK_RAMP.map(c=>'<i style="background:'+c+'"></i>').join('')+'<span>'+(DMK.metric==='n'?T('Más viajes','More trips'):T('Paga más','Pays more'))+'</span></div></div>';
+    '</div></div>';
+  h+='<div class="card"><div class="card-title">🗺️ '+T('Mapa por estado','Map by state')+' <span style="font-weight:600;color:var(--text3);font-size:12px;">· '+sideTxt+'</span></div><div id="dmk-lmap" class="dmk-lmap"></div><div id="dmk-grid" style="display:none;">'+dmkGrid+'</div>'+
+    '<div class="mk-legend"><span>'+(DMK.metric==='n'?T('Menos viajes','Fewer trips'):T('Paga menos','Pays less'))+'</span>'+DMK_RAMP.map(c=>'<i style="background:'+c+'"></i>').join('')+'<span>'+(DMK.metric==='n'?T('Más viajes','More trips'):T('Paga más','Pays more'))+'</span></div></div>';
   // Listas
   const list=(title,arr,note)=>{ if(!arr.length) return ''; const bk=(best(arr)||{}).k; const mx=Math.max(...arr.map(a=>a.rate||0),0.01);
     return '<div class="card"><div class="card-title">'+title+'</div>'+(note?'<div style="font-size:11px;color:var(--text3);margin:-4px 0 6px;">'+note+'</div>':'')+
@@ -13736,6 +13741,36 @@ function renderDmk(){
   const FS=Object.values(fs).filter(a=>a.gal>0).map(a=>Object.assign(a,{p:a.cost/a.gal})).sort((a,b)=>a.p-b.p);
   if(FS.length>=2) h+='<div class="card"><div class="card-title">⛽ '+T('Dónde te sale más barato el diésel','Where your diesel is cheapest')+'</div>'+FS.slice(0,8).map((a,i)=>'<div class="dmk-row" style="grid-template-columns:1fr auto;"><div class="n">'+a.k+(i===0?'<span class="dmk-tag">'+T('Más barato','Cheapest')+'</span>':'')+'<small>'+a.n+' '+T(a.n===1?'carga':'cargas',a.n===1?'fill':'fills')+' · '+a.gal.toFixed(0)+' gal</small></div><div class="r" style="color:var(--text);">$'+a.p.toFixed(3)+'<small>'+T('por galón','per gallon')+'</small></div></div>').join('')+'</div>';
   body.innerHTML=h;
+  dmkDrawMap(byS,val,lo,hi,step);
+}
+// Mapa real de USA (Leaflet + estados de us-atlas). Si no carga, queda el mapa de cuadritos.
+const DMK_ABBR={Alabama:'AL',Alaska:'AK',Arizona:'AZ',Arkansas:'AR',California:'CA',Colorado:'CO',Connecticut:'CT',Delaware:'DE','District of Columbia':'DC',Florida:'FL',Georgia:'GA',Hawaii:'HI',Idaho:'ID',Illinois:'IL',Indiana:'IN',Iowa:'IA',Kansas:'KS',Kentucky:'KY',Louisiana:'LA',Maine:'ME',Maryland:'MD',Massachusetts:'MA',Michigan:'MI',Minnesota:'MN',Mississippi:'MS',Missouri:'MO',Montana:'MT',Nebraska:'NE',Nevada:'NV','New Hampshire':'NH','New Jersey':'NJ','New Mexico':'NM','New York':'NY','North Carolina':'NC','North Dakota':'ND',Ohio:'OH',Oklahoma:'OK',Oregon:'OR',Pennsylvania:'PA','Rhode Island':'RI','South Carolina':'SC','South Dakota':'SD',Tennessee:'TN',Texas:'TX',Utah:'UT',Vermont:'VT',Virginia:'VA',Washington:'WA','West Virginia':'WV',Wisconsin:'WI',Wyoming:'WY'};
+function dmkLoadScript(src){ return new Promise((ok,ko)=>{ const e=document.createElement('script'); e.src=src; e.onload=ok; e.onerror=ko; document.head.appendChild(e); }); }
+async function dmkStates(){
+  if(window._dmkGeo) return window._dmkGeo;
+  if(typeof topojson==='undefined') await dmkLoadScript('https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js');
+  const r=await fetch('https://cdn.jsdelivr.net/npm/us-atlas@3.0.1/states-10m.json'); if(!r.ok) throw new Error('us-atlas');
+  const tj=await r.json(); window._dmkGeo=topojson.feature(tj, tj.objects.states); return window._dmkGeo;
+}
+async function dmkDrawMap(byS,val,lo,hi,step){
+  const el=document.getElementById('dmk-lmap'), grid=document.getElementById('dmk-grid'); if(!el) return;
+  const fallback=()=>{ el.style.display='none'; if(grid) grid.style.display='block'; };
+  if(typeof L==='undefined') return fallback();
+  let geo; try{ geo=await dmkStates(); }catch(e){ return fallback(); }
+  if(!document.body.contains(el)) return;
+  try{ if(window._dmkMap){ window._dmkMap.remove(); window._dmkMap=null; } }catch(e){}
+  const map=L.map(el,{zoomControl:true,scrollWheelZoom:false,attributionControl:true,minZoom:2,maxZoom:8,zoomSnap:0.1,zoomDelta:0.5}); window._dmkMap=map;
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:18,opacity:.55}).addTo(map);
+  const T=drvT, M=mgMoney;
+  const layer=L.geoJSON(geo,{
+    style:f=>{ const ab=DMK_ABBR[f.properties.name], a=byS[ab], i=step(val(a)); return {color:'#fff',weight:1,fillColor:i>=0?DMK_RAMP[i]:'#CBD5E1',fillOpacity:i>=0?.85:.25}; },
+    onEachFeature:(f,ly)=>{ const ab=DMK_ABBR[f.properties.name]; if(!ab) return; const a=byS[ab];
+      ly.bindPopup('<b>'+f.properties.name+'</b><br>'+(a?(a.rate!=null?M(a.rate)+'/mi · ':'')+a.n+' '+T(a.n===1?'viaje':'viajes',a.n===1?'trip':'trips')+' · '+fmtNum(Math.round(a.mi))+' mi':T('Sin viajes','No trips')));
+      if(a){ ly.bindTooltip(ab+'<br>'+(DMK.metric==='n'?a.n:'$'+(a.rate||0).toFixed(2)),{permanent:true,direction:'center',className:'dmk-lbl'}); } }
+  }).addTo(map);
+  const US=[[25,-124.5],[49,-67]];
+  map.fitBounds(US,{padding:[4,4]});
+  setTimeout(()=>{ try{ map.invalidateSize(); map.fitBounds(US,{padding:[4,4]}); }catch(e){} },250);
 }
 function renderMisGanancias(){
   mgLoadAdj(); mgLoadSigned();

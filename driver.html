@@ -911,6 +911,8 @@
     .eta-nav{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;}
     .eta-nav-b{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:58px;padding:6px 4px;border-radius:12px;border:1.5px solid var(--border2);background:var(--bg2);color:var(--text);font-weight:800;font-size:12.5px;text-decoration:none;cursor:pointer;font-family:inherit;}
     .eta-nav-m{font-size:12px;color:#067647;font-weight:700;margin-top:6px;min-height:14px;}
+    .de-map{height:240px;border-radius:14px;overflow:hidden;margin:10px 0;border:1px solid var(--border2);position:relative;z-index:0;isolation:isolate;}
+    .de-pin div{width:30px;height:30px;border-radius:50%;color:#fff;display:grid;place-items:center;font-weight:900;font-size:13px;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.35);}
     .eta-copy{width:100%;min-height:50px;border:2px solid #1E3A8A;border-radius:12px;background:var(--bg2);color:#1E3A8A;font-weight:900;font-size:15px;cursor:pointer;font-family:inherit;}
     .de-loc{display:flex;align-items:center;gap:10px;background:#ECFDF3;border:1px solid #ABEFC6;border-radius:999px;padding:7px 8px;}
     .de-loc-pin{width:30px;height:30px;border-radius:50%;background:#16A34A;display:grid;place-items:center;flex:none;}
@@ -15301,6 +15303,7 @@ async function deCalc(){
         '<div class="eta-pt"><span class="eta-dot eta-dot2"></span><div><div class="eta-pt-k">Pick up</div><div class="eta-pt-v">'+deEsc(puTxt)+'</div></div></div>'+
       '</div>'+
     '</div>'+
+    '<div id="de-map" class="de-map" data-no-tr="1"></div>'+
     other.map(o=>{ const q=P(o.eta,tzPu); return '<div class="eta-alt"><div style="flex:1;min-width:0;"><div class="eta-pt-k" style="color:var(--text3);">'+deEsc(o.t)+'</div><div style="font-size:12px;color:var(--text3);">'+N(o.mi)+' mi · '+H(o.drive)+'</div></div><div style="text-align:right;"><div style="font-size:18px;font-weight:900;color:var(--text);">'+deEsc(q.time)+'</div><div style="font-size:11.5px;color:var(--text3);">'+deEsc(q.day)+'</div></div></div>'; }).join('')+
     '<textarea id="de-msg" readonly style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;">'+deEsc(msgEn)+'</textarea>'+
     '<button type="button" onclick="deCopy(this)" class="eta-copy">'+deT('Copiar mensaje para el broker','Copy message for broker')+'</button>'+
@@ -15314,6 +15317,28 @@ async function deCalc(){
         '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4l6 6-3 3-6-6z"/><path d="M11 7 3 15l3 3 8-8"/></svg>Hammer</a>'+
     '</div><div id="de-tp-msg" class="eta-nav-m"></div>';
   setTimeout(function(){ try{ res.scrollIntoView({behavior:'smooth',block:'start'}); }catch(e){} },60);
+  try{ deDrawMap(me, best.first&&dz?dz:null, pu, hereTxt, puTxt, best.first&&act?((act.city2||dz.city)+', '+(act.state2||dz.abbr)):''); }catch(e){ console.warn('deMap',e); }
+}
+// Mapa real (OpenStreetMap) con la ruta: dónde estás → (entrega si vas cargado) → pick up
+async function deDrawMap(me, del, pu, hereTxt, puTxt, delTxt){
+  const el=document.getElementById('de-map'); if(!el || typeof L==='undefined') { if(el) el.style.display='none'; return; }
+  try{ if(window._deMapObj){ window._deMapObj.remove(); window._deMapObj=null; } }catch(e){}
+  const map=L.map(el,{zoomControl:true,attributionControl:true,scrollWheelZoom:false,tap:true}); window._deMapObj=map;
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:18}).addTo(map);
+  const pts=[me,del,pu].filter(Boolean).map(p=>[+p.lat,+p.lon]);
+  const pin=(ll,color,label,txt)=>L.marker(ll,{icon:L.divIcon({className:'de-pin',html:'<div style="background:'+color+';">'+label+'</div>',iconSize:[30,30],iconAnchor:[15,15]})}).addTo(map).bindPopup(deEsc(txt||''));
+  pin(pts[0], me.src==='eld'?'#2563EB':'#16A34A', '●', deT('Estás en: ','You are in: ')+(hereTxt||''));
+  if(del) pin([+del.lat,+del.lon],'#64748B','1',deT('Entrega: ','Delivery: ')+(delTxt||''));
+  pin(pts[pts.length-1],'#1E3A8A','P','Pick up: '+(puTxt||''));
+  map.fitBounds(L.latLngBounds(pts).pad(0.25));
+  setTimeout(()=>{ try{ map.invalidateSize(); map.fitBounds(L.latLngBounds(pts).pad(0.25)); }catch(e){} },250);
+  try{
+    const r=await fetch('https://router.project-osrm.org/route/v1/driving/'+pts.map(p=>p[1]+','+p[0]).join(';')+'?overview=simplified&geometries=geojson');
+    const d=r.ok?await r.json():null; const g=d&&d.routes&&d.routes[0]&&d.routes[0].geometry;
+    if(window._deMapObj!==map) return;
+    if(g&&g.coordinates&&g.coordinates.length){ const line=L.polyline(g.coordinates.map(c=>[c[1],c[0]]),{color:'#1E3A8A',weight:5,opacity:.85}).addTo(map); map.fitBounds(line.getBounds().pad(0.15)); return; }
+  }catch(e){}
+  if(window._deMapObj===map) L.polyline(pts,{color:'#1E3A8A',weight:4,opacity:.7,dashArray:'8 8'}).addTo(map);
 }
 // Trucker Path no tiene un link público para cargar el destino: se copia el pick up para pegarlo en la app
 function deTruckerPath(btn, txt){

@@ -4190,6 +4190,7 @@ label.dead-lock-lbl{color:#B91C1C!important;font-weight:800;}
         <div class="field"><label id="gasto-gal-label">Galones</label><input type="number" id="gasto-gal" placeholder="0.0" min="0" step="0.1" oninput="calcGastoSubtotal()"/></div>
         <div class="field"><label id="gasto-price-label">Precio/galón ($)</label><input type="number" id="gasto-price" placeholder="3.80" value="3.80" min="0" step="0.01" oninput="calcGastoSubtotal()"/></div>
       </div>
+      <div class="field" style="margin-bottom:12px;" id="gasto-odo-field"><label>Odómetro del tablero (opcional)</label><input type="number" id="gasto-odo" inputmode="numeric" placeholder="412650" min="0" step="1"/><div style="font-size:11px;color:var(--text3);margin-top:3px;">Las millas que marca el tablero al cargar. Si el camión tiene ELD, la app lo toma sola.</div></div>
     </div>
 
     <!-- CAMPOS OTRO GASTO -->
@@ -8354,58 +8355,189 @@ function renderMillas(){
 
 
 
+// ===== ODÓMETRO CONTRA MILLAS DEL VIAJE (para el correo de viaje terminado) =====
+// Odómetro de una carga de diésel: el del ELD al guardar; si el camión iba manejando (lo guardó después) gana el que escribió el chofer
+function fuelOdo(f){
+  if(!f) return null;
+  if(f.eldOdo>0 && !f.eldMoving) return {v:+f.eldOdo, src:'eld'};
+  if(f.odoTyped>0) return {v:+f.odoTyped, src:'chofer'};
+  if(f.eldOdo>0) return {v:+f.eldOdo, src:'eld~'};
+  return null;
+}
+async function tripOdoAnalysis(t, dh, prev){
+  const A={has:false, segs:[], fills:[], alerts:[]};
+  try{ await odoLoad(true); }catch(e){}
+  const o=window._odo[String(t.id)]||{};
+  const n=x=>x&&x.odo!=null&&Number(x.odo)>0?Number(x.odo):null;
+  const ptZip=async z=>{ if(!z) return null; const r=await fetchZip(String(z)); return r&&r.lat?{lat:r.lat,lon:r.lon}:null; };
+  const place=(c,s,z)=>[c||z||'',s||''].filter(Boolean).join(', ');
+  // Diésel con odómetro
+  const fl=(t.fuelLoads||[]).filter(f=>{ const ty=f.type||f.tipo||'diesel'; return ty==='diesel'; });
+  fl.forEach(f=>{ const od=fuelOdo(f); A.fills.push({f, odo:od?od.v:null, src:od?od.src:null, gal:parseFloat(f.gal)||0, price:parseFloat(f.price)||0, cost:parseFloat(f.cost)||0}); });
+  // Puntos del viaje
+  const base=n(o.prevDelivery)!=null?{odo:n(o.prevDelivery), kind:'base', label:'Entrega anterior'+(prev&&!prev._partial&&!prev._dm?' · '+place(prev.city2,prev.state2,prev.z2):''), pt:prev&&prev.z2?await ptZip(prev.z2):null}
+           : n(o.start)!=null?{odo:n(o.start), kind:'base', label:'Inicio del viaje', pt:null}:null;
+  const pu=n(o.pickup)!=null?{odo:n(o.pickup), kind:'pu', label:'Pick up · '+place(t.city1,t.state1,t.z1), pt:mlPoint(t,false)||await ptZip(t.z1)}:null;
+  const delOdo=n(o.delivery)!=null?n(o.delivery):n(o.end);
+  const del=delOdo!=null?{odo:delOdo, kind:'del', label:'Delivery · '+place(t.city2,t.state2,t.z2), pt:mlPoint(t,true)||await ptZip(t.z2)}:null;
+  A.base=base; A.pu=pu; A.del=del;
+  const lo=base?base.odo:-Infinity, hi=del?del.odo:Infinity;
+  const fillPts=A.fills.filter(x=>x.odo!=null&&x.odo>lo&&x.odo<hi).map(x=>({odo:x.odo, kind:'fuel', label:'Diésel · '+(x.f.place||x.f.station||'')+(x.src==='chofer'?' (tablero)':x.src==='eld~'?' (aprox.)':''), pt:x.f.lat!=null&&x.f.lon!=null?{lat:+x.f.lat,lon:+x.f.lon}:null}));
+  const pts=[base,pu,...fillPts,del].filter(Boolean).sort((a,b)=>a.odo-b.odo);
+  // Ruta tramo por tramo (máx. 12 consultas)
+  let calls=0;
+  for(let i=1;i<pts.length;i++){
+    const a=pts[i-1], b=pts[i]; const mi=Math.round(b.odo-a.odo); if(!(mi>=0)) continue;
+    let route=null; if(a.pt&&b.pt&&calls<12){ calls++; const r=await fetchRoadMiles(a.pt.lat,a.pt.lon,b.pt.lat,b.pt.lon); if(r!=null) route=Math.round(r); }
+    A.segs.push({from:a.label, to:b.label, o1:a.odo, o2:b.odo, mi, route, loaded:!!(pu&&a.odo>=pu.odo)});
+  }
+  // Totales: odómetro contra ruta
+  const routeLoaded=tripDistance(t).mi||0, routeEmpty=dh&&!dh.fail?dh.mi:null;
+  A.routeLoaded=routeLoaded; A.routeEmpty=routeEmpty;
+  A.odoEmpty=base&&pu&&pu.odo>=base.odo?Math.round(pu.odo-base.odo):null;
+  A.odoLoaded=pu&&del&&del.odo>=pu.odo?Math.round(del.odo-pu.odo):null;
+  A.odoTotal=base&&del&&del.odo>=base.odo?Math.round(del.odo-base.odo):((A.odoEmpty||0)+(A.odoLoaded||0)||null);
+  A.routeTotal=routeLoaded+(routeEmpty||0);
+  A.has=A.odoTotal!=null||A.odoLoaded!=null;
+  // MPG por tramo entre cargas (millas desde la carga anterior ÷ galones de esta carga)
+  const wo=A.fills.filter(x=>x.odo!=null).sort((a,b)=>a.odo-b.odo);
+  for(let i=1;i<wo.length;i++){ const mi=wo[i].odo-wo[i-1].odo; if(mi>0&&wo[i].gal>0){ wo[i].legMi=Math.round(mi); wo[i].mpg=mi/wo[i].gal; } }
+  const legs=wo.filter(x=>x.mpg);
+  const tid=tripTruckId(t); const m28=tid?odoMpg(tid,28):null; A.mpg28=m28&&m28.mpg?m28.mpg:null;
+  const med=legs.length?legs.map(x=>x.mpg).sort((a,b)=>a-b)[Math.floor(legs.length/2)]:null;
+  const ref=A.mpg28||(legs.length>=3?med:null); A.mpgRef=ref;
+  const gal=A.fills.reduce((a,x)=>a+x.gal,0), cost=A.fills.reduce((a,x)=>a+x.cost,0); A.gal=gal; A.cost=cost; A.avgPrice=gal?cost/gal:0;
+  if(legs.length){ const lm=legs.reduce((a,x)=>a+x.legMi,0), lg=legs.reduce((a,x)=>a+x.gal,0); A.mpg=lm/lg; A.mpgSrc='entre cargas'; }
+  else if(A.odoTotal&&gal){ A.mpg=A.odoTotal/gal; A.mpgSrc='aprox. (odómetro ÷ galones del viaje)'; }
+  else if(A.routeTotal&&gal){ A.mpg=A.routeTotal/gal; A.mpgSrc='estimado con millas de ruta'; }
+  // Avisos
+  const M=v=>'$'+Math.abs(v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const pct=(a,b)=>b?(a-b)/b*100:0;
+  if(ref) legs.forEach(x=>{
+    if(x.mpg>ref*1.35 && x.legMi>=100){ const miss=Math.max(0,x.legMi/ref-x.gal); A.alerts.push({lvl:'r', html:`<b>Posible ticket de diésel faltante</b> antes de ${x.f.place||x.f.station||'la carga del '+fmtDate(x.f.date||t.date)}: ${x.legMi.toLocaleString('en-US')} mi con ${x.gal.toFixed(1)} gal = ${x.mpg.toFixed(1)} MPG (el camión rinde ~${ref.toFixed(1)}). Faltan ~${Math.round(miss)} gal ≈ ${M(miss*(A.avgPrice||x.price))}.`}); }
+    else if(x.mpg<ref*0.7 && x.legMi>=100){ A.alerts.push({lvl:'y', html:`<b>Consumo alto</b> antes de ${x.f.place||x.f.station||'una carga'}: ${x.mpg.toFixed(1)} MPG contra ~${ref.toFixed(1)} normal. Revisa ralentí, velocidad y llantas.`}); }
+  });
+  if(A.odoEmpty!=null&&routeEmpty!=null){ const d=A.odoEmpty-routeEmpty; if(d>=25&&pct(A.odoEmpty,routeEmpty)>10) A.alerts.push({lvl:'r', html:`<b>${d.toLocaleString('en-US')} millas de más antes del pick up</b>: el odómetro marca ${A.odoEmpty.toLocaleString('en-US')} mi desde la entrega anterior y la ruta ${routeEmpty.toLocaleString('en-US')}. Puede ser uso fuera de viaje o un desvío.`}); }
+  if(A.odoLoaded!=null&&routeLoaded){ const d=A.odoLoaded-routeLoaded, p=pct(A.odoLoaded,routeLoaded); if(d>=20&&p>5) A.alerts.push({lvl:p>10?'r':'y', html:`<b>${d.toLocaleString('en-US')} millas de más con carga</b> (${p.toFixed(1)}%): odómetro ${A.odoLoaded.toLocaleString('en-US')} mi, ruta ${routeLoaded.toLocaleString('en-US')}. Pregunta si hubo desvío, cierre o parada extra.`}); else if(d<=-20&&p<-5) A.alerts.push({lvl:'y', html:`El odómetro marca <b>${Math.abs(d)} millas menos</b> que la ruta con carga (${A.odoLoaded} contra ${routeLoaded}). Revisa los ZIP del viaje.`}); }
+  A.segs.forEach(sg=>{ if(sg.route!=null){ const d=sg.mi-sg.route, p=pct(sg.mi,sg.route); sg.diff=d; sg.pct=p; if(sg.route>=50&&d>=20&&p>5) sg.flag=p>10?'r':'y'; else if(sg.route<50&&d>=25) sg.flag='y'; } });
+  // Precio más caro
+  const pr=A.fills.filter(x=>x.price>0); if(pr.length>=2&&A.avgPrice){ const mx=pr.reduce((a,b)=>b.price>a.price?b:a); if(mx.price-A.avgPrice>=0.15) A.alerts.push({lvl:'y', html:`<b>Carga más cara del viaje</b>: ${mx.f.station||mx.f.place||''} a $${mx.price.toFixed(3)}/gal, $${(mx.price-A.avgPrice).toFixed(2)} arriba del promedio del viaje ($${A.avgPrice.toFixed(3)}).`}); }
+  // Fotos pendientes del diésel
+  const pend=[]; (t.fuelLoads||[]).forEach(f=>{ ['dash','pump'].forEach(k=>{ if(f[k+'Status']==='missing') pend.push((k==='dash'?'tablero':'bomba')+' de '+(f.station||fmtDate(f.date||t.date))); }); });
+  if(pend.length) A.alerts.push({lvl:'b', html:'Fotos pendientes: '+pend.join(', ')+'.'});
+  // Costo de las millas de más
+  if(A.odoTotal&&A.routeTotal&&A.odoTotal>A.routeTotal){ A.extraMi=A.odoTotal-A.routeTotal; const mp=A.mpg||A.mpgRef; if(mp&&A.avgPrice){ A.extraGal=A.extraMi/mp; A.extraCost=A.extraGal*A.avgPrice; } }
+  return A;
+}
+
 // ===== REPORTE POR CORREO AL TERMINAR UN VIAJE =====
 const TRIP_EMAIL_URL_DEFAULT='https://script.google.com/macros/s/AKfycbxhaLy0VGwJSWuriq-4WrDKm_NpEjbPbKIuQks-UlIP6skRtOFRKtcNMtF6fx5DEl46bQ/exec';
 const TRIP_EMAIL_KEY='-uxf0ooK054-c2la2dSmMmxW';
-function tripEmailHTML(t, dh){
+function tripEmailHTML(t, dh, A){
+  A=A||{has:false,segs:[],fills:[],alerts:[]};
   const co=loadCompany()||{};
   const M=v=>(v<0?'-$':'$')+Math.abs(parseFloat(v)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
   const N=v=>Math.round(v||0).toLocaleString('en-US');
+  const E=x=>String(x==null?'':x).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   const lv=parseFloat(t.loadVal)||0, loaded=tripDistance(t).mi||0, dead=dh&&!dh.fail?dh.mi:0, tot=loaded+dead;
-  const fl=(t.fuelLoads||[]).filter(f=>{ const ty=f.type||f.tipo||'diesel'; return ty!=='def'&&ty!=='otro'; });
-  const gal=fl.reduce((a,f)=>a+(parseFloat(f.gal)||0),0), dcost=fl.reduce((a,f)=>a+(parseFloat(f.cost)||0),0);
   const diesel=(parseFloat(t.totalCost)||0)+(parseFloat(t.extrasTotal)||0);
   const pay=parseFloat(t.driver)||0, fee=parseFloat(t.fee)||0, fact=parseFloat(t.factoringFee)||0;
   const net=t.profitSet?(parseFloat(t.net)||0):null;
   const tr=(typeof tripTruck==='function')?tripTruck(t).truck:null;
-  const row=(k,v,b)=>`<tr><td style="padding:6px 10px;border-bottom:1px solid #eee;color:#555;">${k}</td><td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:right;${b?'font-weight:700;':''}">${v}</td></tr>`;
-  const sec=t=>`<tr><td colspan="2" style="padding:12px 10px 4px;font-size:12px;font-weight:800;color:#1E3A8A;text-transform:uppercase;letter-spacing:.5px;">${t}</td></tr>`;
-  const link=(lbl,u)=>u?`<a href="${u}" style="color:#1E3A8A;">${lbl}</a>`:'';
+  const realMi=A.odoTotal||tot;
+  const C={g:'#067647',r:'#B42318',y:'#B54708',mu:'#64748B',bl:'#1E3A8A'};
+  const td='padding:6px 8px;border-bottom:1px solid #eef0f4;';
+  const row=(k,v,b,col)=>`<tr><td style="${td}color:#555;">${k}</td><td style="${td}text-align:right;${b?'font-weight:700;':''}${col?'color:'+col+';':''}">${v}</td></tr>`;
+  const sec=x=>`<div style="padding:16px 2px 6px;font-size:12px;font-weight:800;color:${C.bl};text-transform:uppercase;letter-spacing:.5px;">${x}</div>`;
+  const tbl=(h,rows)=>`<table style="width:100%;border-collapse:collapse;font-size:13px;">${h?'<tr>'+h.map((x,i)=>`<th style="padding:5px 8px;border-bottom:1px solid #e3e6ec;font-size:10px;color:${C.mu};text-transform:uppercase;text-align:${i?'right':'left'};">${x}</th>`).join('')+'</tr>':''}${rows}</table>`;
+  const tr_=(cells,bold)=>'<tr>'+cells.map((c,i)=>`<td style="${td}text-align:${i?'right':'left'};${bold?'font-weight:700;':''}">${c}</td>`).join('')+'</tr>';
+  const diffTxt=(a,b)=>{ if(a==null||!b) return '—'; const d=a-b, p=d/b*100; const col=Math.abs(p)<=3||Math.abs(d)<10?C.g:Math.abs(p)<=5?C.y:C.r; return `<span style="color:${col};font-weight:700;">${d>=0?'+':''}${N(d)} (${p>=0?'+':''}${p.toFixed(1)}%)</span>`; };
+  const kpi=(l,v,sub,col)=>`<td style="width:25%;padding:4px;vertical-align:top;"><div style="background:#F5F7FB;border-radius:8px;padding:9px;"><div style="font-size:10px;color:${C.mu};text-transform:uppercase;letter-spacing:.4px;">${l}</div><div style="font-size:19px;font-weight:800;margin-top:3px;${col?'color:'+col+';':''}">${v}</div><div style="font-size:11px;color:${C.mu};">${sub||''}</div></div></td>`;
+  const alertBox=a=>{ const st={r:'background:#FEF3F2;border:1px solid #FECDCA;',y:'background:#FFFAEB;border:1px solid #FEDF89;',b:'background:#EFF6FF;border:1px solid #BFDBFE;',g:'background:#ECFDF3;border:1px solid #ABEFC6;'}[a.lvl]||''; return `<div style="${st}border-radius:8px;padding:9px 11px;font-size:13px;margin:6px 0;line-height:1.35;">${a.html}</div>`; };
+  const link=(lbl,u)=>u?`<a href="${u}" style="color:${C.bl};">${lbl}</a>`:'';
   const docs=[link('BOL',t.bolDriveLink),link('POD',t.podDriveLink),link('Rate Confirmation',t.rcDriveLink),link('RC firmado',t.rcSignedDriveLink),link('Carpeta del viaje',t.driveFolderLink)].filter(Boolean).join(' · ');
-  return `<div style="font-family:Arial,Helvetica,sans-serif;max-width:620px;margin:0 auto;color:#0F172A;">
+
+  // Avisos
+  const alerts=A.alerts.slice();
+  if(net!=null&&net<0){ const pp=(parseFloat(t.payPct)||0)/100; const fixed=diesel+fee+fact; const minRate=pp<1?fixed/(1-pp):null; alerts.unshift({lvl:'r', html:`<b>El viaje perdió ${M(Math.abs(net))}.</b>${minRate?` Para no perder, el rate tenía que ser de al menos <b>${M(minRate)}</b>${realMi?' ('+M(minRate/realMi)+' por milla real)':''}.`:''}`}); }
+  if(net==null) alerts.unshift({lvl:'y', html:'<b>Falta capturar el pago de la carga (rate).</b> La ganancia sale cuando lo agregues en la app; luego toca "Reenviar reporte por correo".'});
+  if(!t.podDriveLink&&!['pending','uploading','done'].includes(t.podDriveStatus)) alerts.push({lvl:'r', html:'<b>Falta el POD firmado.</b> No se puede facturar al broker hasta que se suba.'});
+  if(!A.has) alerts.push({lvl:'b', html:'<b>Sin odómetro del ELD para este viaje.</b> Las millas salen de la ruta. Para millas reales, el camión tiene que mandar el odómetro por el ELD (o el chofer escribir el del tablero al cargar diésel).'});
+  const alertsHTML=alerts.length?alerts.map(alertBox).join(''):alertBox({lvl:'g', html:'<b>Todo en orden.</b> Las millas del odómetro cuadran con la ruta, el MPG está normal y no faltan tickets.'});
+
+  // Odómetro contra ruta
+  let odoHTML_='';
+  if(A.has){
+    odoHTML_=sec('🛣️ Odómetro contra millas del viaje')+tbl(['','Odómetro','Ruta','Diferencia'],
+      tr_(['Vacías (para llegar al pick up)', A.odoEmpty!=null?N(A.odoEmpty):'—', A.routeEmpty!=null?N(A.routeEmpty):'—', diffTxt(A.odoEmpty,A.routeEmpty)])+
+      tr_(['Cargadas (pick up → delivery)', A.odoLoaded!=null?N(A.odoLoaded):'—', N(A.routeLoaded), diffTxt(A.odoLoaded,A.routeLoaded)])+
+      tr_(['Total', A.odoTotal!=null?N(A.odoTotal):'—', N(A.routeTotal), diffTxt(A.odoTotal,A.routeTotal)],true))+
+      `<div style="font-size:12px;color:${C.mu};margin-top:6px;">Odómetro: ${[A.base?A.base.label.split(' · ')[0].toLowerCase()+' '+N(A.base.odo):'',A.pu?'pick up '+N(A.pu.odo):'',A.del?'delivery '+N(A.del.odo):''].filter(Boolean).join(' · ')}${A.extraMi?` · <b>${N(A.extraMi)} millas de más</b>${A.extraCost?' ≈ '+A.extraGal.toFixed(0)+' gal ≈ '+M(A.extraCost)+' de diésel':''}`:''}</div>`;
+    if(A.segs.length>1) odoHTML_+=sec('Tramo por tramo')+tbl(['Tramo','Odómetro','Marcó','Ruta','Dif.'],
+      A.segs.map(g=>tr_([`${E(g.from)}<br><span style="color:${C.mu};">→ ${E(g.to)}</span>`, N(g.o1)+' → '+N(g.o2), N(g.mi), g.route!=null?N(g.route):'—', g.route!=null?`<span style="color:${g.flag==='r'?C.r:g.flag==='y'?C.y:C.g};font-weight:700;">${g.diff>=0?'+':''}${N(g.diff)}${g.flag?' ⚠️':''}</span>`:'—'])).join(''))+
+      `<div style="font-size:11px;color:${C.mu};margin-top:4px;">Hasta 3% de diferencia es normal (paradas, diésel, yardas). Más de 5% se marca para revisar.</div>`;
+  }
+  // Diésel carga por carga
+  let fuelHTML='';
+  if(A.fills.length){
+    const srt=A.fills.slice().sort((a,b)=>(a.odo!=null&&b.odo!=null)?a.odo-b.odo:String(a.f.date||'').localeCompare(String(b.f.date||'')));
+    const ref=A.mpgRef;
+    fuelHTML=sec('⛽ Diésel carga por carga')+tbl(['Fecha · lugar','Odóm.','Millas','Gal','$/gal','Total','MPG'],
+      srt.map(x=>{ const bad=ref&&x.mpg&&(x.mpg>ref*1.35||x.mpg<ref*0.7); return tr_([`${fmtDate(x.f.date||t.date)} · ${E(x.f.station||'')}${x.f.place?'<br><span style="color:'+C.mu+';">'+E(x.f.place)+'</span>':''}`, x.odo!=null?N(x.odo)+(x.src==='chofer'?'*':x.src==='eld~'?'~':''):'—', x.legMi?N(x.legMi):'—', x.gal.toFixed(1), x.price?x.price.toFixed(3):'—', M(x.cost), x.mpg?`<span style="${bad?'color:'+C.r+';font-weight:700;':''}">${x.mpg.toFixed(1)}${bad?' ⚠️':''}</span>`:'—']); }).join('')+
+      tr_(['Total','', '', A.gal.toFixed(1), A.avgPrice?A.avgPrice.toFixed(3):'—', M(A.cost), A.mpg?A.mpg.toFixed(1):'—'],true))+
+      `<div style="font-size:11px;color:${C.mu};margin-top:4px;">MPG por tramo = millas del odómetro desde la carga anterior ÷ galones de la carga. * odómetro escrito por el chofer · ~ aproximado (lo guardó después de cargar).</div>`;
+  }
+  // Rendimiento
+  const fpS=A.fills.filter(x=>x.f.fuelPct!=null);
+  const perfHTML=sec('🚛 Rendimiento del camión')+tbl(null,
+    row('MPG de este viaje',A.mpg?A.mpg.toFixed(2)+` <span style="color:${C.mu};font-weight:400;">(${A.mpgSrc})</span>`:'sin datos',true,A.mpg&&A.mpgRef&&A.mpg<A.mpgRef*0.85?C.r:null)+
+    row('MPG del camión, últimos 28 días',A.mpg28?A.mpg28.toFixed(2):'sin odómetro')+
+    (A.mpg?row('Galones por cada 100 millas',(100/A.mpg).toFixed(1)):'')+
+    (realMi&&A.cost?row('Diésel por milla'+(A.odoTotal?' (odómetro)':''),M(A.cost/realMi)):'')+
+    (fpS.length?row('Nivel de tanque ELD al cargar',fpS.map(x=>Math.round(x.f.fuelPct)+'%').join(' · ')):''));
+  // Dinero
+  const moneyHTML=sec('💵 Números del viaje')+tbl(null,
+    row('Load value (rate)',lv?M(lv):'pendiente',true)+
+    row('Rate por milla cargada (ruta)',loaded&&lv?M(lv/loaded):'—')+
+    row('Rate por milla total (ruta, con vacías)',tot&&lv?M(lv/tot):'—')+
+    (A.odoTotal&&lv?row('Rate por milla real (odómetro)',M(lv/A.odoTotal),true):'')+
+    row('Pago al driver'+(t.payPct?' ('+t.payPct+'%)':''),pay?'-'+M(pay):'—')+
+    (fee?row('Dispatcher fee','-'+M(fee)):'')+
+    (fact?row('Factoring','-'+M(fact)):'')+
+    row('Diésel / otros',diesel?'-'+M(diesel):'$0.00')+
+    (realMi?row('Costo total por milla'+(A.odoTotal?' real':''),M((pay+fee+fact+diesel)/realMi)):'')+
+    (net!=null?row('Ganancia YENAVI',M(net),true,net>=0?C.g:C.r):row('Ganancia YENAVI','sale cuando captures el rate',true,C.y))+
+    (net!=null&&realMi?row('Ganancia por milla'+(A.odoTotal?' real':''),M(net/realMi),false,net>=0?C.g:C.r):'')+
+    (net!=null&&A.extraCost?row('Lo que costaron las millas de más',`-${M(A.extraCost)} (${N(A.extraMi)} mi)`,false,C.y):''));
+  let barHTML='';
+  if(lv>0&&net!=null){ const w=x=>Math.max(0,Math.min(100,x/lv*100)); const parts=[[pay+fee+fact,'#1E3A8A','chofer y fees'],[diesel,'#E0A13A','diésel y gastos'],[Math.max(0,net),'#16A34A','ganancia']];
+    barHTML=`<table style="width:100%;border-collapse:collapse;margin-top:8px;"><tr>${parts.filter(p=>w(p[0])>0).map(p=>`<td style="height:8px;background:${p[1]};width:${w(p[0]).toFixed(1)}%;"></td>`).join('')}</tr></table><div style="font-size:11px;color:${C.mu};margin-top:4px;">De cada $100 del rate: ${parts.map(p=>'$'+Math.round(p[0]/lv*100)+' '+p[2]).join(' · ')}${net<0?' · faltan $'+Math.round(-net/lv*100):''}</div>`; }
+
+  return `<div style="font-family:Arial,Helvetica,sans-serif;max-width:640px;margin:0 auto;color:#0F172A;">
   <div style="background:#0E1B3D;color:#fff;padding:16px 18px;border-radius:8px 8px 0 0;">
-    <div style="font-size:12px;letter-spacing:1px;opacity:.8;">${(co.name||'YENAVI FREIGHT LLC').toUpperCase()}</div>
-    <div style="font-size:20px;font-weight:800;margin-top:2px;">Viaje terminado${t.rc?' · RC #'+t.rc:''}</div>
-    <div style="font-size:14px;margin-top:4px;">${t.city1||t.z1||'—'}, ${t.state1||''} → ${t.city2||t.z2||'—'}, ${t.state2||''}</div>
+    <div style="font-size:12px;letter-spacing:1px;opacity:.8;">${E((co.name||'YENAVI FREIGHT LLC').toUpperCase())}</div>
+    <div style="font-size:20px;font-weight:800;margin-top:2px;">Viaje terminado${t.rc?' · RC #'+E(t.rc):''}</div>
+    <div style="font-size:14px;margin-top:4px;">${E(t.city1||t.z1||'—')}, ${E(t.state1||'')} → ${E(t.city2||t.z2||'—')}, ${E(t.state2||'')} · ${E(t.driverName||'—')}${tr?' · '+E(tr.name):''}</div>
   </div>
-  <div style="border:1px solid #e3e6ec;border-top:0;border-radius:0 0 8px 8px;padding:6px 8px 12px;">
-  <table style="width:100%;border-collapse:collapse;font-size:14px;">
-    ${net!=null?`<tr><td colspan="2" style="padding:12px 10px;"><div style="font-size:12px;color:#555;">GANANCIA DEL VIAJE</div><div style="font-size:26px;font-weight:800;color:${net>=0?'#067647':'#B42318'};">${M(net)}</div><div style="font-size:12px;color:#555;">${lv?'Margen '+(net/lv*100).toFixed(1)+'% · ':''}${tot&&lv?'Rate real '+M(lv/tot)+'/mi':''}</div></td></tr>`:`<tr><td colspan="2" style="padding:12px 10px;color:#B54708;font-weight:700;">El pago de la carga todavía no está capturado. La ganancia sale cuando lo agregues en la app.</td></tr>`}
-    ${sec('Viaje')}
-    ${row('Driver',t.driverName||'—',true)}
-    ${tr?row('Camión',tr.name+(tr.plate?' · '+tr.plate:'')):''}
-    ${row('Broker',t.brokerName||'—')}
-    ${t.broker?row('Dispatcher',t.broker):''}
-    ${row('Pick up',(t.pickupAddress?t.pickupAddress+' · ':'')+(t.city1||'')+', '+(t.state1||'')+' '+(t.z1||'')+(t.date?' · '+fmtDate(t.date):''))}
-    ${row('Delivery',(t.deliveryAddress?t.deliveryAddress+' · ':'')+(t.city2||'')+', '+(t.state2||'')+' '+(t.z2||'')+' · '+fmtDate(repTripDate(t)))}
-    ${t.tripDurationFmt&&t.tripDurationFmt!=='—'?row('Duración',t.tripDurationFmt):''}
-    ${sec('Millas')}
-    ${row('Millas cargadas',N(loaded)+' mi')}
-    ${row('Millas muertas (para llegar al pick up)',dh?(dh.fail?'sin datos':N(dead)+' mi'):'sin viaje anterior')}
-    ${row('Millas totales',N(tot)+' mi',true)}
-    ${sec('Dinero')}
-    ${row('Load value (rate)',lv?M(lv):'pendiente',true)}
-    ${row('Rate por milla cargada',loaded&&lv?M(lv/loaded):'—')}
-    ${row('Rate por milla total (con muertas)',tot&&lv?M(lv/tot):'—',true)}
-    ${row('Pago al driver'+(t.payPct?' ('+t.payPct+'%)':''),pay?'-'+M(pay):'—')}
-    ${fee?row('Dispatcher fee','-'+M(fee)):''}
-    ${fact?row('Factoring','-'+M(fact)):''}
-    ${row('Diésel / otros',diesel?'-'+M(diesel):'$0.00')}
-    ${gal?row('Galones · precio prom.',gal.toLocaleString('en-US',{maximumFractionDigits:1})+' gal · '+M(dcost/gal)+'/gal'):''}
-    ${net!=null?row('Ganancia YENAVI',M(net),true):''}
-    ${docs?sec('Documentos')+`<tr><td colspan="2" style="padding:6px 10px;">${docs}</td></tr>`:''}
-  </table>
-  <div style="font-size:11px;color:#888;padding:10px 10px 0;">Enviado automáticamente por Truck Trip Log · ${new Date().toLocaleString('es-US')}</div>
+  <div style="border:1px solid #e3e6ec;border-top:0;border-radius:0 0 8px 8px;padding:8px 12px 14px;">
+  <table style="width:100%;border-collapse:collapse;margin:6px 0;"><tr>
+    ${kpi('Ganancia',net!=null?M(net):'Pendiente',net!=null&&lv?(net/lv*100).toFixed(1)+'% del rate':'falta el rate',net==null?C.y:net>=0?C.g:C.r)}
+    ${kpi('Marcó odómetro',A.odoTotal?N(A.odoTotal):'—',A.odoTotal?'millas reales':'sin ELD')}
+    ${kpi('Millas del viaje',N(tot),'ruta'+(dead?' (con vacías)':''))}
+    ${kpi('Diferencia',A.odoTotal&&tot?(A.odoTotal-tot>=0?'+':'')+N(A.odoTotal-tot):'—',A.odoTotal&&tot?((A.odoTotal-tot)/tot*100).toFixed(1)+'%':'',A.odoTotal&&tot&&Math.abs((A.odoTotal-tot)/tot)>0.05?C.r:null)}
+  </tr></table>
+  ${sec(alerts.length?'⚠️ Revisar':'✅ Revisión')}${alertsHTML}
+  ${odoHTML_}
+  ${fuelHTML}
+  ${perfHTML}
+  ${moneyHTML}${barHTML}
+  ${sec('Viaje')}${tbl(null,
+    row('Driver',E(t.driverName||'—'),true)+(tr?row('Camión',E(tr.name+(tr.plate?' · '+tr.plate:''))):'')+row('Broker',E(t.brokerName||'—'))+(t.broker?row('Dispatcher',E(t.broker)):'')+
+    row('Pick up',E((t.pickupAddress?t.pickupAddress+' · ':'')+(t.city1||'')+', '+(t.state1||'')+' '+(t.z1||'')+(t.date?' · '+fmtDate(t.date):'')))+
+    row('Delivery',E((t.deliveryAddress?t.deliveryAddress+' · ':'')+(t.city2||'')+', '+(t.state2||'')+' '+(t.z2||'')+' · '+fmtDate(repTripDate(t))))+
+    (t.tripDurationFmt&&t.tripDurationFmt!=='—'?row('Duración',E(t.tripDurationFmt)):''))}
+  ${docs?sec('Documentos')+`<div style="padding:4px 8px;font-size:13px;">${docs}</div>`:''}
+  <div style="font-size:11px;color:#888;padding:12px 2px 0;">Enviado automáticamente por Truck Trip Log · ${new Date().toLocaleString('es-US')}</div>
   </div></div>`;
 }
 
@@ -8463,10 +8595,12 @@ async function sendTripEmail(t, opts){
   if(!opts.manual && co.emailSince && (t.endTime||'') && t.endTime < co.emailSince) return false;
   // Millas muertas antes de mandar
   let dh=null;
-  try{ const ml=mlRange('1900-01-01','2999-12-31','all'); const r=ml.rows.find(x=>String(x.t.id)===String(t.id)); if(r&&r.prev){ dh=r.dh||await dhCompute(r.prev,t)||{fail:true}; } }catch(e){}
+  let prev=null;
+  try{ const ml=mlRange('1900-01-01','2999-12-31','all'); const r=ml.rows.find(x=>String(x.t.id)===String(t.id)); if(r&&r.prev){ prev=r.prev; dh=r.dh||await dhCompute(r.prev,t)||{fail:true}; } }catch(e){}
+  let A=null; try{ A=await tripOdoAnalysis(t,dh,prev); }catch(e){ console.warn('odo analysis',e); }
   const subject=`Viaje terminado${t.rc?' · RC #'+t.rc:''} · ${(t.driverName||'').split(' ')[0]} · ${t.city1||t.z1||''}, ${t.state1||''} → ${t.city2||t.z2||''}, ${t.state2||''}`;
   try{
-    await fetch(emailUrl,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({key:TRIP_EMAIL_KEY,to:co.emailTo||'operations@yenavifreight.com',subject,html:tripEmailHTML(t,dh)})});
+    await fetch(emailUrl,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({key:TRIP_EMAIL_KEY,to:co.emailTo||'operations@yenavifreight.com',subject,html:tripEmailHTML(t,dh,A)})});
   }catch(e){ console.warn('email',e); return false; }
   // Copia para el chofer al correo del camión (sin la ganancia de la empresa)
   try{ const tk=(typeof tripTruck==='function')?tripTruck(t).truck:null;
@@ -14947,6 +15081,7 @@ function openAddGastoModal(){
   document.getElementById('gasto-monto').value = '';
   document.getElementById('gasto-desc').value = '';
   document.getElementById('gasto-station').value = '';
+  { const o=document.getElementById('gasto-odo'); if(o) o.value=''; }
   document.getElementById('gasto-date').value = todayStr();
   document.getElementById('gasto-subtotal').textContent = '$0.00';
   document.getElementById('gasto-img-preview').style.display = 'none';
@@ -15166,6 +15301,22 @@ function removeGastoImg(){
   document.getElementById('gasto-img-gal').value = '';
 }
 
+// Odómetro, nivel de diésel y lugar del camión (ELD) en el momento de guardar el diésel: para comparar millas y sacar MPG por tramo
+async function fuelOdoSnap(tripId, loadId, tid){
+  try{
+    if(!(typeof fbReady!=='undefined'&&fbReady&&db) || tid==null || tid==='') return;
+    const sn=await db.collection('locations').doc('truck_'+tid).get(); if(!sn.exists) return;
+    const d=sn.data(); const tm=typeof d.time==='number'?d.time:Date.parse(d.time);
+    if(isNaN(tm) || Date.now()-tm>30*60000) return;
+    const mph=d.speedMph!=null?Number(d.speedMph):null; const p={eldAt:new Date(tm).toISOString(), eldMoving:!!(mph!=null&&mph>=5)};
+    if(d.odometer!=null && Number(d.odometer)>0) p.eldOdo=Math.round(Number(d.odometer));
+    if(d.fuelPct!=null && !isNaN(Number(d.fuelPct))) p.fuelPct=Number(d.fuelPct);
+    if(d.lat!=null && d.lon!=null){ p.lat=+d.lat; p.lon=+d.lon; if(d.place) p.place=String(d.place); }
+    const trips=loadTrips(); const i=trips.findIndex(x=>String(x.id)===String(tripId)); if(i<0) return;
+    trips[i]=Object.assign({},trips[i],{fuelLoads:(trips[i].fuelLoads||[]).map(l=>l.loadId===loadId?Object.assign({},l,p):l)});
+    storeTrips(trips);
+  }catch(e){ console.warn('fuelOdoSnap',e); }
+}
 function saveGasto(){
   const tripId = parseInt(document.getElementById('mv-trip-id').value)||0;
   const trips = loadTrips();
@@ -15205,6 +15356,7 @@ function saveGasto(){
     newLoad.cost = parseFloat((gal*price).toFixed(2));
     newLoad.station = station;
     newLoad.desc = gastoTipoActual === 'def' ? 'DEF' : 'Diesel';
+    { const od=parseFloat((document.getElementById('gasto-odo')||{}).value)||0; if(od>0) newLoad.odoTyped=Math.round(od); }
   }
 
   const extraFiles = gastoTipoActual==='diesel' ? Object.assign({}, gastoExtraFiles) : {};
@@ -15222,6 +15374,7 @@ function saveGasto(){
 
   trips[idx] = Object.assign({},t,{fuelLoads:updatedLoads,totalGal:totalGal,totalCost:totalCost,dieselCost:dieselCost,defCost:defCost,otrosCost:otrosCost});
   storeTrips(trips);
+  if(newLoad.tipo!=='otro' && currentUser && currentUser.role!=='admin') fuelOdoSnap(trips[idx].id, loadId, trips[idx].truckId);
   closeGastoModal();
   refreshRunningFuelList();
   if(document.getElementById('page-miviaje')&&document.getElementById('page-miviaje').classList.contains('active')){

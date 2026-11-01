@@ -1199,8 +1199,8 @@
 
     </div><!-- end admin-full-report -->
 
-    <!-- RECENT TRIPS -->
-    <div class="card">
+    <!-- RECENT TRIPS (oculto en la app del chofer) -->
+    <div class="card" id="home-trips-card" style="display:none;">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
         <div style="width:32px;height:32px;border-radius:10px;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:16px;">📋</div>
         <div style="font-size:13px;font-weight:700;color:var(--text);">Últimos viajes</div>
@@ -2741,6 +2741,11 @@
         <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px;">🛣️ Millas</div>
         <div style="font-size:22px;font-weight:800;color:var(--text);" id="mg-miles">0</div>
       </div>
+    </div>
+
+    <div class="card" id="mg-stats-card" data-no-tr="1">
+      <div class="card-title" id="mg-stats-title">📊 Mis estadísticas</div>
+      <div id="mg-stats"></div>
     </div>
 
     <button class="btn-save" onclick="mgDownloadCurrent()" style="width:100%;margin-bottom:12px;">📄 Descargar boleta de pago de este periodo</button>
@@ -11519,7 +11524,7 @@ function renderMiViaje(){
       const localPreview = _localPhotoPreviews[kind];
       const label = document.getElementById('mv-'+kind+'-label');
       const preview = document.getElementById('mv-'+kind+'-preview');
-      const done = driveStatus==='done' && driveThumb;
+      const done = driveStatus==='done' && (driveThumb || driveLink);
       const labels = {
         loaded:   done ? 'Foto de carga subida' : 'Foto de carga (loaded)',
         unloaded: done ? 'Foto de descarga subida' : 'Foto de descarga (unloaded)',
@@ -13583,6 +13588,46 @@ function mgData(from,to){
   const adj=mgAdjFor(from,to), adjTotal=adj.reduce((a,x)=>a+mgAdjSigned(x),0);
   return {mine, pay, paid, pending:pay-paid, fuel, miles:mine.reduce((a,t)=>a+mgMiles(t),0), adj, adjTotal, net:pay+adjTotal, waiting:mine.filter(t=>!t.profitSet).length};
 }
+// ===== MIS ESTADÍSTICAS (chofer): solo SU pago, nunca el valor de la carga ni la ganancia de la empresa =====
+function mgStatsHTML(D){
+  const T=drvT, M=mgMoney, N=v=>fmtNum(Math.round(v||0));
+  const done=D.mine.filter(t=>t.profitSet && (parseFloat(t.driver)||0)>0);
+  const ttl=document.getElementById('mg-stats-title'); if(ttl) ttl.textContent='📊 '+T('Mis estadísticas','My stats');
+  if(!done.length) return '<div class="empty">'+T('Todavía no hay viajes con pago en este periodo.','No paid trips in this period yet.')+'</div>';
+  const pay=done.reduce((a,t)=>a+(parseFloat(t.driver)||0),0), mi=done.reduce((a,t)=>a+mgMiles(t),0);
+  const box=(l,v,sub,col)=>'<div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:10px;text-align:center;"><div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.4px;">'+l+'</div><div style="font-size:19px;font-weight:800;color:'+(col||'var(--text)')+';margin-top:2px;">'+v+'</div>'+(sub?'<div style="font-size:11px;color:var(--text3);">'+sub+'</div>':'')+'</div>';
+  const head=t=>'<div style="font-size:12px;font-weight:800;color:var(--accent);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 6px;">'+t+'</div>';
+  let h='<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;">'+
+    box(T('Por milla','Per mile'), mi?M(pay/mi):'—', T('mi pago ÷ millas','my pay ÷ miles'),'var(--green)')+
+    box(T('Por viaje','Per trip'), M(pay/done.length), done.length+' '+T(done.length===1?'viaje':'viajes',done.length===1?'trip':'trips'))+
+    box(T('Viaje más largo','Longest trip'), N(Math.max(...done.map(mgMiles)))+' mi','')+'</div>';
+  // Mejor broker
+  const by={}; done.forEach(t=>{ const k=String(t.brokerName||'').trim()||T('Sin broker','No broker'); const b=by[k]=by[k]||{name:k,n:0,pay:0,mi:0}; b.n++; b.pay+=parseFloat(t.driver)||0; b.mi+=mgMiles(t); });
+  const B=Object.values(by).sort((a,b)=>b.pay-a.pay); const top=B[0].pay||1;
+  h+=head('🏆 '+T('Mis mejores brokers','My best brokers'))+
+    '<div style="font-size:11px;color:var(--text3);margin-bottom:6px;">'+T('Ordenados por lo que tú ganaste con sus cargas.','Ranked by what you earned on their loads.')+'</div>'+
+    B.slice(0,5).map((b,i)=>'<div style="padding:8px 0;border-bottom:1px solid var(--border);">'+
+      '<div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline;"><div style="font-size:14px;font-weight:800;color:var(--text);">'+(i===0?'🥇 ':i===1?'🥈 ':i===2?'🥉 ':'')+mgEsc(b.name)+'</div><div style="font-size:15px;font-weight:800;color:var(--green);">'+M(b.pay)+'</div></div>'+
+      '<div style="height:6px;background:var(--bg3);border-radius:4px;margin:5px 0;overflow:hidden;"><div style="height:100%;width:'+Math.max(4,b.pay/top*100).toFixed(0)+'%;background:var(--accent);border-radius:4px;"></div></div>'+
+      '<div style="font-size:11px;color:var(--text3);">'+b.n+' '+T(b.n===1?'viaje':'viajes',b.n===1?'trip':'trips')+' · '+N(b.mi)+' mi · '+(b.mi?M(b.pay/b.mi)+'/mi':'—')+'</div></div>').join('');
+  // Mejores cargas
+  const L=done.slice().sort((a,b)=>(parseFloat(b.driver)||0)-(parseFloat(a.driver)||0)).slice(0,3);
+  h+=head('⭐ '+T('Las cargas que más te dejaron','Loads that paid you the most'))+
+    L.map((t,i)=>{ const m=mgMiles(t), p=parseFloat(t.driver)||0; return '<div style="display:flex;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);">'+
+      '<div><div style="font-size:14px;font-weight:800;color:var(--text);">'+(i+1)+'. '+mgEsc(t.city1||t.z1||'—')+(t.state1?', '+mgEsc(t.state1):'')+' → '+mgEsc(t.city2||t.z2||'—')+(t.state2?', '+mgEsc(t.state2):'')+'</div>'+
+      '<div style="font-size:11px;color:var(--text3);">'+fmtDate(tripWorkDate(t))+(t.brokerName?' · '+mgEsc(t.brokerName):'')+' · '+N(m)+' mi'+(m?' · '+M(p/m)+'/mi':'')+'</div></div>'+
+      '<div style="font-size:16px;font-weight:800;color:var(--green);white-space:nowrap;">'+M(p)+'</div></div>'; }).join('');
+  // Rutas que más repites
+  const ln={}; done.forEach(t=>{ const k=(t.state1||'?')+' → '+(t.state2||'?'); const x=ln[k]=ln[k]||{k,n:0,pay:0}; x.n++; x.pay+=parseFloat(t.driver)||0; });
+  const LN=Object.values(ln).sort((a,b)=>b.n-a.n||b.pay-a.pay).slice(0,3);
+  if(done.length>=2) h+=head('📍 '+T('Rutas que más haces','Your most common lanes'))+LN.map(x=>'<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;"><span style="font-weight:700;color:var(--text);">'+mgEsc(x.k)+'</span><span style="color:var(--text3);">'+x.n+' '+T(x.n===1?'viaje':'viajes',x.n===1?'trip':'trips')+' · <b style="color:var(--green);">'+M(x.pay)+'</b></span></div>').join('');
+  // Últimas 8 semanas
+  const W=[]; for(let off=-7; off<=0; off++){ const r=wkRange(off); const d=mgData(r.from,r.to); W.push({r, pay:d.pay}); }
+  const wm=Math.max(1,...W.map(w=>w.pay));
+  h+=head('📈 '+T('Mis últimas 8 semanas','My last 8 weeks'))+'<div style="display:flex;align-items:flex-end;gap:5px;height:110px;padding-top:6px;">'+
+    W.map(w=>'<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;"><div style="font-size:9px;color:var(--text3);margin-bottom:2px;white-space:nowrap;">'+(w.pay?'$'+Math.round(w.pay/100)/10+'k':'')+'</div><div style="width:100%;height:'+Math.max(2,w.pay/wm*80).toFixed(0)+'px;background:'+(w.r.from===wkRange(0).from?'var(--green)':'var(--accent)')+';border-radius:4px 4px 0 0;"></div><div style="font-size:9px;color:var(--text3);margin-top:3px;">'+(w.r.sat.getMonth()+1)+'/'+w.r.sat.getDate()+'</div></div>').join('')+'</div>';
+  return h;
+}
 function renderMisGanancias(){
   mgLoadAdj(); mgLoadSigned();
   document.querySelectorAll('#page-misganancias .mg-tab').forEach(b=>{ const on=b.dataset.m===mgMode; b.style.background=on?'var(--accent)':'var(--bg3)'; b.style.color=on?'#fff':'var(--text2)'; b.style.border='1px solid '+(on?'var(--accent)':'var(--border2)'); b.style.flex='1'; });
@@ -13600,6 +13645,7 @@ function renderMisGanancias(){
   document.getElementById('mg-fuel-ppg').textContent=D.fuel.gal?'$'+(D.fuel.cost/D.fuel.gal).toFixed(3):'—';
   document.getElementById('mg-count').textContent=D.mine.length;
   document.getElementById('mg-miles').textContent=fmtNum(D.miles);
+  { const st=document.getElementById('mg-stats'); if(st){ try{ st.innerHTML=mgStatsHTML(D); }catch(e){ console.warn('mgStats',e); } } }
   // ajustes
   const ac=document.getElementById('mg-adj-card');
   if(D.adj.length){ ac.style.display='block'; document.getElementById('mg-adj-list').innerHTML=D.adj.map(a=>{ const v=mgAdjSigned(a); return '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;"><span>'+mgEsc((MG_ADJ_TYPES[a.type]||{}).es||a.type)+' <span style="color:var(--text3);font-size:11px;">'+fmtDate(a.date)+(a.note?' · '+mgEsc(a.note):'')+'</span></span><b style="color:'+(v<0?'var(--red)':'var(--green)')+';">'+mgMoney(v)+'</b></div>'; }).join(''); }

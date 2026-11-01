@@ -15137,6 +15137,7 @@ function fuelExtraThumbs(fl){
     if(th) return '<div style="text-align:center;"><img src="'+th+'" title="'+name+'" style="width:54px;height:54px;object-fit:cover;border-radius:6px;border:1px solid var(--border2);cursor:pointer;" onclick="window.open(\''+(fl[x.k+'DriveLink']||th)+'\',\'_blank\')"/><div style="font-size:9px;color:var(--text3);">'+x.ico+' '+name.split(' ')[0]+'</div></div>';
     if(st==='pending') return '<div style="font-size:10px;color:#C2410C;">📤 '+name+'</div>';
     if(st==='uploading') return '<div style="font-size:10px;color:var(--text3);">☁️ '+name+'…</div>';
+    if(st==='missing') return '<div style="font-size:10px;color:#B91C1C;font-weight:700;">Falta: '+name+' (el chofer la sube después)</div>';
     return '';
   }).filter(Boolean);
   return parts.length?'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-top:6px;">'+parts.join('')+'</div>':'';

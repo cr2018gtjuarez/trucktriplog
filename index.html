@@ -1849,6 +1849,13 @@ label.dead-lock-lbl{color:#B91C1C!important;font-weight:800;}
             <option value="unpaid">&#x23F3; Pendiente</option>
           </select>
         </div>
+        <div class="filter-field"><label>Factoring</label>
+          <select id="fil-factoring" onchange="applyLogExtraFilters()">
+            <option value="all">Todos</option>
+            <option value="yes">Con factoring</option>
+            <option value="no">Sin factoring</option>
+          </select>
+        </div>
         <div class="filter-field"><label>Pago Dispatcher</label>
           <select id="fil-dispatchstatus" onchange="applyLogExtraFilters()">
             <option value="all">Todos</option>
@@ -7168,7 +7175,7 @@ function renderEnTransito(){
     const today=rpLocalISO(new Date());
     const late=t.deliveryDate && t.deliveryDate<today;
     return `<div class="et-row" onclick="openTripDetail(${idArg})">
-      <div class="et-route"><div class="lg-r1">${t.driverName||'—'}${t.loadType==='partial'?'<span data-no-tr style="display:inline-block;margin-left:6px;padding:1px 7px;border-radius:8px;background:#E0E7FF;color:#3730A3;font-size:10px;font-weight:800;vertical-align:middle;">'+TR('PARCIAL','PARTIAL')+'</span>':''}${rcMissingTag(t)}</div><div class="lg-r2">${t.city1||t.z1||'—'}, ${t.state1||''} → ${t.city2||t.z2||'—'}, ${t.state2||''}${t.rc?' · RC '+t.rc:''}</div></div>
+      <div class="et-route"><div class="lg-r1">${t.driverName||'—'}${t.loadType==='partial'?'<span data-no-tr style="display:inline-block;margin-left:6px;padding:1px 7px;border-radius:8px;background:#E0E7FF;color:#3730A3;font-size:10px;font-weight:800;vertical-align:middle;">'+TR('PARCIAL','PARTIAL')+'</span>':''}${tripHasFactoring(t)?'<span data-no-tr style="display:inline-block;margin-left:6px;padding:1px 7px;border-radius:8px;background:#FEF3C7;color:#92400E;font-size:10px;font-weight:800;vertical-align:middle;">FACTORING'+(t.factoringFeePct?' '+t.factoringFeePct+'%':'')+'</span>':''}${rcMissingTag(t)}</div><div class="lg-r2">${t.city1||t.z1||'—'}, ${t.state1||''} → ${t.city2||t.z2||'—'}, ${t.state2||''}${t.rc?' · RC '+t.rc:''}</div></div>
       <div class="et-date"><span class="et-lbl">Pick up</span>${tripPickupDate(t)?fmtDateShort(tripPickupDate(t)):'—'}${t.startTime?`<div class="lg-r2">${new Date(t.startTime).toLocaleTimeString('es-US',{hour:'numeric',minute:'2-digit'})}</div>`:''}</div>
       <div class="et-date"><span class="et-lbl">Delivery</span>${t.deliveryDate?`<span style="${late?'color:var(--red);font-weight:700;':''}">${fmtDateShort(t.deliveryDate)}</span>${late?'<div class="lg-r2" style="color:var(--red)">Atrasado</div>':''}`:'<span class="lg-muted" style="color:var(--text3)">Sin fecha</span>'}</div>
       <div class="et-num"><span class="et-lbl">Millas</span>${logMilesCell(t)}</div>
@@ -9228,6 +9235,7 @@ function applyLogExtraFilters(){
   activeFilter.rc=(document.getElementById('fil-rc')?.value||'').trim();
   activeFilter.payStatus=document.getElementById('fil-paystatus')?.value||'all';
   activeFilter.dispatchStatus=document.getElementById('fil-dispatchstatus')?.value||'all';
+  activeFilter.factoring=document.getElementById('fil-factoring')?.value||'all';
   renderLog();
 }
 function clearLogExtraFilters(){
@@ -9238,10 +9246,12 @@ function clearLogExtraFilters(){
   const rEl=document.getElementById('fil-rc');if(rEl)rEl.value='';
   const pEl=document.getElementById('fil-paystatus');if(pEl)pEl.value='all';
   const dsEl=document.getElementById('fil-dispatchstatus');if(dsEl)dsEl.value='all';
+  activeFilter.factoring='all'; const fcEl=document.getElementById('fil-factoring');if(fcEl)fcEl.value='all';
   renderLog();
 }
+function tripHasFactoring(t){ return (parseFloat(t.factoringFee)||0)>0 || (parseFloat(t.factoringFeePct)||0)>0; }
 function hasExtraLogFilters(){
-  return (activeFilter.driver&&activeFilter.driver!=='all')||(activeFilter.broker&&activeFilter.broker!=='all')||(activeFilter.brokerName&&activeFilter.brokerName!=='all')||!!activeFilter.rc||(activeFilter.payStatus&&activeFilter.payStatus!=='all')||(activeFilter.dispatchStatus&&activeFilter.dispatchStatus!=='all');
+  return (activeFilter.factoring&&activeFilter.factoring!=='all')||(activeFilter.driver&&activeFilter.driver!=='all')||(activeFilter.broker&&activeFilter.broker!=='all')||(activeFilter.brokerName&&activeFilter.brokerName!=='all')||!!activeFilter.rc||(activeFilter.payStatus&&activeFilter.payStatus!=='all')||(activeFilter.dispatchStatus&&activeFilter.dispatchStatus!=='all');
 }
 function filterTrips(trips){
   return trips.filter(t=>{
@@ -9254,6 +9264,8 @@ function filterTrips(trips){
     if(activeFilter.rc&&!(t.rc||'').toLowerCase().includes(activeFilter.rc.toLowerCase()))return false;
     if(activeFilter.payStatus&&activeFilter.payStatus!=='all'&&(t.payStatus||'unpaid')!==activeFilter.payStatus)return false;
     if(activeFilter.dispatchStatus&&activeFilter.dispatchStatus!=='all'&&(t.dispatchPayStatus||'pending')!==activeFilter.dispatchStatus)return false;
+    if(activeFilter.factoring==='yes'&&!tripHasFactoring(t))return false;
+    if(activeFilter.factoring==='no'&&tripHasFactoring(t))return false;
     return true;
   });
 }
@@ -9372,6 +9384,7 @@ function renderLog(){
     if(activeFilter.driver&&activeFilter.driver!=='all') parts.push(`&#x1F464; Driver: <strong>${activeFilter.driver}</strong>`);
     if(activeFilter.broker&&activeFilter.broker!=='all') parts.push(`&#x1F9D1;&#x200D;&#x1F4BC; Dispatcher: <strong>${activeFilter.broker}</strong>`);
     if(activeFilter.brokerName&&activeFilter.brokerName!=='all') parts.push(`&#x1F3E2; Broker: <strong>${activeFilter.brokerName}</strong>`);
+    if(activeFilter.factoring&&activeFilter.factoring!=='all'){ const ft=filterTrips(loadTrips()); const tot=ft.reduce((x,t)=>x+(parseFloat(t.factoringFee)||0),0); parts.push(activeFilter.factoring==='yes'?`Factoring: <strong>${ft.length} viaje${ft.length!==1?'s':''} · ${fmtD(tot)} en fees</strong>`:'Factoring: <strong>sin factoring</strong>'); }
     if(activeFilter.rc) parts.push(`&#x1F516; RC: <strong>${activeFilter.rc}</strong>`);
     if(activeFilter.payStatus&&activeFilter.payStatus!=='all') parts.push(`Pago Driver: <strong>${activeFilter.payStatus==='paid'?'Pagado':'Pendiente'}</strong>`);
     if(activeFilter.dispatchStatus&&activeFilter.dispatchStatus!=='all') parts.push(`Pago Dispatcher: <strong>${activeFilter.dispatchStatus==='paid'?'Pagado':activeFilter.dispatchStatus==='tocobrar'?'Por Cobrar':'Pendiente'}</strong>`);
@@ -9509,7 +9522,7 @@ function logRowHTML(t){
       <div class="lg-c lg-tg"><span class="lg-chev"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span></div>
       <div class="lg-c lg-date">${pu?fmtDateShort(pu):'—'}</div>
       <div class="lg-c lg-date">${del?fmtDateShort(del):(active?'<span class="lg-muted">En tránsito</span>':'—')}</div>
-      <div class="lg-c lg-route"><div class="lg-r1">${t.city1||t.z1||'—'}, ${t.state1||''} → ${t.city2||t.z2||'—'}, ${t.state2||''}${t.loadType==='partial'?'<span data-no-tr style="display:inline-block;margin-left:6px;padding:1px 7px;border-radius:8px;background:#E0E7FF;color:#3730A3;font-size:10px;font-weight:800;vertical-align:middle;">'+TR('PARCIAL','PARTIAL')+'</span>':''}${rcMissingTag(t)}</div><div class="lg-r2">${t.driverName||'—'}${t.rc?' · RC '+t.rc:''}${t.brokerName?' · '+t.brokerName:''}</div></div>
+      <div class="lg-c lg-route"><div class="lg-r1">${t.city1||t.z1||'—'}, ${t.state1||''} → ${t.city2||t.z2||'—'}, ${t.state2||''}${t.loadType==='partial'?'<span data-no-tr style="display:inline-block;margin-left:6px;padding:1px 7px;border-radius:8px;background:#E0E7FF;color:#3730A3;font-size:10px;font-weight:800;vertical-align:middle;">'+TR('PARCIAL','PARTIAL')+'</span>':''}${tripHasFactoring(t)?'<span data-no-tr style="display:inline-block;margin-left:6px;padding:1px 7px;border-radius:8px;background:#FEF3C7;color:#92400E;font-size:10px;font-weight:800;vertical-align:middle;">FACTORING'+(t.factoringFeePct?' '+t.factoringFeePct+'%':'')+'</span>':''}${rcMissingTag(t)}</div><div class="lg-r2">${t.driverName||'—'}${t.rc?' · RC '+t.rc:''}${t.brokerName?' · '+t.brokerName:''}</div></div>
       <div class="lg-c lg-num" id="lg-mi-${t.id}">${logMilesCell(t)}</div>
       <div class="lg-c lg-num">${t.profitSet||t.loadVal?'$'+(parseFloat(t.loadVal)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}):'—'}</div>
       <div class="lg-c lg-num lg-rate" id="lg-rate-${t.id}">${rate!==null?'$'+rate.toFixed(2)+'<span>/mi</span>':'—'}</div>

@@ -6850,6 +6850,7 @@ async function adminStartTrip(){
   const brokerFeePct = parseFloat(document.getElementById('f-broker-fee-admin').value);
   let brokerName = (document.getElementById('f-brokername-admin')?.value||'').trim();
   if(!brokerName && broker && !bfDispatchLike(broker)) brokerName=bfCanon(broker); // si el dispatcher dice TQL, el broker es TQL
+  if(brokerName) brokerName=bfCanon(brokerName);
   const factoringFeePct = parseFloat(document.getElementById('f-factoring-admin')?.value);
   const rc = (document.getElementById('f-rc-admin')?.value||'').trim();
   const deliveryDate = document.getElementById('f-delivery-date-admin')?.value||'';
@@ -7772,7 +7773,7 @@ async function saveEditModal(){
   const brokerFeeRaw=document.getElementById('edit-broker-fee').value;
   const newBrokerFeePct=brokerFeeRaw!==''?parseFloat(brokerFeeRaw):((t.brokerFeePct!=null&&!isNaN(t.brokerFeePct))?t.brokerFeePct:13);
   const newRc=document.getElementById('edit-rc').value.trim();
-  const newBrokerName=document.getElementById('edit-brokername').value.trim();
+  const newBrokerName=bfCanon(document.getElementById('edit-brokername').value.trim());
   const factoringFeeRaw=document.getElementById('edit-factoring').value;
   const newFactoringFeePct=factoringFeeRaw!==''?parseFloat(factoringFeeRaw):((t.factoringFeePct!=null&&!isNaN(t.factoringFeePct))?t.factoringFeePct:0);
   const extrasTotal=_editExtras.reduce((a,e)=>a+(parseFloat(e.monto)||0),0);
@@ -7986,7 +7987,19 @@ function mkAgg(list,keyFn){
 }
 // ===== "SIN BROKER": si en el campo de dispatcher quedó el broker (TQL, Robinson...), ese es el broker =====
 function bfDispatchLike(n){ n=String(n||'').trim(); if(!n) return true; return /\bla\s*ti\b|dispatch/i.test(n); }
-function bfCanon(n){ n=String(n||'').trim(); const k=n.toLowerCase(); const ex=loadTrips().map(t=>String(t.brokerName||'').trim()).find(b=>b&&b.toLowerCase()===k); return ex||n; }
+function bfCanon(n){ n=String(n||'').trim(); if(!n) return n; const m=bfNameMap(), k=bfNorm(n); return (k&&m[k])||n; }
+// Un solo nombre por broker: "C.H. Robinson" = "C.H. ROBINSON", "FALCON LOGISTICS INC." = "FALCON LOGISTICS". Gana el nombre que más se usa.
+function bfNameMap(){ const cnt={}; loadTrips().forEach(t=>{ const b=String(t.brokerName||'').trim(); if(!b) return; const k=bfNorm(b); if(!k) return; (cnt[k]=cnt[k]||{})[b]=(cnt[k][b]||0)+1; });
+  const m={}; Object.keys(cnt).forEach(k=>{ m[k]=Object.entries(cnt[k]).sort((a,b)=>b[1]-a[1]||(b[0]===b[0].toUpperCase())-(a[0]===a[0].toUpperCase())||a[0].length-b[0].length)[0][0]; }); return m; }
+let _bfMergedAt=0;
+async function bfMergeNames(){
+  if(!(typeof currentUser!=='undefined'&&currentUser&&currentUser.role==='admin')) return 0;
+  if(Date.now()-_bfMergedAt<60000) return 0; _bfMergedAt=Date.now();
+  const m=bfNameMap(), trips=loadTrips(); let n=0;
+  trips.forEach((t,i)=>{ const b=String(t.brokerName||'').trim(); if(!b) return; const c=m[bfNorm(b)]; if(c&&c!==t.brokerName){ trips[i]=Object.assign({},t,{brokerName:c}); n++; } });
+  if(n){ await storeTrips(trips); console.log('brokers unificados:',n); }
+  return n;
+}
 function bfList(){ return loadTrips().filter(t=>t.tripStatus!=='scheduled' && !String(t.brokerName||'').trim()); }
 // Broker sugerido: 1) lo que dice el dispatcher si no es un dispatcher de verdad; 2) el dominio del correo del broker (tql.com → TQL)
 const BF_FREE=/^(gmail|yahoo|hotmail|outlook|live|icloud|aol|msn|me|protonmail|ymail|comcast|att|sbcglobal)\./i;
@@ -8045,6 +8058,7 @@ async function bfApply(){
 function renderMercado(){
   const el=id=>document.getElementById(id); if(!el('page-mercado')) return;
   ensureDeadMap(_rerenderMkDead);
+  if(!renderMercado._merging){ renderMercado._merging=true; bfMergeNames().then(n=>{ renderMercado._merging=false; if(n) renderMercado(); }).catch(()=>{ renderMercado._merging=false; }); }
   if(MK.tab==='millas'){ renderMillas(); return; }
   try{ bfBanner(); }catch(e){}
   document.querySelectorAll('#mk-period button').forEach(b=>b.classList.toggle('on',+b.dataset.p===MK.period));
@@ -10222,7 +10236,7 @@ function renderHome(){
     setTimeout(()=>{ try{ const t=loadTrips().find(x=>String(x.id)===id); if(!t) return; if(t.tripStatus==='active'){ sidebarNav('entransito'); setTimeout(()=>openTripDetail(t.id),200); } else openEditModal(t.id); }catch(e){} },600); }
   { const eb=el('home-eta'); if(eb){ if(isAdmin){ try{ renderEtaBox(); }catch(e){ console.warn('eta',e); } } else eb.style.display='none'; } }
   { const db2=el('home-docs'); if(db2){ if(isAdmin){ try{ renderAdminDocs(); }catch(e){ console.warn('docs',e); } } else db2.style.display='none'; } }
-  if(isAdmin){ try{ odoLoad(); }catch(e){} }
+  if(isAdmin){ try{ odoLoad(); }catch(e){} try{ setTimeout(()=>bfMergeNames(),3000); }catch(e){} }
   { const ab=el('home-assistant'); if(ab){ if(isAdmin) setTimeout(()=>{ try{ renderAssistant(); }catch(e){ console.warn('asistente',e); ab.style.display='none'; } },0); else ab.style.display='none'; } }
 
   // ── Hero greeting

@@ -13634,6 +13634,14 @@ function mgData(from,to){
   return {mine, pay, paid, pending:pay-paid, fuel, miles:mine.reduce((a,t)=>a+mgMiles(t),0), adj, adjTotal, net:pay+adjTotal, waiting:mine.filter(t=>!t.profitSet).length};
 }
 // ===== MIS ESTADÍSTICAS (chofer): solo SU pago, nunca el valor de la carga ni la ganancia de la empresa =====
+// Un solo nombre por broker (C.H. Robinson = C.H. ROBINSON, FALCON LOGISTICS INC. = FALCON LOGISTICS)
+function drvBrokerNorm(x){ return String(x||'').toLowerCase().replace(/\b(inc|llc|co|corp|corporation|company|the)\b/g,'').replace(/[^a-z0-9]/g,''); }
+function drvBroker(t){
+  const b=String((t&&t.brokerName)||'').trim(); if(!b) return '';
+  const all=loadTrips(); if(!drvBroker._m||drvBroker._n!==all.length){ const cnt={}; all.forEach(x=>{ const v=String(x.brokerName||'').trim(); if(!v) return; const k=drvBrokerNorm(v); (cnt[k]=cnt[k]||{})[v]=(cnt[k][v]||0)+1; });
+    const m={}; Object.keys(cnt).forEach(k=>{ m[k]=Object.entries(cnt[k]).sort((a,c)=>c[1]-a[1]||(c[0]===c[0].toUpperCase())-(a[0]===a[0].toUpperCase()))[0][0]; }); drvBroker._m=m; drvBroker._n=all.length; }
+  return drvBroker._m[drvBrokerNorm(b)]||b;
+}
 function mgStatsHTML(D){
   const T=drvT, M=mgMoney, N=v=>fmtNum(Math.round(v||0));
   const done=D.mine.filter(t=>t.profitSet && (parseFloat(t.driver)||0)>0);
@@ -13647,7 +13655,7 @@ function mgStatsHTML(D){
     box(T('Por viaje','Per trip'), M(pay/done.length), done.length+' '+T(done.length===1?'viaje':'viajes',done.length===1?'trip':'trips'))+
     box(T('Viaje más largo','Longest trip'), N(Math.max(...done.map(mgMiles)))+' mi','')+'</div>';
   // Mejor broker
-  const by={}; done.forEach(t=>{ const k=String(t.brokerName||'').trim()||T('Sin broker','No broker'); const b=by[k]=by[k]||{name:k,n:0,pay:0,mi:0}; b.n++; b.pay+=parseFloat(t.driver)||0; b.mi+=mgMiles(t); });
+  const by={}; done.forEach(t=>{ const k=drvBroker(t)||T('Sin broker','No broker'); const b=by[k]=by[k]||{name:k,n:0,pay:0,mi:0}; b.n++; b.pay+=parseFloat(t.driver)||0; b.mi+=mgMiles(t); });
   const B=Object.values(by).sort((a,b)=>b.pay-a.pay); const top=B[0].pay||1;
   h+=head('🏆 '+T('Mis mejores brokers','My best brokers'))+
     '<div style="font-size:11px;color:var(--text3);margin-bottom:6px;">'+T('Ordenados por lo que tú ganaste con sus cargas.','Ranked by what you earned on their loads.')+'</div>'+
@@ -13660,7 +13668,7 @@ function mgStatsHTML(D){
   h+=head('⭐ '+T('Las cargas que más te dejaron','Loads that paid you the most'))+
     L.map((t,i)=>{ const m=mgMiles(t), p=parseFloat(t.driver)||0; return '<div style="display:flex;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);">'+
       '<div><div style="font-size:14px;font-weight:800;color:var(--text);">'+(i+1)+'. '+mgEsc(t.city1||t.z1||'—')+(t.state1?', '+mgEsc(t.state1):'')+' → '+mgEsc(t.city2||t.z2||'—')+(t.state2?', '+mgEsc(t.state2):'')+'</div>'+
-      '<div style="font-size:11px;color:var(--text3);">'+fmtDate(tripWorkDate(t))+(t.brokerName?' · '+mgEsc(t.brokerName):'')+' · '+N(m)+' mi'+(m?' · '+M(p/m)+'/mi':'')+'</div></div>'+
+      '<div style="font-size:11px;color:var(--text3);">'+fmtDate(tripWorkDate(t))+(t.brokerName?' · '+mgEsc(drvBroker(t)):'')+' · '+N(m)+' mi'+(m?' · '+M(p/m)+'/mi':'')+'</div></div>'+
       '<div style="font-size:16px;font-weight:800;color:var(--green);white-space:nowrap;">'+M(p)+'</div></div>'; }).join('');
   // Rutas que más repites
   const ln={}; done.forEach(t=>{ const k=(t.state1||'?')+' → '+(t.state2||'?'); const x=ln[k]=ln[k]||{k,n:0,pay:0}; x.n++; x.pay+=parseFloat(t.driver)||0; });
@@ -13707,7 +13715,7 @@ function renderDmk(){
   const states=dmkAgg(trips,st), byS={}; states.forEach(a=>byS[a.k]=a);
   const RN={'Texas y Sur Central':'Texas & South Central','Sureste':'Southeast','Noreste y Atlántico':'Northeast & Atlantic','Medio Oeste':'Midwest','Montañas y Suroeste':'Mountain & Southwest','Costa Oeste':'West Coast','Otro':'Other'};
   const regions=dmkAgg(trips,t=>{ const x=st(t); if(!x) return ''; const r=dmkRegion(x); return window.TL_LANG==='en'?(RN[r]||r):r; });
-  const brokers=dmkAgg(trips,t=>String(t.brokerName||'').trim());
+  const brokers=dmkAgg(trips,t=>drvBroker(t));
   const lanes=dmkAgg(trips,t=>{ const a=String(t.state1||'').toUpperCase(), b=String(t.state2||'').toUpperCase(); return a&&b?a+' → '+b:''; });
   const best=arr=>{ const r=arr.filter(a=>a.rate!=null); const c=r.filter(a=>a.n>=2); return (c.length?c:r).sort((a,b)=>b.rate-a.rate)[0]; };
   const bReg=best(regions), bBro=best(brokers), topS=states.slice().sort((a,b)=>b.n-a.n)[0];

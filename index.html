@@ -7988,24 +7988,42 @@ function mkAgg(list,keyFn){
 function bfDispatchLike(n){ n=String(n||'').trim(); if(!n) return true; return /\bla\s*ti\b|dispatch/i.test(n); }
 function bfCanon(n){ n=String(n||'').trim(); const k=n.toLowerCase(); const ex=loadTrips().map(t=>String(t.brokerName||'').trim()).find(b=>b&&b.toLowerCase()===k); return ex||n; }
 function bfList(){ return loadTrips().filter(t=>t.tripStatus!=='scheduled' && !String(t.brokerName||'').trim()); }
-function bfFixable(){ return bfList().filter(t=>t.broker && !bfDispatchLike(t.broker)); }
+// Broker sugerido: 1) lo que dice el dispatcher si no es un dispatcher de verdad; 2) el dominio del correo del broker (tql.com → TQL)
+const BF_FREE=/^(gmail|yahoo|hotmail|outlook|live|icloud|aol|msn|me|protonmail|ymail|comcast|att|sbcglobal)\./i;
+const BF_KNOWN={'tql.com':'TQL','chrobinson.com':'C.H. ROBINSON','coyote.com':'COYOTE','echo.com':'ECHO','landstar.com':'LANDSTAR','rxo.com':'RXO','uberfreight.com':'UBER FREIGHT','arrivelogistics.com':'ARRIVE LOGISTICS','jbhunt.com':'J.B. HUNT','schneider.com':'SCHNEIDER','xpo.com':'XPO','mode.com':'MODE','nolanfreight.com':'NOLAN'};
+function bfNorm(x){ return String(x||'').toLowerCase().replace(/\b(inc|llc|co|corp|corporation|company|the)\b/g,'').replace(/[^a-z0-9]/g,''); }
+function bfDomains(t){ return String(t.brokerEmail||'').toLowerCase().match(/@([a-z0-9.-]+\.[a-z]{2,})/g)?.map(x=>x.slice(1)).filter(d=>!BF_FREE.test(d))||[]; }
+function bfSuggest(t){
+  if(t.broker && !bfDispatchLike(t.broker)) return {name:bfCanon(t.broker), why:'dispatcher', src:t.broker};
+  const ds=bfDomains(t); if(!ds.length) return null;
+  const all=loadTrips(), names=[...new Set(all.map(x=>String(x.brokerName||'').trim()).filter(Boolean))];
+  for(const d of ds){
+    // aprendido de otros viajes con el mismo dominio
+    const seen=all.find(x=>String(x.brokerName||'').trim() && bfDomains(x).includes(d)); if(seen) return {name:String(seen.brokerName).trim(), why:'correo', src:d};
+    const base=d.replace(/\.(com|net|org|us|co|biz|io)$/,'').split('.').pop(), nb=bfNorm(base);
+    const hit=names.find(n=>{ const nn=bfNorm(n); return nn&&nb&&(nn===nb||(nn.length>=5&&(nb.startsWith(nn)||nn.startsWith(nb)))); }); if(hit) return {name:hit, why:'correo', src:d};
+    const root=d.split('.').slice(-2).join('.'); if(BF_KNOWN[root]) return {name:bfCanon(BF_KNOWN[root]), why:'correo', src:d};
+  }
+  return null;
+}
+function bfFixable(){ return bfList().filter(t=>bfSuggest(t)); }
 function bfBanner(){
   const el=document.getElementById('mk-bfix'); if(!el) return;
   const all=bfList(), fx=bfFixable();
   if(!all.length){ el.innerHTML=''; return; }
   el.innerHTML='<div style="background:#FFFAEB;border:1px solid #FEDF89;border-radius:10px;padding:10px 12px;margin:0 0 10px;font-size:13px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">'+
-    '<div style="flex:1;min-width:200px;"><b>'+all.length+' viaje'+(all.length!==1?'s':'')+' dicen "Sin broker".</b> '+(fx.length?'En '+fx.length+' el dispatcher dice el broker ('+[...new Set(fx.map(t=>bfCanon(t.broker)))].slice(0,4).map(rpEsc).join(', ')+').':'Hay que capturar el broker a mano.')+'</div>'+
+    '<div style="flex:1;min-width:200px;"><b>'+all.length+' viaje'+(all.length!==1?'s':'')+' dicen "Sin broker".</b> '+(fx.length?'En '+fx.length+' la app encontró el broker (por el dispatcher o el correo del broker): '+[...new Set(fx.map(t=>bfSuggest(t).name))].slice(0,4).map(rpEsc).join(', ')+'.':'No traen el broker en ningún lado: hay que capturarlo a mano.')+'</div>'+
     '<button type="button" class="btn-sm" onclick="bfOpen()" style="background:#1E3A8A;color:#fff;border-color:#1E3A8A;">Revisar y arreglar</button></div>';
 }
 function bfOpen(){
   const all=bfList().sort((a,b)=>String(repTripDate(b)).localeCompare(String(repTripDate(a))));
   const old=document.getElementById('bf-modal'); if(old) old.remove();
   const ov=document.createElement('div'); ov.id='bf-modal'; ov.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,.55);display:flex;align-items:flex-start;justify-content:center;padding:24px 12px;overflow:auto;';
-  const row=t=>{ const ok=t.broker&&!bfDispatchLike(t.broker); return '<label style="display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-bottom:1px solid var(--border);'+(ok?'cursor:pointer;':'')+'">'+
+  const row=t=>{ const sg=bfSuggest(t), ok=!!sg; return '<label style="display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-bottom:1px solid var(--border);'+(ok?'cursor:pointer;':'')+'">'+
     (ok?'<input type="checkbox" class="bf-chk" data-id="'+rpEsc(String(t.id))+'" checked style="margin-top:3px;width:18px;height:18px;">':'<span style="width:18px;"></span>')+
     '<div style="flex:1;min-width:0;"><div style="font-weight:700;font-size:13px;">'+rpEsc(t.city1||t.z1||'—')+', '+rpEsc(t.state1||'')+' → '+rpEsc(t.city2||t.z2||'—')+', '+rpEsc(t.state2||'')+'</div>'+
     '<div style="font-size:12px;color:var(--text3);">'+fmtDate(repTripDate(t))+' · '+rpEsc(t.driverName||'—')+(t.rc?' · RC #'+rpEsc(t.rc):'')+'</div>'+
-    '<div style="font-size:12px;margin-top:2px;">Dispatcher: <b>'+rpEsc(t.broker||'—')+'</b>'+(ok?' → Broker: <b style="color:#067647;">'+rpEsc(bfCanon(t.broker))+'</b>':' <span style="color:#B54708;">· captura el broker a mano</span> <a href="#" onclick="document.getElementById(\'bf-modal\').remove();openEditModal('+JSON.stringify(t.id).replace(/"/g,'&quot;')+');return false;">Editar</a>')+'</div></div></label>'; };
+    '<div style="font-size:12px;margin-top:2px;">'+(ok?(sg.why==='dispatcher'?'Dispatcher: <b>'+rpEsc(sg.src)+'</b>':'Correo: <b>'+rpEsc(sg.src)+'</b>')+' → Broker: <b style="color:#067647;">'+rpEsc(sg.name)+'</b>':'Dispatcher: <b>'+rpEsc(t.broker||'—')+'</b>'+' <span style="color:#B54708;">· captura el broker a mano</span> <a href="#" onclick="document.getElementById(\'bf-modal\').remove();openEditModal('+JSON.stringify(t.id).replace(/"/g,'&quot;')+');return false;">Editar</a>')+'</div></div></label>'; };
   ov.innerHTML='<div style="background:var(--bg2,#fff);border-radius:14px;max-width:560px;width:100%;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.25);">'+
     '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;"><div style="font-size:17px;font-weight:800;">Viajes "Sin broker"</div><button type="button" class="btn-sm" onclick="document.getElementById(\'bf-modal\').remove()">Cerrar</button></div>'+
     '<div style="font-size:12px;color:var(--text3);margin:4px 0 8px;">Si el dispatcher dice TQL, el broker queda TQL; si dice Robinson, queda Robinson. Los que dicen LA TI SERVICES (el dispatcher de verdad) hay que capturarlos a mano.</div>'+
@@ -8017,7 +8035,8 @@ async function bfApply(){
   const ids=[...document.querySelectorAll('#bf-modal .bf-chk:checked')].map(c=>c.dataset.id); const m=document.getElementById('bf-msg');
   if(!ids.length){ if(m) m.textContent='No hay viajes seleccionados.'; return; }
   const trips=loadTrips(); let n=0;
-  trips.forEach((t,i)=>{ if(ids.includes(String(t.id)) && !String(t.brokerName||'').trim() && t.broker && !bfDispatchLike(t.broker)){ trips[i]=Object.assign({},t,{brokerName:bfCanon(t.broker)}); n++; } });
+  const sug={}; bfList().forEach(t=>{ const g=bfSuggest(t); if(g) sug[String(t.id)]=g.name; });
+  trips.forEach((t,i)=>{ if(ids.includes(String(t.id)) && !String(t.brokerName||'').trim() && sug[String(t.id)]){ trips[i]=Object.assign({},t,{brokerName:sug[String(t.id)]}); n++; } });
   await storeTrips(trips);
   const ov=document.getElementById('bf-modal'); if(ov) ov.remove();
   try{ renderMercado(); }catch(e){}

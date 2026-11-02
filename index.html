@@ -5821,7 +5821,9 @@ async function deliveryEta(t, opts){
   if(!dest) return null;
   const loc=opts.loc!==undefined?opts.loc:await detaLocation(t);
   let from=null, src='none', ago=null;
+  const tStart=Date.parse(t.startTime||'')||Date.parse((t.date||'')+'T00:00:00')||0;
   if(loc && now-loc.time<=DETA_LIVE_HOURS*3600000){ from={lat:loc.lat,lon:loc.lon}; src=loc.src; ago=Math.round((now-loc.time)/60000); }
+  else if(loc && loc.time>=tStart){ from={lat:loc.lat,lon:loc.lon}; src='stale'; ago=Math.round((now-loc.time)/60000); } // ubicación vieja pero ya en este viaje: mejor que el pick up
   else { const pz=t.z1&&(ZC[t.z1]||await fetchZip(t.z1)); if(pz) from=(t.pickupAddress&&t.origLat!=null)?{lat:+t.origLat,lon:+t.origLon}:{lat:pz.lat,lon:pz.lon}; src='pickup'; }
   if(!from) return null;
   const key=[from.lat.toFixed(2),from.lon.toFixed(2),dest.lat.toFixed(3),dest.lon.toFixed(3)].join(',');
@@ -5861,10 +5863,12 @@ function detaStatusHtml(e){
   if(e.status==='ontime') return '<span style="color:#C2410C;font-weight:800;">'+TR('Llega el día de la cita','Arrives on appointment day')+'</span>';
   return '<span style="color:#16A34A;font-weight:800;">✓ '+TR('A tiempo','On time')+'</span>';
 }
+function detaAgo(m){ if(m==null) return ''; if(m<60) return m+' min'; const h=Math.floor(m/60), r=m%60; return h+' h'+(r?' '+r+' min':''); }
 function detaSrcTxt(e){
   if(!e) return '';
-  if(e.src==='eld') return '📡 '+TR('ELD · hace '+e.ago+' min','ELD · '+e.ago+' min ago');
-  if(e.src==='phone') return '📱 '+TR('Celular del driver · hace '+e.ago+' min','Driver phone · '+e.ago+' min ago');
+  if(e.src==='stale') return '⚠️ '+TR('Calculado desde la última ubicación, de hace '+detaAgo(e.ago)+': el camión ya avanzó, así que llega antes','From the last location, '+detaAgo(e.ago)+' ago: the truck has moved since, so it arrives earlier');
+  if(e.src==='eld') return '📡 '+TR('ELD · hace '+detaAgo(e.ago),'ELD · '+detaAgo(e.ago)+' ago');
+  if(e.src==='phone') return '📱 '+TR('Celular del driver · hace '+detaAgo(e.ago),'Driver phone · '+detaAgo(e.ago)+' ago');
   return '⚠️ '+TR('Sin ubicación reciente: calculado desde el pick up','No recent location: calculated from pick up');
 }
 function detaBrokerMsg(t,e,city){
@@ -6128,7 +6132,7 @@ async function dlPaint(zipIn){
     const srcTxt=here.src==='eld'?'📡 ELD':here.src==='phone'?'📱 '+TR('Celular','Phone'):'📍 '+TR('Última entrega','Last delivery')+(here.deliv?' '+fmtDate(here.deliv):'');
     const mov=here.moving==='driving'?'🟢 '+TR('Manejando','Driving')+(here.speed!=null?' · '+here.speed+' mph':''):here.moving==='stopped'?'🟠 '+TR('Detenido','Stopped'):'';
     h+=`<div style="border:1px solid var(--border);border-radius:12px;padding:11px 12px;margin-bottom:8px;">
-      <div style="font-size:11px;font-weight:800;color:var(--text3);text-transform:uppercase;">${TR('Ubicación actual','Current location')}</div>
+      <div style="font-size:11px;font-weight:800;color:var(--text3);text-transform:uppercase;">${here.ago>60?TR('Última ubicación conocida','Last known location'):TR('Ubicación actual','Current location')}</div>
       <div style="font-size:18px;font-weight:800;margin-top:2px;">${esc(where||here.place||TR('Sin nombre','Unknown'))}</div>
       ${here.place&&here.src==='eld'&&!(here.city&&String(here.place).toLowerCase().startsWith(String(here.city).toLowerCase()))?`<div style="font-size:12px;color:var(--text3);">${esc(here.place)}</div>`:''}
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:8px;font-size:12px;">
@@ -6136,8 +6140,8 @@ async function dlPaint(zipIn){
         <div><div style="color:var(--text3);font-size:10px;font-weight:700;">${TR('CIUDAD','CITY')}</div><b>${esc(here.city||'—')}</b></div>
         <div><div style="color:var(--text3);font-size:10px;font-weight:700;">${TR('ESTADO','STATE')}</div><b>${esc(here.st||'—')}</b></div></div>
       <div style="margin-top:8px;font-size:13px;">🕐 ${TR('Hora del lugar','Local time')}: <b>${dlLocal(now,tz)}</b></div>
-      <div style="font-size:11px;color:var(--text3);margin-top:3px;">${srcTxt}${here.ago!=null?' · '+TR('hace '+here.ago+' min',here.ago+' min ago'):''}${mov?' · '+mov:''}</div></div>`;
-    msg.push('Driver '+label+' is currently in '+(where||'—')+' (local time '+dlLocal(now,tz)+').');
+      <div style="font-size:11px;color:var(--text3);margin-top:3px;">${srcTxt}${here.ago!=null?' · '+TR('hace '+detaAgo(here.ago),detaAgo(here.ago)+' ago'):''}${mov&&!(here.ago>60)?' · '+mov:''}</div>${here.ago>60?`<div style="margin-top:8px;background:#FEF3F2;border:1px solid #FECDCA;color:#B42318;border-radius:10px;padding:8px 10px;font-size:12.5px;font-weight:700;">⚠️ ${TR('Ubicación vieja: es de hace '+detaAgo(here.ago)+'. '+(here.src==='eld'?'El ELD del camión no está mandando datos':'El celular del chofer no ha mandado ubicación')+'. Pregúntale al chofer dónde va antes de darle un ETA al broker.','Old location: '+detaAgo(here.ago)+' ago. '+(here.src==='eld'?'The truck ELD is not sending data':'The driver phone has not sent a location')+'. Ask the driver where he is before giving the broker an ETA.')}</div>`:''}</div>`;
+    msg.push(here.ago>60?('Driver '+label+' last reported location: '+(where||'—')+' ('+detaAgo(here.ago)+' ago). We are confirming his current position.'):('Driver '+label+' is currently in '+(where||'—')+' (local time '+dlLocal(now,tz)+').'));
   } else h+=`<div style="border:1px solid var(--border);border-radius:12px;padding:11px 12px;margin-bottom:8px;font-size:13px;color:var(--text3);">${TR('Sin ubicación conocida para '+esc(label)+'.','No known location for '+esc(label)+'.')}</div>`;
   // Carga actual → ETA al delivery
   let startPt=null, startAt=now, availAfter=11;
@@ -6149,7 +6153,7 @@ async function dlPaint(zipIn){
       <div style="font-size:14px;font-weight:800;margin-top:2px;">${esc((active.city1||active.z1||'—')+(active.state1?', '+active.state1:''))} → ${esc((active.city2||active.z2||'—')+(active.state2?', '+active.state2:''))} ${esc(active.z2||'')}</div>
       ${del?`<div style="font-size:20px;font-weight:800;margin-top:6px;">${del.arrived?TR('Ya llegó al delivery','At delivery'):'ETA delivery: '+detaWhen(del.eta)}</div>
         <div style="font-size:12px;color:var(--text2);">${del.arrived?'':del.miles.toLocaleString('en-US')+' mi · '}${TR('hora local del delivery','delivery local time')}: <b>${dlLocal(del.eta,dTz)}</b>${active.deliveryDate?' · '+TR('cita','appt')+' '+fmtDate(active.deliveryDate):''}</div>
-        ${del.status&&!del.arrived?'<div style="font-size:12px;margin-top:3px;">'+detaStatusHtml(del)+'</div>':''}`
+        ${del.status&&!del.arrived?'<div style="font-size:12px;margin-top:3px;">'+detaStatusHtml(del)+'</div>':''}${(del.src==='stale'||del.src==='pickup')?'<div style="font-size:11.5px;color:#B54708;margin-top:3px;">'+detaSrcTxt(del)+'</div>':''}`
       :`<div style="font-size:13px;color:var(--text3);margin-top:6px;">${TR('No se pudo calcular el ETA al delivery.','Could not compute delivery ETA.')}</div>`}</div>`;
     if(del&&dz){ startPt={lat:dz.lat,lon:dz.lon,name:(active.city2||dz.city)+', '+(active.state2||dz.abbr)}; startAt=del.eta; const used=(del.tot||0)%11; availAfter=del.arrived?11:Math.max(0,11-used);
       msg.push('Loaded, delivering in '+startPt.name+' '+(active.z2||'')+': ETA '+dlLocal(del.eta,dTz)+'.'); }

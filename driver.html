@@ -14225,7 +14225,7 @@ async function mgSettlementPdfB64(html){
     return String(dataUri).split(',')[1];
   } finally { fr.remove(); }
 }
-function mgShowSettlement(from,to){ const h=mgSettlementHTML(from,to,null); let w=null; try{ w=window.open('','_blank'); }catch(e){} if(w&&w.document){ w.document.open(); w.document.write(h); w.document.close(); } }
+function mgShowSettlement(from,to){ const h=mgSettlementHTML(from,to,null); drvDocViewer(h, 'Driver Settlement · '+fmtDate(from)+' – '+fmtDate(to)); }
 function mgOpenSign(from,to){
   const P=mgStubPayload(from,to), D=P.D;
   if(!stubUrl()){ alert('Todavía no está activada la firma de boletas. Avísale a la oficina.'); return; }
@@ -14298,6 +14298,28 @@ async function mgSignSend(from,to){
 }
 function mgDownloadCurrent(){ const P=mgPeriod(); mgDownloadStub(P.from,P.to,P.title); }
 // Boleta de pago (Driver Settlement): solo pago del driver, diésel y ajustes
+// Visor dentro de la app (boleta de pago, settlement): con botón para regresar. En la app instalada, una ventana nueva no tiene cómo volver.
+function drvDocViewer(html, title){
+  try{ const old=document.getElementById('drv-doc-viewer'); if(old) old.remove(); }catch(e){}
+  const T=(es,en)=>window.TL_LANG==='en'?en:es;
+  const ov=document.createElement('div'); ov.id='drv-doc-viewer'; ov.setAttribute('data-no-tr','1');
+  ov.style.cssText='position:fixed;inset:0;z-index:100000;background:#fff;display:flex;flex-direction:column;';
+  ov.innerHTML='<div style="display:flex;align-items:center;gap:8px;padding:calc(env(safe-area-inset-top,0px) + 10px) 12px 10px;background:#0E1B3D;color:#fff;">'+
+    '<button type="button" id="drv-doc-back" style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.14);color:#fff;border:none;border-radius:10px;padding:10px 14px;font-weight:800;font-size:15px;font-family:inherit;cursor:pointer;">'+
+      '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>'+T('Regresar','Back')+'</button>'+
+    '<div style="flex:1;min-width:0;font-weight:800;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+(title||'')+'</div>'+
+    '<button type="button" id="drv-doc-print" style="background:#fff;color:#0E1B3D;border:none;border-radius:10px;padding:10px 12px;font-weight:800;font-size:13px;font-family:inherit;cursor:pointer;white-space:nowrap;">'+T('PDF / Imprimir','PDF / Print')+'</button></div>'+
+    '<iframe id="drv-doc-frame" style="flex:1;width:100%;border:0;background:#fff;"></iframe>';
+  document.body.appendChild(ov);
+  const fr=ov.querySelector('#drv-doc-frame');
+  fr.srcdoc=String(html).replace('</head>','<style>.bar{display:none!important;}</style></head>');
+  let closed=false;
+  const close=()=>{ if(closed) return; closed=true; window.removeEventListener('popstate',onPop); ov.remove(); };
+  const onPop=()=>close();
+  try{ history.pushState({drvDoc:1},''); window.addEventListener('popstate',onPop); }catch(e){}
+  ov.querySelector('#drv-doc-back').onclick=()=>{ if(history.state&&history.state.drvDoc){ try{ history.back(); return; }catch(e){} } close(); };
+  ov.querySelector('#drv-doc-print').onclick=()=>{ try{ fr.contentWindow.focus(); fr.contentWindow.print(); }catch(e){ alert(T('No se pudo imprimir.','Could not print.')); } };
+}
 function mgDownloadStub(from,to,title){
   const D=mgData(from,to), co=(typeof loadCompany==='function'&&loadCompany())||{}, u=currentUser||{};
   const name=[u.firstName,u.lastName].filter(Boolean).join(' ')||u.name||u.username||'';
@@ -14327,8 +14349,7 @@ function mgDownloadStub(from,to,title){
     (D.waiting?'<p style="color:#B45309;font-size:12px;">'+D.waiting+' trip(s) without pay calculated yet / viaje(s) sin pago calculado todavía.</p>':'')+
     '<div class="ft">Diesel is shown for your records; it is not deducted from your pay unless listed as a deduction. · El diésel se muestra como referencia; no se descuenta de tu pago a menos que aparezca como deducción.</div></body></html>';
   const fileName='Boleta_'+(name||'driver').replace(/\s+/g,'_')+'_'+(from||'todo')+(to?'_'+to:'')+'.html';
-  let w=null; try{ w=window.open('','_blank'); }catch(e){}
-  if(w && w.document){ w.document.open(); w.document.write(html); w.document.close(); return; }
+  try{ drvDocViewer(html, (window.TL_LANG==='en'?'Pay stub':'Boleta de pago')+' · '+per); return; }catch(e){ console.warn('viewer',e); }
   // Si el celular bloquea ventanas nuevas: se descarga el archivo
   try{ const blob=new Blob([html],{type:'text/html'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=fileName; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },4000); }catch(e){ alert('No se pudo abrir la boleta.'); }
 }

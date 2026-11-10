@@ -5982,8 +5982,8 @@ function etaPickDrv(id){
   try{ const sel=document.getElementById('dl-driver'); if(sel){ dlFillSel(); const u=_etaDrv?getUsers().find(x=>x.role!=='admin'&&String(x.truckId)===_etaDrv):null; sel.value=u?u.username:''; dlRun(); } }catch(e){}
 }
 
-// Simula el manejo con las reglas de horas: 30 min de descanso cada 8 h manejando y 10 h de descanso al terminar las horas disponibles
-function etaDriveHours(h,avail){ let t=0,rem=h,a=avail,since=0; while(rem>0.001){ if(a<=0){ t+=10; a=11; since=0; continue; } const c=Math.min(rem,a,8-since); if(c<=0){ t+=0.5; since=0; continue; } t+=c; rem-=c; a-=c; since+=c; } return t; }
+// Simula el manejo: 30 min de descanso cada 8 h manejando. NO se cuenta el descanso de 10 h (así lo pidió Leonardo)
+function etaDriveHours(h,avail){ let t=0,rem=h,a=avail,since=0; while(rem>0.001){ if(a<=0){ a=11; since=0; continue; } const c=Math.min(rem,a,8-since); if(c<=0){ t+=0.5; since=0; continue; } t+=c; rem-=c; a-=c; since+=c; } return t; }
 async function etaLiveLocations(){
   const out={}; if(!(typeof fbReady!=='undefined'&&fbReady&&db)) return out;
   try{ const sn=await db.collection('locations').get(); sn.forEach(d=>{ out[d.id]=d.data(); }); }catch(e){}
@@ -6240,7 +6240,7 @@ function etaPaint(){
     const H=r.here;
     if(r.none) return `<div style="padding:10px 0;${i?'border-top:1px solid var(--border);':''}"><div style="font-size:14px;font-weight:800;">${esc(r.tr.name)}${r.drvName?' · '+esc(r.drvName.split(' ')[0]):''}</div>${etaHereHtml(H,now)}</div>`;
     const puTz=dlTz(r.pu.abbr,r.pu.lat,r.pu.lon); const puName=[r.pu.city,r.pu.abbr].filter(Boolean).join(', '); const hTz=H?dlTz(H.st,H.lat,H.lon):null;
-    const rest=r.tot>r.h+0.4, isBest=best===r&&ok.length>1;
+    const rest=false, isBest=best===r&&ok.length>1;
     const durColor=r.busy?'#B06000':rest?'#E37400':'#188038';
     const stepsHtml=r.steps.length?r.steps.map(s=>s.kind==='active'
         ?`<div style="font-size:12px;margin-top:4px;">🚚 ${TR('Cargado','Loaded')}${s.trip.rc?' RC #'+esc(s.trip.rc):''}: ${s.arrived?TR('ya está en el delivery en ','at delivery in '):TR('entrega en ','delivering in ')}<b>${esc(s.place)}</b>${s.arrived?'':' · ETA '+detaWhen(s.eta)}</div>`
@@ -6285,10 +6285,9 @@ function etaPaint(){
         ${L2.length?`<div style="font-size:12px;color:var(--text2);margin-top:4px;">${L2.map(esc).join('<br/>')}</div>`:''}
         <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap;">
           <button type="button" onclick="tcPdf('${r.tr.id}',this)" style="font-size:12px;font-weight:700;padding:7px 12px;border-radius:16px;border:1px solid var(--border);background:var(--bg3);color:var(--text);cursor:pointer;">📸 Truck check PDF</button>
-          ${r.busy?'':`<label style="font-size:11px;color:var(--text3);display:flex;align-items:center;gap:4px;">${TR('Horas que le quedan','Hours left')} <input type="number" min="0" max="11" step="0.5" value="${r.avail}" onchange="etaSetAvail('${r.tr.id}',this.value)" style="width:52px;padding:4px;border:1px solid var(--border);border-radius:6px;background:var(--bg3);color:var(--text);"/></label>
-          <label style="font-size:11px;color:var(--text3);display:flex;align-items:center;gap:4px;">${TR('Sale a las','Leaves at')} <input type="time" value="${esc(r.leave)}" onchange="etaSetLeave('${r.tr.id}',this.value)" style="padding:3px;border:1px solid var(--border);border-radius:6px;background:var(--bg3);color:var(--text);"/></label>`}
+          ${r.busy?'':`<label style="font-size:11px;color:var(--text3);display:flex;align-items:center;gap:4px;">${TR('Sale a las','Leaves at')} <input type="time" value="${esc(r.leave)}" onchange="etaSetLeave('${r.tr.id}',this.value)" style="padding:3px;border:1px solid var(--border);border-radius:6px;background:var(--bg3);color:var(--text);"/></label>`}
         </div>
-        <div style="font-size:11px;color:var(--text3);margin-top:6px;">${TR('Calculado a '+ETA_MPH+' mph promedio, con descansos de horas de servicio.','Calculated at '+ETA_MPH+' mph average, with hours-of-service breaks.')}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:6px;">${TR('Calculado a '+ETA_MPH+' mph promedio, con 30 min de descanso cada 8 h. No incluye el descanso de 10 h.','Calculated at '+ETA_MPH+' mph average, with a 30-min break every 8 h. Does not include the 10-h rest.')}</div>
         </div></details>
     </div>`; }).join('');
   etaDraw();

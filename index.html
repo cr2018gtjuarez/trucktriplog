@@ -5937,7 +5937,7 @@ function renderEtaPage(){
     <div style="background:#fff;border-radius:24px;box-shadow:0 2px 6px rgba(0,0,0,.25);overflow:hidden;">
       <div style="display:flex;align-items:center;gap:8px;padding:2px 6px 2px 14px;">
         ${ETA_SVG_SEARCH}
-        <input id="eta-q" autocomplete="off" autocapitalize="words" enterkeyhint="search" placeholder="${TR('ZIP, ciudad o estado del pick up','Pick up ZIP, city or state')}" oninput="etaSug()" onkeydown="etaKey(event)" onfocus="etaSug()" style="flex:1;min-width:0;border:none;outline:none;box-shadow:none;font-size:16px;padding:11px 0;background:transparent;color:#202124;"/>
+        <input id="eta-q" autocomplete="off" autocapitalize="words" enterkeyhint="search" placeholder="${TR('ZIP o dirección del pick up','Pick up ZIP or address')}" oninput="etaSug()" onkeydown="etaKey(event)" onfocus="etaSug()" style="flex:1;min-width:0;border:none;outline:none;box-shadow:none;font-size:16px;padding:11px 0;background:transparent;color:#202124;"/>
         <button type="button" id="eta-x" onclick="etaClear()" aria-label="${TR('Borrar','Clear')}" style="display:none;border:none;background:transparent;font-size:18px;color:#5F6368;padding:6px 10px;cursor:pointer;">✕</button>
       </div>
       <div id="eta-sug"></div>
@@ -6058,21 +6058,24 @@ function etaSug(){
       _etaSugs=p?[{type:'zip',zip:z,label:p.city+', '+p.abbr+' '+z,sub:p.state}]:[{hint:TR('No encontré ese ZIP','ZIP not found')}]; etaSugShow(); },150);
     return;
   }
-  const base=[]; const st=etaStAbbr(q); if(st) base.push({type:'state',st,label:TR('Todo ','All of ')+US_ST[st]+' ('+st+')',sub:TR('ETA a la ciudad de '+st+' más cercana a cada camión','ETA to the closest city in '+st+' for each truck')});
-  _etaSugs=base.length?base:[{hint:TR('Buscando…','Searching…')}]; etaSugShow();
-  if(q.length<3){ if(!base.length){ _etaSugs=[]; etaSugClose(); } return; }
+  const base=[];
+  if(q.length<4){ _etaSugs=[{hint:TR('Escribe el ZIP o la dirección completa (número, calle, ciudad, estado)','Type the ZIP or full address (number, street, city, state)')}]; etaSugShow(); return; }
+  _etaSugs=[{hint:TR('Buscando…','Searching…')}]; etaSugShow();
   _etaSugT=setTimeout(async()=>{ const r=await etaPlaceSearch(q); if((document.getElementById('eta-q')?.value||'').trim()!==q) return;
-    _etaSugs=base.concat(r); if(!_etaSugs.length) _etaSugs=[{hint:TR('Sin resultados. Prueba con el ZIP o "Ciudad, TX"','No results. Try the ZIP or "City, TX"')}]; etaSugShow(); },350);
+    _etaSugs=base.concat(r); if(!_etaSugs.length) _etaSugs=[{hint:TR('No encontré esa dirección. Revisa calle, ciudad y estado, o usa el ZIP.','Address not found. Check street, city and state, or use the ZIP.')}]; etaSugShow(); },350);
 }
 async function etaPlaceSearch(q){
-  let city=q, st=''; const m=q.match(/^(.+?)[,\s]+([A-Za-z]{2})$/); if(m&&US_ST[m[2].toUpperCase()]){ city=m[1].trim(); st=m[2].toUpperCase(); }
   const out=[], seen={};
-  const add=(name,stA,lat,lon,zip)=>{ if(!name||!stA||isNaN(lat)||isNaN(lon)) return; if(st&&stA!==st) return; const k=name.toLowerCase()+'|'+stA; if(seen[k]) return; seen[k]=1;
-    out.push({type:'city',city:name,st:stA,lat:+lat,lon:+lon,zip:String(zip||'').slice(0,5),label:name+', '+stA,sub:US_ST[stA]||''}); };
-  try{ const r=await fetch('https://photon.komoot.io/api/?limit=12&lang=en&osm_tag=place:city&osm_tag=place:town&osm_tag=place:village&bbox=-125,24,-66.5,49.6&q='+encodeURIComponent(city+(st?' '+US_ST[st]:'')));
-    if(r.ok){ const j=await r.json(); (j.features||[]).forEach(f=>{ const p=f.properties||{}; if(p.countrycode&&p.countrycode!=='US') return; const c=(f.geometry&&f.geometry.coordinates)||[]; add(p.name,etaStAbbr(p.state),c[1],c[0],p.postcode); }); } }catch(e){}
-  if(!out.length){ try{ const r=await fetch('https://nominatim.openstreetmap.org/search?format=json&countrycodes=us&addressdetails=1&limit=8&city='+encodeURIComponent(city)+(st?'&state='+encodeURIComponent(US_ST[st]):''));
-    if(r.ok){ const j=await r.json(); j.forEach(x=>{ const a=x.address||{}; add(a.city||a.town||a.village||a.hamlet||(x.name||''),((a['ISO3166-2-lvl4']||'').split('-')[1]||etaStAbbr(a.state)),+x.lat,+x.lon,a.postcode); }); } }catch(e){} }
+  const add=(line1,city,stA,zip,lat,lon,kind)=>{ if(!stA||isNaN(lat)||isNaN(lon)) return; zip=String(zip||'').slice(0,5); const lbl=[line1,city].filter(Boolean).join(', ')+', '+stA+(zip?' '+zip:''); const k=lbl.toLowerCase(); if(seen[k]) return; seen[k]=1;
+    out.push({type:'city',city:city||line1,st:stA,lat:+lat,lon:+lon,zip,label:lbl,sub:kind==='addr'?'':(US_ST[stA]||'')}); };
+  try{ const r=await fetch('https://photon.komoot.io/api/?limit=8&lang=en&bbox=-125,24,-66.5,49.6&q='+encodeURIComponent(q));
+    if(r.ok){ const j=await r.json(); (j.features||[]).forEach(f=>{ const p=f.properties||{}; if(p.countrycode&&p.countrycode!=='US') return; const c=(f.geometry&&f.geometry.coordinates)||[];
+      const street=p.street?((p.housenumber?p.housenumber+' ':'')+p.street):''; const isPlace=/^(city|town|village|hamlet|locality)$/.test(p.osm_value||'')||p.type==='city';
+      const line1=isPlace?'':(p.name&&p.name!==p.street&&p.name!==p.city?(street?p.name+', '+street:p.name):street);
+      add(line1,isPlace?p.name:(p.city||p.district||p.county||''),etaStAbbr(p.state),p.postcode,c[1],c[0],isPlace?'place':'addr'); }); } }catch(e){}
+  if(!out.length){ try{ const r=await fetch('https://nominatim.openstreetmap.org/search?format=json&countrycodes=us&addressdetails=1&limit=6&q='+encodeURIComponent(q));
+    if(r.ok){ const j=await r.json(); j.forEach(x=>{ const a=x.address||{}; const street=a.road?((a.house_number?a.house_number+' ':'')+a.road):''; const city=a.city||a.town||a.village||a.hamlet||'';
+      add(street,city||(street?'':(x.name||'')),((a['ISO3166-2-lvl4']||'').split('-')[1]||etaStAbbr(a.state)),a.postcode,+x.lat,+x.lon,street?'addr':'place'); }); } }catch(e){} }
   return out.slice(0,6);
 }
 function etaPick(i){ const s=_etaSugs[i]; if(!s||s.hint) return; const q=document.getElementById('eta-q'); if(q){ q.value=s.label; q.blur(); } etaSugClose(); etaGo(s); }
@@ -6083,13 +6086,12 @@ async function etaGo(s){
   if(!s){
     if(!q) return;
     if(/^\d{5}/.test(q)) s={type:'zip',zip:q.slice(0,5)};
-    else if(etaStAbbr(q)) s={type:'state',st:etaStAbbr(q)};
-    else { if(res) res.innerHTML='<div style="font-size:13px;color:var(--text3);">'+TR('Buscando…','Searching…')+'</div>'; const r=await etaPlaceSearch(q); if(!r.length) return err(TR('No encontré ese lugar. Prueba con el ZIP o "Ciudad, TX".','Place not found. Try the ZIP or "City, TX".')); s=r[0]; }
+    else { if(res) res.innerHTML='<div style="font-size:13px;color:var(--text3);">'+TR('Buscando…','Searching…')+'</div>'; const r=await etaPlaceSearch(q); if(!r.length) return err(TR('No encontré esa dirección. Revisa calle, ciudad y estado, o usa el ZIP.','Address not found. Check street, city and state, or use the ZIP.')); s=r[0]; }
   }
   if(head) head.innerHTML=''; if(res) res.innerHTML='<div style="font-size:13px;color:var(--text3);padding:6px 0;">⏳ '+TR('Calculando ruta de cada camión…','Calculating each truck\'s route…')+'</div>';
   let target=null;
   if(s.type==='zip'){ const p=await fetchZip(s.zip); if(!p) return err(TR('No encontré ese ZIP.','ZIP not found.')); target={kind:'point',lat:p.lat,lon:p.lon,city:p.city,abbr:p.abbr,zip:s.zip}; }
-  else if(s.type==='city'){ let z=s.zip; if(!/^\d{5}$/.test(z||'')){ const g=await dlRevGeo(s.lat,s.lon); z=(g&&g.zip)||''; } target={kind:'point',lat:s.lat,lon:s.lon,city:s.city,abbr:s.st,zip:z}; }
+  else if(s.type==='city'){ let z=s.zip; if(!/^\d{5}$/.test(z||'')){ const g=await dlRevGeo(s.lat,s.lon); z=(g&&g.zip)||''; } target={kind:'point',lat:s.lat,lon:s.lon,city:s.city,abbr:s.st,zip:z,addr:s.label}; }
   else if(s.type==='state'){
     let bb=null,c=null; try{ const r=await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&country=USA&state='+encodeURIComponent(US_ST[s.st])); if(r.ok){ const j=await r.json(); if(j[0]){ bb=j[0].boundingbox.map(Number); c={lat:+j[0].lat,lon:+j[0].lon}; } } }catch(e){}
     if(!bb) return err(TR('No pude cargar el mapa de ese estado. Intenta con una ciudad o ZIP.','Could not load that state. Try a city or ZIP.'));
@@ -6164,7 +6166,7 @@ function etaPaintFleet(){
       ${etaHereHtml(r.here,now,true)}
       ${r.here?`<button type="button" data-msg="${etaEsc(msg)}" onclick="etaCopy(this)" style="margin-top:6px;font-size:12px;font-weight:700;padding:6px 10px;border-radius:16px;border:1px solid var(--border);background:var(--bg3);color:var(--text);cursor:pointer;">📋 ${TR('Copiar ubicación para el broker','Copy location for broker')}</button>`:''}
     </div>`; }).join(''):`<div style="font-size:13px;color:var(--text3);">${TR('No hay camiones con driver asignado.','No trucks with an assigned driver.')}</div>`)
-    +`<div style="font-size:11px;color:var(--text3);margin-top:6px;">${TR('Busca arriba el ZIP, ciudad o estado del pick up para ver cuándo llega cada camión.','Search the pick up ZIP, city or state above to see when each truck arrives.')}</div>`;
+    +`<div style="font-size:11px;color:var(--text3);margin-top:6px;">${TR('Escribe arriba el ZIP o la dirección del pick up para ver cuándo llega.','Type the pick up ZIP or address above to see when it arrives.')}</div>`;
   etaDraw();
 }
 
@@ -6205,7 +6207,7 @@ async function etaCalc(target){
       at={lat:a2.lat,lon:a2.lon,name:(sc.city2||a2.city)+', '+(sc.state2||a2.abbr)}; t=arrDel+ETA_UNLOAD_H*3600000;
     }
     if(!at){ rows.push({tr,drvName,here,none:true}); continue; }
-    const pu=target.kind==='state'?await etaNearestInState(target,at):{lat:target.lat,lon:target.lon,city:target.city,abbr:target.abbr,zip:target.zip};
+    const pu=target.kind==='state'?await etaNearestInState(target,at):{lat:target.lat,lon:target.lon,city:target.city,abbr:target.abbr,zip:target.zip,addr:target.addr||''};
     const rt=await etaRoute(at.lat,at.lon,pu.lat,pu.lon);
     const miles=rt?Math.round(rt.miles):Math.round(haversineKm(at.lat,at.lon,pu.lat,pu.lon)*0.621371*1.2); if(!rt) est=true;
     rows.push({tr,drvName,here,steps,from:at,freeAt:t,busy:steps.length>0,miles,est,pu,route:rt?rt.line:null});
@@ -6232,7 +6234,7 @@ function etaPaint(){
     const tz0=target.kind==='point'?dlTz(target.abbr,target.lat,target.lon):null;
     head.innerHTML=target.kind==='state'
       ?`<div style="font-size:15px;font-weight:800;">${TR('Pick up en todo','Pick up anywhere in')} ${esc(target.name)}</div><div style="font-size:12px;color:var(--text3);margin-bottom:6px;">${TR('Cada camión va a la ciudad de '+target.st+' que le queda más cerca.','Each truck goes to the closest city in '+target.st+'.')}</div>`
-      :`<div style="font-size:15px;font-weight:800;">Pick up: ${esc(target.city)}, ${esc(target.abbr)}${target.zip?' '+esc(target.zip):''}</div><div style="font-size:12px;color:var(--text3);margin-bottom:6px;">${TR('Hora allá ahorita','Local time now')}: <b>${dlLocal(now,tz0)}</b></div>`;
+      :`<div style="font-size:15px;font-weight:800;">Pick up: ${esc(target.addr||(target.city+', '+target.abbr+(target.zip?' '+target.zip:'')))}</div><div style="font-size:12px;color:var(--text3);margin-bottom:6px;">${TR('Hora allá ahorita','Local time now')}: <b>${dlLocal(now,tz0)}</b></div>`;
   }
   res.innerHTML=shown.map((r,i)=>{
     const H=r.here;
@@ -6252,7 +6254,7 @@ function etaPaint(){
     const msg=(r.busy
         ? (H?etaHereMsg(H,now)+' ':'')+(act?'Loaded, delivering in '+act.place+(act.arrived?' now':' ETA '+new Date(act.eta).toLocaleString('en-US',{weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}))+'. ':'')+'Available after delivery in '+r.from.name+'. '
         : (H?etaHereMsg(H,now)+' ':'')+'Empty and available. ')
-      +'ETA to pickup in '+puName+(r.pu.zip?' '+r.pu.zip:'')+': '+dlLocal(r.eta,puTz)+' ('+dead+' mi).'+(truckDimsText(r.tr,{en:true}).length?'\n'+truckDimsText(r.tr,{en:true}).join('\n'):'');
+      +'ETA to pickup '+(r.pu.addr?'at '+r.pu.addr:'in '+puName+(r.pu.zip?' '+r.pu.zip:''))+': '+dlLocal(r.eta,puTz)+' ('+dead+' mi).'+(truckDimsText(r.tr,{en:true}).length?'\n'+truckDimsText(r.tr,{en:true}).join('\n'):'');
     const L2=truckDimsText(r.tr);
     const whereNow=H?[H.city,H.st].filter(Boolean).join(', ')+(H.zip?' '+H.zip:''):'';
     const firstTxt=act?(act.arrived?TR('Está descargando en ','Unloading in ')+act.place:TR('Primero entrega en ','First delivers in ')+act.place):(r.steps.length?TR('Primero hace sus cargas programadas','First does scheduled loads'):'');

@@ -15257,7 +15257,7 @@ function deRenderPage(){
     <div class="de-search">
       <div style="display:flex;align-items:center;gap:8px;padding:2px 6px 2px 14px;">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5F6368" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-        <input id="de-q" autocomplete="off" autocapitalize="words" enterkeyhint="search" placeholder="${deT('ZIP, ciudad o estado del pick up','Pick up ZIP, city or state')}" oninput="deSug()" onkeydown="deKey(event)"/>
+        <input id="de-q" autocomplete="off" autocapitalize="words" enterkeyhint="search" placeholder="${deT('ZIP o dirección del pick up','Pick up ZIP or address')}" oninput="deSug()" onkeydown="deKey(event)"/>
         <button type="button" id="de-x" onclick="deClearQ()" aria-label="Clear" style="display:none;border:none;background:transparent;font-size:18px;color:#5F6368;padding:6px 10px;cursor:pointer;">✕</button>
       </div>
       <div id="de-sug"></div>
@@ -15279,7 +15279,7 @@ function deRenderPage(){
       <span id="de-from-city" style="display:none;">—</span><span id="de-from-st" style="display:none;">—</span>
     </div>
     <input id="de-zip" type="hidden"/><span id="de-pu-ok" style="display:none;"></span><span id="de-pu-city" style="display:none;">—</span><span id="de-pu-st" style="display:none;">—</span>
-    <div id="de-res" style="margin-top:12px;"><div style="font-size:14px;color:var(--text3);">${deT('Busca arriba el ZIP, ciudad o estado del pick up.','Search the pick up ZIP, city or state above.')}</div></div>
+    <div id="de-res" style="margin-top:12px;"><div style="font-size:14px;color:var(--text3);">${deT('Escribe arriba el ZIP o la dirección del pick up.','Type the pick up ZIP or address above.')}</div></div>
     <details style="margin-top:12px;"><summary style="font-size:13px;color:var(--text3);cursor:pointer;">${deT('Horas de manejo que te quedan hoy','Driving hours left today')}: <b id="de-hours-lbl">${deEsc(keepHours)}</b></summary>
       <div style="display:flex;align-items:center;gap:8px;margin-top:8px;">
         <button type="button" class="eta-pm" onclick="deHours(-0.5)">−</button>
@@ -15309,7 +15309,7 @@ function deSugShow(){ const el=document.getElementById('de-sug'); if(!el) return
     :'<div class="de-sg" onclick="dePick('+i+')"><span style="flex:1;min-width:0;"><b style="font-weight:700;'+(x.type==='state'?'color:#1A73E8;':'')+'">'+deEsc(x.label)+'</b>'+(x.sub?'<br><span style="font-size:12px;color:#5F6368;">'+deEsc(x.sub)+'</span>':'')+'</span>'+(x.zip&&x.type!=='zip'?'<span style="font-size:12px;color:#5F6368;">'+deEsc(x.zip)+'</span>':'')+'</div>').join(''); }
 function deKey(e){ if(e.key==='Enter'){ e.preventDefault(); const i=_deSugs.findIndex(x=>!x.hint); if(i>=0) dePick(i); else deGo(null); } else if(e.key==='Escape'){ _deSugs=[]; deSugShow(); } }
 function deClearQ(){ const q=document.getElementById('de-q'); if(q) q.value=''; const x=document.getElementById('de-x'); if(x) x.style.display='none'; _deSugs=[]; deSugShow(); window._dePu=null;
-  const r=document.getElementById('de-res'); if(r) r.innerHTML='<div style="font-size:14px;color:var(--text3);">'+deT('Busca arriba el ZIP, ciudad o estado del pick up.','Search the pick up ZIP, city or state above.')+'</div>'; if(window._deMe) deShowMe(window._deMe); }
+  const r=document.getElementById('de-res'); if(r) r.innerHTML='<div style="font-size:14px;color:var(--text3);">'+deT('Escribe arriba el ZIP o la dirección del pick up.','Type the pick up ZIP or address above.')+'</div>'; if(window._deMe) deShowMe(window._deMe); }
 function deSug(){
   const q=(document.getElementById('de-q')?.value||'').trim(); const x=document.getElementById('de-x'); if(x) x.style.display=q?'block':'none';
   clearTimeout(_deSugT); if(!q){ _deSugs=[]; deSugShow(); return; }
@@ -15319,31 +15319,35 @@ function deSug(){
     _deSugT=setTimeout(async()=>{ const p=await fetchZip(z); if((document.getElementById('de-q')?.value||'').trim().slice(0,5)!==z) return; _deSugs=p?[{type:'zip',zip:z,label:p.city+', '+p.abbr+' '+z}]:[{hint:deT('Ese ZIP no existe','That ZIP does not exist')}]; deSugShow(); },150);
     return;
   }
-  const base=[]; const st=deStAbbr(q); if(st) base.push({type:'state',st,label:deT('Todo ','All of ')+DE_ST[st]+' ('+st+')',sub:deT('La ciudad de '+st+' más cercana a ti','The closest city in '+st+' to you')});
-  _deSugs=base.length?base:[{hint:deT('Buscando…','Searching…')}]; deSugShow();
-  if(q.length<3){ if(!base.length){ _deSugs=[]; deSugShow(); } return; }
+  const base=[];
+  if(q.length<4){ _deSugs=[{hint:deT('Escribe el ZIP o la dirección completa (número, calle, ciudad, estado)','Type the ZIP or full address (number, street, city, state)')}]; deSugShow(); return; }
+  _deSugs=[{hint:deT('Buscando…','Searching…')}]; deSugShow();
   _deSugT=setTimeout(async()=>{ const r=await dePlaceSearch(q); if((document.getElementById('de-q')?.value||'').trim()!==q) return;
-    _deSugs=base.concat(r); if(!_deSugs.length) _deSugs=[{hint:deT('Sin resultados. Prueba el ZIP o "Ciudad, TX"','No results. Try the ZIP or "City, TX"')}]; deSugShow(); },350);
+    _deSugs=base.concat(r); if(!_deSugs.length) _deSugs=[{hint:deT('No encontré esa dirección. Revisa calle, ciudad y estado, o usa el ZIP.','Address not found. Check street, city and state, or use the ZIP.')}]; deSugShow(); },350);
 }
 async function dePlaceSearch(q){
-  let city=q, st=''; const m=q.match(/^(.+?)[,\s]+([A-Za-z]{2})$/); if(m&&DE_ST[m[2].toUpperCase()]){ city=m[1].trim(); st=m[2].toUpperCase(); }
   const out=[], seen={};
-  const add=(name,stA,lat,lon,zip)=>{ if(!name||!stA||isNaN(lat)||isNaN(lon)) return; if(st&&stA!==st) return; const k=name.toLowerCase()+'|'+stA; if(seen[k]) return; seen[k]=1; out.push({type:'city',city:name,st:stA,lat:+lat,lon:+lon,zip:String(zip||'').slice(0,5),label:name+', '+stA,sub:DE_ST[stA]||''}); };
-  try{ const r=await fetch('https://photon.komoot.io/api/?limit=12&lang=en&osm_tag=place:city&osm_tag=place:town&osm_tag=place:village&bbox=-125,24,-66.5,49.6&q='+encodeURIComponent(city+(st?' '+DE_ST[st]:'')));
-    if(r.ok){ const j=await r.json(); (j.features||[]).forEach(f=>{ const p=f.properties||{}; if(p.countrycode&&p.countrycode!=='US') return; const c=(f.geometry&&f.geometry.coordinates)||[]; add(p.name,deStAbbr(p.state),c[1],c[0],p.postcode); }); } }catch(e){}
-  if(!out.length){ try{ const r=await fetch('https://nominatim.openstreetmap.org/search?format=json&countrycodes=us&addressdetails=1&limit=8&city='+encodeURIComponent(city)+(st?'&state='+encodeURIComponent(DE_ST[st]):''));
-    if(r.ok){ const j=await r.json(); j.forEach(x=>{ const a=x.address||{}; add(a.city||a.town||a.village||a.hamlet||(x.name||''),((a['ISO3166-2-lvl4']||'').split('-')[1]||deStAbbr(a.state)),+x.lat,+x.lon,a.postcode); }); } }catch(e){} }
+  const add=(line1,city,stA,zip,lat,lon,kind)=>{ if(!stA||isNaN(lat)||isNaN(lon)) return; zip=String(zip||'').slice(0,5); const lbl=[line1,city].filter(Boolean).join(', ')+', '+stA+(zip?' '+zip:''); const k=lbl.toLowerCase(); if(seen[k]) return; seen[k]=1;
+    out.push({type:'city',city:city||line1,st:stA,lat:+lat,lon:+lon,zip,label:lbl,sub:kind==='addr'?'':(DE_ST[stA]||'')}); };
+  try{ const r=await fetch('https://photon.komoot.io/api/?limit=8&lang=en&bbox=-125,24,-66.5,49.6&q='+encodeURIComponent(q));
+    if(r.ok){ const j=await r.json(); (j.features||[]).forEach(f=>{ const p=f.properties||{}; if(p.countrycode&&p.countrycode!=='US') return; const c=(f.geometry&&f.geometry.coordinates)||[];
+      const street=p.street?((p.housenumber?p.housenumber+' ':'')+p.street):''; const isPlace=/^(city|town|village|hamlet|locality)$/.test(p.osm_value||'')||p.type==='city';
+      const line1=isPlace?'':(p.name&&p.name!==p.street&&p.name!==p.city?(street?p.name+', '+street:p.name):street);
+      add(line1,isPlace?p.name:(p.city||p.district||p.county||''),deStAbbr(p.state),p.postcode,c[1],c[0],isPlace?'place':'addr'); }); } }catch(e){}
+  if(!out.length){ try{ const r=await fetch('https://nominatim.openstreetmap.org/search?format=json&countrycodes=us&addressdetails=1&limit=6&q='+encodeURIComponent(q));
+    if(r.ok){ const j=await r.json(); j.forEach(x=>{ const a=x.address||{}; const street=a.road?((a.house_number?a.house_number+' ':'')+a.road):''; const city=a.city||a.town||a.village||a.hamlet||'';
+      add(street,city||(street?'':(x.name||'')),((a['ISO3166-2-lvl4']||'').split('-')[1]||deStAbbr(a.state)),a.postcode,+x.lat,+x.lon,street?'addr':'place'); }); } }catch(e){} }
   return out.slice(0,6);
 }
 function dePick(i){ const s=_deSugs[i]; if(!s||s.hint) return; const q=document.getElementById('de-q'); if(q){ q.value=s.label; q.blur(); } _deSugs=[]; deSugShow(); deGo(s); }
 async function deGo(s){
   const res=document.getElementById('de-res'); const q=(document.getElementById('de-q')?.value||'').trim();
   const err=t=>{ if(res) res.innerHTML='<div style="font-size:13px;font-weight:700;color:#DC2626;">'+t+'</div>'; };
-  if(!s){ if(!q) return; if(/^\d{5}/.test(q)) s={type:'zip',zip:q.slice(0,5)}; else if(deStAbbr(q)) s={type:'state',st:deStAbbr(q)}; else { const r=await dePlaceSearch(q); if(!r.length) return err(deT('No encontré ese lugar. Prueba el ZIP o "Ciudad, TX".','Place not found. Try the ZIP or "City, TX".')); s=r[0]; } }
+  if(!s){ if(!q) return; if(/^\d{5}/.test(q)) s={type:'zip',zip:q.slice(0,5)}; else { const r=await dePlaceSearch(q); if(!r.length) return err(deT('No encontré esa dirección. Revisa calle, ciudad y estado, o usa el ZIP.','Address not found. Check street, city and state, or use the ZIP.')); s=r[0]; } }
   if(res) res.innerHTML='<div style="font-size:13px;color:var(--text3);">'+deT('Calculando…','Calculating…')+'</div>';
   let T=null;
   if(s.type==='zip'){ const p=await fetchZip(s.zip); if(!p) return err(deT('Ese ZIP no existe.','That ZIP does not exist.')); T={lat:p.lat,lon:p.lon,city:p.city,abbr:p.abbr,zip:s.zip}; }
-  else if(s.type==='city'){ let z=s.zip; if(!/^\d{5}$/.test(z||'')){ const g=await deRevGeo(s.lat,s.lon); z=(g&&g.zip)||''; } T={lat:s.lat,lon:s.lon,city:s.city,abbr:s.st,zip:z}; }
+  else if(s.type==='city'){ let z=s.zip; if(!/^\d{5}$/.test(z||'')){ const g=await deRevGeo(s.lat,s.lon); z=(g&&g.zip)||''; } T={lat:s.lat,lon:s.lon,city:s.city,abbr:s.st,zip:z,addr:s.label}; }
   else if(s.type==='state'){
     const F=await deFrom(); const me=F&&F.me; if(!me) return err(deT('No pudimos ver tu ubicación. Toca Cambiar y escribe tu ZIP.','Could not get your location. Tap Change and type your ZIP.'));
     let bb=null,c=null; try{ const r=await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&country=USA&state='+encodeURIComponent(DE_ST[s.st])); if(r.ok){ const j=await r.json(); if(j[0]){ bb=j[0].boundingbox.map(Number); c={lat:+j[0].lat,lon:+j[0].lon}; } } }catch(e){}
@@ -15410,7 +15414,7 @@ async function deFrom(){
 async function deCalc(){
   const T=window._dePu; const zip=T?(T.zip||''):(document.getElementById('de-zip')?.value||'').trim(), res=document.getElementById('de-res'); if(!res) return;
   const msg=(c,t)=>{ res.innerHTML='<div style="font-size:13px;font-weight:700;color:'+c+';">'+t+'</div>'; };
-  if(!T && !/^\d{5}$/.test(zip)) return msg('#DC2626',deT('Busca arriba el ZIP, ciudad o estado del pick up.','Search the pick up ZIP, city or state above.'));
+  if(!T && !/^\d{5}$/.test(zip)) return msg('#DC2626',deT('Escribe arriba el ZIP o la dirección del pick up.','Type the pick up ZIP or address above.'));
   msg('var(--text3)',deT('Buscando dónde estás…','Finding your location…'));
   const [F,pu]=await Promise.all([deFrom(), T?Promise.resolve({city:T.city,abbr:T.abbr,lat:T.lat,lon:T.lon}):fetchZip(zip)]);
   if(!pu) return msg('#DC2626',deT('No encontré ese ZIP.','ZIP not found.'));
@@ -15445,7 +15449,7 @@ async function deCalc(){
     const time=d.toLocaleTimeString('en-US',{timeZone:tz,hour:'numeric',minute:'2-digit'});
     const day=d.toLocaleDateString(L,{timeZone:tz,weekday:'short',month:'short',day:'numeric'});
     const zn=(d.toLocaleTimeString('en-US',{timeZone:tz,timeZoneName:'short'}).split(' ').pop())||''; return {time,day,zn}; };
-  const hp=P(best.eta,tzPu), puTxt=pu.city+', '+pu.abbr+(zip?' '+zip:'');
+  const hp=P(best.eta,tzPu), puTxt=(T&&T.addr)||(pu.city+', '+pu.abbr+(zip?' '+zip:''));
   const extra=best.first?' · +'+DE_LOAD_H+' h '+deT('para descargar','to unload'):((deDriveHours(best.drive,hrs)-best.drive>0.01)?' · '+deT('con descansos','incl. breaks'):'');
   const other=out.filter(o=>o!==best);
   const left=best.eta-now, lm=Math.max(0,Math.round(left/60000)), durTxt=lm<60?lm+' min':(lm<1440?Math.floor(lm/60)+'h'+(lm%60?' '+(lm%60)+'m':''):Math.floor(lm/1440)+'d '+Math.floor((lm%1440)/60)+'h');

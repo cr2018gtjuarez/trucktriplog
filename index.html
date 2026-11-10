@@ -1604,6 +1604,16 @@ label.dead-lock-lbl{color:#B91C1C!important;font-weight:800;}
 
   <!-- EN TRÁNSITO -->
   <div class="page" id="page-eta">
+    <style id="eta-css">
+.eta-row{display:flex;flex-direction:column;gap:8px}
+.eta-stats{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;order:2}
+.eta-info{order:1;min-width:0}
+.eta-tile{background:var(--bg3);border-radius:12px;padding:10px 12px}
+.eta-big{font-size:28px;font-weight:800;line-height:1.05;white-space:nowrap}
+.eta-cap{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;margin-top:3px}
+.eta-first{grid-column:1/-1;font-size:11px;font-weight:800;color:#1A73E8;text-align:center}
+@media(min-width:700px){.eta-row{flex-direction:row;align-items:flex-start;gap:16px}.eta-info{flex:1}.eta-stats{order:2;width:400px;flex-shrink:0}.eta-big{font-size:34px}}
+</style>
     <div id="eta-page-body" data-no-tr></div>
   </div>
 
@@ -6226,17 +6236,23 @@ function etaPaint(){
       +'ETA to pickup in '+puName+(r.pu.zip?' '+r.pu.zip:'')+': '+dlLocal(r.eta,puTz)+' ('+dead+' mi).'+(truckDimsText(r.tr,{en:true}).length?'\n'+truckDimsText(r.tr,{en:true}).join('\n'):'');
     const L2=truckDimsText(r.tr);
     return `<div style="padding:12px 0;${i?'border-top:1px solid var(--border);':''}">
-      <div onclick="etaFocus(${i})" style="cursor:pointer;">
-        <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start;">
-          <div style="min-width:0;"><div style="font-size:20px;font-weight:800;color:${durColor};line-height:1.15;">${etaDur(r.eta-now)}</div>
-            <div style="font-size:13px;font-weight:700;margin-top:1px;">${esc(r.tr.name)}${r.drvName?' · '+esc(r.drvName.split(' ')[0]):''}</div></div>
-          <div style="text-align:right;flex-shrink:0;"><div style="font-size:12px;font-weight:800;padding:5px 10px;border-radius:14px;${isBest?'background:#1A73E8;color:#fff;':'border:1px solid var(--border);color:var(--text);'}">${detaWhen(r.eta)}</div>${isBest?`<div style="font-size:10px;font-weight:800;color:#1A73E8;margin-top:3px;">${TR('LLEGA PRIMERO','ARRIVES FIRST')}</div>`:''}</div>
+      <div onclick="etaFocus(${i})" class="eta-row" style="cursor:pointer;">
+        <div class="eta-stats">
+          <div class="eta-tile"><div class="eta-big" style="color:${durColor};">${etaDur(r.eta-now)}</div><div class="eta-cap">${TR('Para llegar','To arrive')}</div></div>
+          <div class="eta-tile"><div class="eta-big">${dead.toLocaleString('en-US')}<span style="font-size:.55em;"> mi</span></div><div class="eta-cap">${TR('Millas al pick up','Miles to pick up')}${r.est?' ('+TR('aprox.','approx.')+')':''}</div></div>
+          ${isBest?`<div class="eta-first">${TR('LLEGA PRIMERO','ARRIVES FIRST')}</div>`:''}
         </div>
-        <div style="font-size:12px;color:var(--text2);margin-top:3px;">${dead.toLocaleString('en-US')} mi ${TR('vacías','empty')}${r.est?' ('+TR('aprox.','approx.')+')':''} · ${r.tot.toFixed(1)} h ${TR('de camino','on the road')}${rest?' · <span style="color:#E37400;font-weight:700;">'+TR('incluye descanso 10 h','incl. 10 h rest')+'</span>':''}${fuel!=null?' · '+TR('diésel ~','diesel ~')+asstMoney(fuel):''}</div>
+        <div class="eta-info">
+        <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;">
+          <div style="font-size:15px;font-weight:800;">${esc(r.tr.name)}${r.drvName?' · '+esc(r.drvName.split(' ')[0]):''}</div>
+          <div style="font-size:12px;font-weight:800;padding:5px 10px;border-radius:14px;white-space:nowrap;${isBest?'background:#1A73E8;color:#fff;':'border:1px solid var(--border);color:var(--text);'}">${detaWhen(r.eta)}</div>
+        </div>
+        <div style="font-size:12px;color:var(--text2);margin-top:6px;">${r.tot.toFixed(1)} h ${TR('de camino','on the road')}${rest?' · <span style="color:#E37400;font-weight:700;">'+TR('incluye descanso 10 h','incl. 10 h rest')+'</span>':''}${fuel!=null?' · '+TR('diésel ~','diesel ~')+asstMoney(fuel):''}</div>
         <div style="font-size:12px;color:var(--text2);">${target.kind==='state'?'Pick up: <b>'+esc(puName)+(r.pu.zip?' '+esc(r.pu.zip):'')+'</b> · ':''}${TR('llega hora local','arrives local time')} <b>${dlLocal(r.eta,puTz)}</b></div>
         ${etaHereHtml(H,now)}
         ${stepsHtml}
         ${r.busy?'':`<div style="font-size:12px;margin-top:4px;color:#137333;font-weight:700;">✅ ${TR('Sin carga: libre','Empty: available')}</div>`}
+        </div>
       </div>
       ${rateHtml}
       ${L2.length?`<details style="margin-top:4px;"><summary style="font-size:12px;cursor:pointer;color:var(--text2);">📏 ${esc(L2[0].replace(/^Caja por dentro \(L x A x Al\): /,'Caja '))}</summary><div style="font-size:12px;color:var(--text2);">${L2.map(esc).join('<br/>')}</div></details>`:''}

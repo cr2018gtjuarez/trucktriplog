@@ -914,6 +914,18 @@
     .eta-nav{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;}
     .eta-nav-b{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:58px;padding:6px 4px;border-radius:12px;border:1.5px solid var(--border2);background:var(--bg2);color:var(--text);font-weight:800;font-size:12.5px;text-decoration:none;cursor:pointer;font-family:inherit;}
     .eta-nav-m{font-size:12px;color:#067647;font-weight:700;margin-top:6px;min-height:14px;}
+    .de-mapwrap{position:relative;isolation:isolate;z-index:0;border-radius:18px;overflow:hidden;border:1px solid var(--border2);background:#E8EEF1;margin-bottom:10px;}
+    .de-mapwrap #de-map{height:40vh;min-height:240px;max-height:440px;}
+    .de-search{position:absolute;top:10px;left:10px;right:10px;z-index:1001;background:#fff;border-radius:24px;box-shadow:0 2px 6px rgba(0,0,0,.25);overflow:hidden;}
+    .de-search input{flex:1;min-width:0;border:none;outline:none;box-shadow:none;font-size:16px;padding:11px 0;background:transparent;color:#202124;}
+    .de-sg{display:flex;align-items:center;gap:10px;padding:10px 14px;border-top:1px solid #EEE;cursor:pointer;color:#202124;font-size:14px;}
+    .de-cap{font-size:11px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;}
+    .de-cur .de-loc{border-radius:14px;padding:10px 10px;}
+    .de-cur .de-loc b{font-size:20px;}
+    .de-tiles{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;margin-top:12px;}
+    .de-tile{background:var(--bg3);border-radius:12px;padding:10px 12px;}
+    .de-big{font-size:28px;font-weight:900;line-height:1.05;white-space:nowrap;color:var(--text);}
+    .de-tcap{font-size:12px;font-weight:700;color:var(--text3);margin-top:3px;}
     .de-map{height:240px;border-radius:14px;overflow:hidden;margin:10px 0;border:1px solid var(--border2);position:relative;z-index:0;isolation:isolate;}
     .de-pin div{width:30px;height:30px;border-radius:50%;color:#fff;display:grid;place-items:center;font-weight:900;font-size:13px;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.35);}
     .eta-copy{width:100%;min-height:50px;border:2px solid #1E3A8A;border-radius:12px;background:var(--bg2);color:#1E3A8A;font-weight:900;font-size:15px;cursor:pointer;font-family:inherit;}
@@ -2495,39 +2507,7 @@
   <!-- MI VIAJE (driver) -->
   <!-- ETA DEL CHOFER: pantalla aparte, fácil -->
   <div class="page" id="page-eta">
-    <div class="card" id="de-card" style="border:2px solid #1E3A8A;">
-      <div style="font-size:19px;font-weight:900;color:var(--text);margin-bottom:4px;">¿En cuánto llegas al pick up?</div>
-      <div style="font-size:13px;color:var(--text3);margin-bottom:12px;">Escribe el ZIP del pick up y toca Calcular.</div>
-      <!-- Ubicación del chofer: sale sola (GPS o ELD) -->
-      <div id="de-loc" class="de-loc busy" data-no-tr="1">
-        <span class="de-loc-pin"><svg width="15" height="15" viewBox="0 0 24 24" fill="#fff"><path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg></span>
-        <div style="flex:1;min-width:0;"><b id="de-loc-txt">…</b><small id="de-from-msg"></small></div>
-        <button type="button" id="de-loc-chg" class="de-loc-chg" onclick="deToggleLoc()">Cambiar</button>
-      </div>
-      <div id="de-loc-edit" class="eta-fic" style="display:none;margin-top:8px;">
-        <div style="display:flex;align-items:flex-end;gap:8px;">
-          <div style="flex:1;"><div style="font-size:10.5px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px;">Tu ZIP</div><input id="de-from-zip" type="text" inputmode="numeric" maxlength="5" placeholder="—" oninput="deZipInfo('from')" style="font-size:20px;font-weight:800;text-align:center;padding:10px 8px;border:2px solid var(--border2);border-radius:10px;background:var(--bg2);color:var(--text);width:100%;box-sizing:border-box;"/></div>
-          <button type="button" onclick="deLocate(true)" style="border:1.5px solid #1E3A8A;background:var(--bg2);color:#1E3A8A;border-radius:10px;padding:12px 12px;font-weight:800;font-size:13px;cursor:pointer;font-family:inherit;">Usar GPS</button>
-        </div>
-        <button type="button" id="de-use-phone" onclick="deUsePhone()" style="display:none;width:100%;margin-top:8px;border:1.5px solid #D97706;background:#FFFAEB;color:#B54708;border-radius:10px;padding:11px;font-weight:800;font-size:13px;cursor:pointer;font-family:inherit;">Estoy con el camión: usar mi teléfono</button>
-        <span id="de-from-city" style="display:none;">—</span><span id="de-from-st" style="display:none;">—</span>
-      </div>
-      <!-- ZIP del pick up: lo escribe el chofer -->
-      <div class="de-pu">
-        <div class="de-pu-k">ZIP del pick up</div>
-        <input id="de-zip" type="text" inputmode="numeric" maxlength="5" placeholder="ZIP" oninput="deZipInfo('pu')" onkeydown="if(event.key==='Enter') deCalc()"/>
-        <div id="de-pu-ok" data-no-tr="1"></div>
-        <span id="de-pu-city" style="display:none;">—</span><span id="de-pu-st" style="display:none;">—</span>
-      </div>
-      <div class="eta-step" style="margin-top:14px;"><span>Horas de manejo que te quedan hoy</span></div>
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
-        <button type="button" class="eta-pm" onclick="var i=document.getElementById('de-hours');i.value=Math.max(0,(+i.value||0)-0.5);">−</button>
-        <input id="de-hours" type="number" min="0" max="11" step="0.5" value="11" style="flex:1;min-width:0;font-size:22px;font-weight:800;text-align:center;padding:10px;border:2px solid var(--border2);border-radius:12px;background:var(--bg3);color:var(--text);"/>
-        <button type="button" class="eta-pm" onclick="var i=document.getElementById('de-hours');i.value=Math.min(11,(+i.value||0)+0.5);">+</button>
-      </div>
-      <button type="button" onclick="deCalc()" style="width:100%;min-height:56px;border-radius:12px;border:none;background:#1E3A8A;color:#fff;font-weight:900;font-size:18px;cursor:pointer;font-family:inherit;">Calcular ETA</button>
-      <div id="de-res" style="margin-top:14px;"></div>
-    </div>
+    <div id="de-body" data-no-tr="1"></div>
   </div>
 
   <div class="page" id="page-miviaje">
@@ -15264,6 +15244,118 @@ async function deUsePhone(){
   deLocPill('ok',{city:g.city,st:g.st,zip:g.zip,src:'gps'}); const ed=document.getElementById('de-loc-edit'); if(ed) ed.style.display='none';
 }
 
+// ===== Página ETA del driver, estilo Maps: mapa + buscador (ZIP, ciudad o estado) + "Your current location" =====
+function deRenderPage(){
+  const box=document.getElementById('de-body'); if(!box) return;
+  const lang=window.TL_LANG||'en';
+  if(box.dataset.lang===lang) return;
+  const keepHours=(document.getElementById('de-hours')||{}).value||'11';
+  box.dataset.lang=lang; window._deMapObj&&(()=>{ try{ window._deMapObj.remove(); }catch(e){} window._deMapObj=null; })();
+  box.innerHTML=`
+  <div class="de-mapwrap">
+    <div id="de-map"></div>
+    <div class="de-search">
+      <div style="display:flex;align-items:center;gap:8px;padding:2px 6px 2px 14px;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5F6368" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input id="de-q" autocomplete="off" autocapitalize="words" enterkeyhint="search" placeholder="${deT('ZIP, ciudad o estado del pick up','Pick up ZIP, city or state')}" oninput="deSug()" onkeydown="deKey(event)"/>
+        <button type="button" id="de-x" onclick="deClearQ()" aria-label="Clear" style="display:none;border:none;background:transparent;font-size:18px;color:#5F6368;padding:6px 10px;cursor:pointer;">✕</button>
+      </div>
+      <div id="de-sug"></div>
+    </div>
+  </div>
+  <div class="card de-cur" style="border:2px solid #1E3A8A;">
+    <div class="de-cap">${deT('Tu ubicación actual','Your current location')}</div>
+    <div id="de-loc" class="de-loc busy">
+      <span class="de-loc-pin"><svg width="15" height="15" viewBox="0 0 24 24" fill="#fff"><path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg></span>
+      <div style="flex:1;min-width:0;"><b id="de-loc-txt">…</b><small id="de-from-msg"></small></div>
+      <button type="button" id="de-loc-chg" class="de-loc-chg" onclick="deToggleLoc()">${deT('Cambiar','Change')}</button>
+    </div>
+    <div id="de-loc-edit" style="display:none;margin-top:8px;">
+      <div style="display:flex;align-items:flex-end;gap:8px;">
+        <div style="flex:1;"><div class="de-cap" style="margin-bottom:3px;">${deT('Tu ZIP','Your ZIP')}</div><input id="de-from-zip" type="text" inputmode="numeric" maxlength="5" placeholder="—" oninput="deZipInfo('from')" style="font-size:20px;font-weight:800;text-align:center;padding:10px 8px;border:2px solid var(--border2);border-radius:10px;background:var(--bg2);color:var(--text);width:100%;box-sizing:border-box;"/></div>
+        <button type="button" onclick="deLocate(true)" style="border:1.5px solid #1E3A8A;background:var(--bg2);color:#1E3A8A;border-radius:10px;padding:12px 12px;font-weight:800;font-size:13px;cursor:pointer;font-family:inherit;">${deT('Usar GPS','Use GPS')}</button>
+      </div>
+      <button type="button" id="de-use-phone" onclick="deUsePhone()" style="display:none;width:100%;margin-top:8px;border:1.5px solid #D97706;background:#FFFAEB;color:#B54708;border-radius:10px;padding:11px;font-weight:800;font-size:13px;cursor:pointer;font-family:inherit;">${deT('Estoy con el camión: usar mi teléfono','I am with the truck: use my phone')}</button>
+      <span id="de-from-city" style="display:none;">—</span><span id="de-from-st" style="display:none;">—</span>
+    </div>
+    <input id="de-zip" type="hidden"/><span id="de-pu-ok" style="display:none;"></span><span id="de-pu-city" style="display:none;">—</span><span id="de-pu-st" style="display:none;">—</span>
+    <div id="de-res" style="margin-top:12px;"><div style="font-size:14px;color:var(--text3);">${deT('Busca arriba el ZIP, ciudad o estado del pick up.','Search the pick up ZIP, city or state above.')}</div></div>
+    <details style="margin-top:12px;"><summary style="font-size:13px;color:var(--text3);cursor:pointer;">${deT('Horas de manejo que te quedan hoy','Driving hours left today')}: <b id="de-hours-lbl">${deEsc(keepHours)}</b></summary>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:8px;">
+        <button type="button" class="eta-pm" onclick="deHours(-0.5)">−</button>
+        <input id="de-hours" type="number" min="0" max="11" step="0.5" value="${deEsc(keepHours)}" onchange="deHours(0)" style="flex:1;min-width:0;font-size:22px;font-weight:800;text-align:center;padding:10px;border:2px solid var(--border2);border-radius:12px;background:var(--bg3);color:var(--text);"/>
+        <button type="button" class="eta-pm" onclick="deHours(0.5)">+</button>
+      </div></details>
+  </div>`;
+}
+function deHours(d){ const i=document.getElementById('de-hours'); if(!i) return; i.value=Math.max(0,Math.min(11,(+i.value||0)+d)); const l=document.getElementById('de-hours-lbl'); if(l) l.textContent=i.value; if(window._dePu) deCalc(); }
+function deOpenPage(){ deRenderPage(); deLocate(false).then(()=>{ if(!window._dePu&&window._deMe) deShowMe(window._deMe); }); setTimeout(()=>{ try{ window._deMapObj&&window._deMapObj.invalidateSize(); }catch(e){} },250); }
+function deTiles(){ return 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png'; }
+// Mapa con solo mi camión (antes de buscar)
+function deShowMe(me){
+  const el=document.getElementById('de-map'); if(!el||typeof L==='undefined'||!me) return;
+  try{ if(window._deMapObj){ window._deMapObj.remove(); window._deMapObj=null; } }catch(e){}
+  const map=L.map(el,{zoomControl:false,attributionControl:true,tap:true}); window._deMapObj=map;
+  L.tileLayer(deTiles(),{attribution:'© OpenStreetMap © CARTO',subdomains:'abcd',maxZoom:19}).addTo(map);
+  L.marker([+me.lat,+me.lon],{icon:L.divIcon({className:'de-pin',html:'<div style="background:'+(me.src==='eld'?'#2563EB':'#16A34A')+';">●</div>',iconSize:[30,30],iconAnchor:[15,15]})}).addTo(map);
+  map.setView([+me.lat,+me.lon],9); setTimeout(()=>{ try{ map.invalidateSize(); }catch(e){} },250);
+}
+// Buscador: ZIP, ciudad o estado
+const DE_ST={AL:'Alabama',AK:'Alaska',AZ:'Arizona',AR:'Arkansas',CA:'California',CO:'Colorado',CT:'Connecticut',DE:'Delaware',DC:'District of Columbia',FL:'Florida',GA:'Georgia',HI:'Hawaii',ID:'Idaho',IL:'Illinois',IN:'Indiana',IA:'Iowa',KS:'Kansas',KY:'Kentucky',LA:'Louisiana',ME:'Maine',MD:'Maryland',MA:'Massachusetts',MI:'Michigan',MN:'Minnesota',MS:'Mississippi',MO:'Missouri',MT:'Montana',NE:'Nebraska',NV:'Nevada',NH:'New Hampshire',NJ:'New Jersey',NM:'New Mexico',NY:'New York',NC:'North Carolina',ND:'North Dakota',OH:'Ohio',OK:'Oklahoma',OR:'Oregon',PA:'Pennsylvania',RI:'Rhode Island',SC:'South Carolina',SD:'South Dakota',TN:'Tennessee',TX:'Texas',UT:'Utah',VT:'Vermont',VA:'Virginia',WA:'Washington',WV:'West Virginia',WI:'Wisconsin',WY:'Wyoming'};
+function deStAbbr(x){ x=String(x||'').trim(); if(!x) return ''; const u=x.toUpperCase(); if(DE_ST[u]) return u; const lo=x.toLowerCase(); return Object.keys(DE_ST).find(a=>DE_ST[a].toLowerCase()===lo)||''; }
+let _deSugs=[], _deSugT=null; window._dePu=null;
+function deSugShow(){ const el=document.getElementById('de-sug'); if(!el) return;
+  el.innerHTML=_deSugs.map((x,i)=>x.hint?'<div class="de-sg" style="color:#5F6368;cursor:default;font-size:13px;">'+deEsc(x.hint)+'</div>'
+    :'<div class="de-sg" onclick="dePick('+i+')"><span style="flex:1;min-width:0;"><b style="font-weight:700;'+(x.type==='state'?'color:#1A73E8;':'')+'">'+deEsc(x.label)+'</b>'+(x.sub?'<br><span style="font-size:12px;color:#5F6368;">'+deEsc(x.sub)+'</span>':'')+'</span>'+(x.zip&&x.type!=='zip'?'<span style="font-size:12px;color:#5F6368;">'+deEsc(x.zip)+'</span>':'')+'</div>').join(''); }
+function deKey(e){ if(e.key==='Enter'){ e.preventDefault(); const i=_deSugs.findIndex(x=>!x.hint); if(i>=0) dePick(i); else deGo(null); } else if(e.key==='Escape'){ _deSugs=[]; deSugShow(); } }
+function deClearQ(){ const q=document.getElementById('de-q'); if(q) q.value=''; const x=document.getElementById('de-x'); if(x) x.style.display='none'; _deSugs=[]; deSugShow(); window._dePu=null;
+  const r=document.getElementById('de-res'); if(r) r.innerHTML='<div style="font-size:14px;color:var(--text3);">'+deT('Busca arriba el ZIP, ciudad o estado del pick up.','Search the pick up ZIP, city or state above.')+'</div>'; if(window._deMe) deShowMe(window._deMe); }
+function deSug(){
+  const q=(document.getElementById('de-q')?.value||'').trim(); const x=document.getElementById('de-x'); if(x) x.style.display=q?'block':'none';
+  clearTimeout(_deSugT); if(!q){ _deSugs=[]; deSugShow(); return; }
+  if(/^\d+$/.test(q)){
+    if(q.length<5){ _deSugs=[{hint:deT('Escribe los 5 números del ZIP','Type all 5 ZIP digits')}]; deSugShow(); return; }
+    const z=q.slice(0,5); _deSugs=[{type:'zip',zip:z,label:'ZIP '+z}]; deSugShow();
+    _deSugT=setTimeout(async()=>{ const p=await fetchZip(z); if((document.getElementById('de-q')?.value||'').trim().slice(0,5)!==z) return; _deSugs=p?[{type:'zip',zip:z,label:p.city+', '+p.abbr+' '+z}]:[{hint:deT('Ese ZIP no existe','That ZIP does not exist')}]; deSugShow(); },150);
+    return;
+  }
+  const base=[]; const st=deStAbbr(q); if(st) base.push({type:'state',st,label:deT('Todo ','All of ')+DE_ST[st]+' ('+st+')',sub:deT('La ciudad de '+st+' más cercana a ti','The closest city in '+st+' to you')});
+  _deSugs=base.length?base:[{hint:deT('Buscando…','Searching…')}]; deSugShow();
+  if(q.length<3){ if(!base.length){ _deSugs=[]; deSugShow(); } return; }
+  _deSugT=setTimeout(async()=>{ const r=await dePlaceSearch(q); if((document.getElementById('de-q')?.value||'').trim()!==q) return;
+    _deSugs=base.concat(r); if(!_deSugs.length) _deSugs=[{hint:deT('Sin resultados. Prueba el ZIP o "Ciudad, TX"','No results. Try the ZIP or "City, TX"')}]; deSugShow(); },350);
+}
+async function dePlaceSearch(q){
+  let city=q, st=''; const m=q.match(/^(.+?)[,\s]+([A-Za-z]{2})$/); if(m&&DE_ST[m[2].toUpperCase()]){ city=m[1].trim(); st=m[2].toUpperCase(); }
+  const out=[], seen={};
+  const add=(name,stA,lat,lon,zip)=>{ if(!name||!stA||isNaN(lat)||isNaN(lon)) return; if(st&&stA!==st) return; const k=name.toLowerCase()+'|'+stA; if(seen[k]) return; seen[k]=1; out.push({type:'city',city:name,st:stA,lat:+lat,lon:+lon,zip:String(zip||'').slice(0,5),label:name+', '+stA,sub:DE_ST[stA]||''}); };
+  try{ const r=await fetch('https://photon.komoot.io/api/?limit=12&lang=en&osm_tag=place:city&osm_tag=place:town&osm_tag=place:village&bbox=-125,24,-66.5,49.6&q='+encodeURIComponent(city+(st?' '+DE_ST[st]:'')));
+    if(r.ok){ const j=await r.json(); (j.features||[]).forEach(f=>{ const p=f.properties||{}; if(p.countrycode&&p.countrycode!=='US') return; const c=(f.geometry&&f.geometry.coordinates)||[]; add(p.name,deStAbbr(p.state),c[1],c[0],p.postcode); }); } }catch(e){}
+  if(!out.length){ try{ const r=await fetch('https://nominatim.openstreetmap.org/search?format=json&countrycodes=us&addressdetails=1&limit=8&city='+encodeURIComponent(city)+(st?'&state='+encodeURIComponent(DE_ST[st]):''));
+    if(r.ok){ const j=await r.json(); j.forEach(x=>{ const a=x.address||{}; add(a.city||a.town||a.village||a.hamlet||(x.name||''),((a['ISO3166-2-lvl4']||'').split('-')[1]||deStAbbr(a.state)),+x.lat,+x.lon,a.postcode); }); } }catch(e){} }
+  return out.slice(0,6);
+}
+function dePick(i){ const s=_deSugs[i]; if(!s||s.hint) return; const q=document.getElementById('de-q'); if(q){ q.value=s.label; q.blur(); } _deSugs=[]; deSugShow(); deGo(s); }
+async function deGo(s){
+  const res=document.getElementById('de-res'); const q=(document.getElementById('de-q')?.value||'').trim();
+  const err=t=>{ if(res) res.innerHTML='<div style="font-size:13px;font-weight:700;color:#DC2626;">'+t+'</div>'; };
+  if(!s){ if(!q) return; if(/^\d{5}/.test(q)) s={type:'zip',zip:q.slice(0,5)}; else if(deStAbbr(q)) s={type:'state',st:deStAbbr(q)}; else { const r=await dePlaceSearch(q); if(!r.length) return err(deT('No encontré ese lugar. Prueba el ZIP o "Ciudad, TX".','Place not found. Try the ZIP or "City, TX".')); s=r[0]; } }
+  if(res) res.innerHTML='<div style="font-size:13px;color:var(--text3);">'+deT('Calculando…','Calculating…')+'</div>';
+  let T=null;
+  if(s.type==='zip'){ const p=await fetchZip(s.zip); if(!p) return err(deT('Ese ZIP no existe.','That ZIP does not exist.')); T={lat:p.lat,lon:p.lon,city:p.city,abbr:p.abbr,zip:s.zip}; }
+  else if(s.type==='city'){ let z=s.zip; if(!/^\d{5}$/.test(z||'')){ const g=await deRevGeo(s.lat,s.lon); z=(g&&g.zip)||''; } T={lat:s.lat,lon:s.lon,city:s.city,abbr:s.st,zip:z}; }
+  else if(s.type==='state'){
+    const F=await deFrom(); const me=F&&F.me; if(!me) return err(deT('No pudimos ver tu ubicación. Toca Cambiar y escribe tu ZIP.','Could not get your location. Tap Change and type your ZIP.'));
+    let bb=null,c=null; try{ const r=await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&country=USA&state='+encodeURIComponent(DE_ST[s.st])); if(r.ok){ const j=await r.json(); if(j[0]){ bb=j[0].boundingbox.map(Number); c={lat:+j[0].lat,lon:+j[0].lon}; } } }catch(e){}
+    if(!bb) return err(deT('No pude cargar ese estado. Prueba una ciudad o ZIP.','Could not load that state. Try a city or ZIP.'));
+    let lat=Math.min(bb[1],Math.max(bb[0],+me.lat)), lon=Math.min(bb[3],Math.max(bb[2],+me.lon));
+    for(let k=0;k<5;k++){ const g=await deRevGeo(lat,lon); if(g&&g.st===s.st&&g.city){ T={lat,lon,city:g.city,abbr:s.st,zip:g.zip||''}; break; } lat+=(c.lat-lat)*0.35; lon+=(c.lon-lon)*0.35; }
+    if(!T){ const g=await deRevGeo(c.lat,c.lon); T={lat:c.lat,lon:c.lon,city:(g&&g.city)||DE_ST[s.st],abbr:s.st,zip:(g&&g.zip)||''}; }
+  }
+  window._dePu=T; const zi=document.getElementById('de-zip'); if(zi) zi.value=T.zip||'';
+  deCalc();
+}
+
 // Fichas de ETA: ubicación del chofer (GPS o ZIP escrito) y pick up
 window._deMe=null;
 async function deZipInfo(which){
@@ -15316,11 +15408,11 @@ async function deFrom(){
   return {me:window._deMe, here:g};
 }
 async function deCalc(){
-  const zip=(document.getElementById('de-zip')?.value||'').trim(), res=document.getElementById('de-res'); if(!res) return;
+  const T=window._dePu; const zip=T?(T.zip||''):(document.getElementById('de-zip')?.value||'').trim(), res=document.getElementById('de-res'); if(!res) return;
   const msg=(c,t)=>{ res.innerHTML='<div style="font-size:13px;font-weight:700;color:'+c+';">'+t+'</div>'; };
-  if(!/^\d{5}$/.test(zip)) return msg('#DC2626',deT('Escribe el ZIP del pick up (5 números).','Enter the pick up ZIP (5 digits).'));
+  if(!T && !/^\d{5}$/.test(zip)) return msg('#DC2626',deT('Busca arriba el ZIP, ciudad o estado del pick up.','Search the pick up ZIP, city or state above.'));
   msg('var(--text3)',deT('Buscando dónde estás…','Finding your location…'));
-  const [F,pu]=await Promise.all([deFrom(), fetchZip(zip)]);
+  const [F,pu]=await Promise.all([deFrom(), T?Promise.resolve({city:T.city,abbr:T.abbr,lat:T.lat,lon:T.lon}):fetchZip(zip)]);
   if(!pu) return msg('#DC2626',deT('No encontré ese ZIP.','ZIP not found.'));
   if(F&&F.bad) return msg('#DC2626',deT('Tu ZIP no existe. Toca Cambiar y revísalo.','Your ZIP was not found. Tap Change and check it.'));
   const me=F&&F.me;
@@ -15348,26 +15440,29 @@ async function deCalc(){
   const hereTxt=[here.city,here.st].filter(Boolean).join(', ')+(here.zip?' '+here.zip:'');
   const best=out[out.length-1];
   const N=v=>Math.round(v).toLocaleString('en-US'), H=h=>{ const m=Math.round(h*60); return Math.floor(m/60)+' h '+String(m%60).padStart(2,'0')+' min'; };
-  const msgEn='Hi, this is '+((currentUser.firstName||currentUser.name||'').split(' ')[0]||'the driver')+' with YENAVI FREIGHT. I am in '+(hereTxt||'my current location')+', about '+N(best.mi)+' miles from '+pu.city+', '+pu.abbr+' '+zip+'. My ETA to the pick up is '+dlLocal(best.eta,tzPu)+'.';
+  const msgEn='Hi, this is '+((currentUser.firstName||currentUser.name||'').split(' ')[0]||'the driver')+' with YENAVI FREIGHT. I am in '+(hereTxt||'my current location')+', about '+N(best.mi)+' miles from '+pu.city+', '+pu.abbr+(zip?' '+zip:'')+'. My ETA to the pick up is '+dlLocal(best.eta,tzPu)+'.';
   const P=(ts,tz)=>{ const L=window.TL_LANG==='en'?'en-US':'es-MX'; const d=new Date(ts);
     const time=d.toLocaleTimeString('en-US',{timeZone:tz,hour:'numeric',minute:'2-digit'});
     const day=d.toLocaleDateString(L,{timeZone:tz,weekday:'short',month:'short',day:'numeric'});
     const zn=(d.toLocaleTimeString('en-US',{timeZone:tz,timeZoneName:'short'}).split(' ').pop())||''; return {time,day,zn}; };
-  const hp=P(best.eta,tzPu), puTxt=pu.city+', '+pu.abbr+' '+zip;
+  const hp=P(best.eta,tzPu), puTxt=pu.city+', '+pu.abbr+(zip?' '+zip:'');
   const extra=best.first?' · +'+DE_LOAD_H+' h '+deT('para descargar','to unload'):((deDriveHours(best.drive,hrs)-best.drive>0.01)?' · '+deT('con descansos','incl. breaks'):'');
   const other=out.filter(o=>o!==best);
+  const left=best.eta-now, lm=Math.max(0,Math.round(left/60000)), durTxt=lm<60?lm+' min':(lm<1440?Math.floor(lm/60)+'h'+(lm%60?' '+(lm%60)+'m':''):Math.floor(lm/1440)+'d '+Math.floor((lm%1440)/60)+'h');
+  const withRest=deDriveHours(best.drive,hrs)-best.drive>=9.9;  // solo cuenta el descanso de 10 h (el de 30 min no)
+  const durCol=best.first?'#B06000':withRest?'#E37400':'#188038';
+  const line=best.first?'<div style="font-size:14px;font-weight:800;color:#B06000;margin-top:4px;">'+deEsc(deT('Primero entregas en ','First you deliver in ')+(act.city2||dz.city)+', '+(act.state2||dz.abbr))+'</div>'
+    :withRest?'<div style="font-size:14px;font-weight:800;color:#E37400;margin-top:4px;">'+deT('Ya incluye tu descanso de 10 horas','Includes your 10-hour rest')+'</div>'
+    :'<div style="font-size:14px;font-weight:800;color:#188038;margin-top:4px;">'+deT('Te alcanzan las horas para llegar directo','You have enough hours to drive straight')+'</div>';
   res.innerHTML=
-    '<div class="eta-hero">'+
-      '<div class="eta-hero-k">'+(best.first?deEsc(best.t):deT('Llegas al pick up','Arrival at pick up'))+'</div>'+
-      '<div class="eta-hero-t">'+deEsc(hp.time)+'</div>'+
-      '<div class="eta-hero-d">'+deEsc(hp.day)+' · '+deEsc(hp.zn)+'</div>'+
-      '<div class="eta-route">'+
-        '<div class="eta-pt"><span class="eta-dot"></span><div><div class="eta-pt-k">'+deT('Estás en','You are in')+'</div><div class="eta-pt-v">'+deEsc(hereTxt||deT('tu ubicación','your location'))+'</div></div></div>'+
-        '<div class="eta-leg">'+N(best.mi)+' mi'+(best.est?' ('+deT('aprox.','approx.')+')':'')+' · '+H(best.drive)+deEsc(extra)+'</div>'+
-        '<div class="eta-pt"><span class="eta-dot eta-dot2"></span><div><div class="eta-pt-k">Pick up</div><div class="eta-pt-v">'+deEsc(puTxt)+'</div></div></div>'+
-      '</div>'+
+    '<div style="font-size:16px;font-weight:800;">Pick up: '+deEsc(puTxt)+'</div>'+
+    '<div class="de-tiles">'+
+      '<div class="de-tile"><div class="de-big" style="color:'+durCol+';">'+deEsc(durTxt)+'</div><div class="de-tcap">'+deT('Tardas en llegar','Time to arrive')+'</div></div>'+
+      '<div class="de-tile"><div class="de-big">'+N(best.mi)+'<span style="font-size:.55em;"> mi</span></div><div class="de-tcap">'+deT('Millas','Miles')+(best.est?' ('+deT('aprox.','approx.')+')':'')+'</div></div>'+
     '</div>'+
-    '<div id="de-map" class="de-map" data-no-tr="1"></div>'+
+    '<div style="font-size:16px;margin-top:12px;">'+deT('Llegas','Arrives')+': <b>'+deEsc(hp.time)+'</b> · '+deEsc(hp.day)+' <span style="font-size:12px;color:var(--text3);">('+deEsc(hp.zn)+')</span></div>'+
+    line+
+    '<div style="height:10px;"></div>'+
     other.map(o=>{ const q=P(o.eta,tzPu); return '<div class="eta-alt"><div style="flex:1;min-width:0;"><div class="eta-pt-k" style="color:var(--text3);">'+deEsc(o.t)+'</div><div style="font-size:12px;color:var(--text3);">'+N(o.mi)+' mi · '+H(o.drive)+'</div></div><div style="text-align:right;"><div style="font-size:18px;font-weight:900;color:var(--text);">'+deEsc(q.time)+'</div><div style="font-size:11.5px;color:var(--text3);">'+deEsc(q.day)+'</div></div></div>'; }).join('')+
     '<textarea id="de-msg" readonly style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;">'+deEsc(msgEn)+'</textarea>'+
     '<button type="button" onclick="deCopy(this)" class="eta-copy">'+deT('Copiar mensaje para el broker','Copy message for broker')+'</button>'+
@@ -15380,15 +15475,15 @@ async function deCalc(){
       '<a class="eta-nav-b" target="_blank" rel="noopener" href="https://hammerapp.com/app/route/current-location/'+encodeURIComponent(puTxt)+'">'+
         '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4l6 6-3 3-6-6z"/><path d="M11 7 3 15l3 3 8-8"/></svg>Hammer</a>'+
     '</div><div id="de-tp-msg" class="eta-nav-m"></div>';
-  setTimeout(function(){ try{ res.scrollIntoView({behavior:'smooth',block:'start'}); }catch(e){} },60);
+  setTimeout(function(){ try{ document.getElementById('de-map').scrollIntoView({behavior:'smooth',block:'start'}); }catch(e){} },60);
   try{ deDrawMap(me, best.first&&dz?dz:null, pu, hereTxt, puTxt, best.first&&act?((act.city2||dz.city)+', '+(act.state2||dz.abbr)):''); }catch(e){ console.warn('deMap',e); }
 }
 // Mapa real (OpenStreetMap) con la ruta: dónde estás → (entrega si vas cargado) → pick up
 async function deDrawMap(me, del, pu, hereTxt, puTxt, delTxt){
   const el=document.getElementById('de-map'); if(!el || typeof L==='undefined') { if(el) el.style.display='none'; return; }
   try{ if(window._deMapObj){ window._deMapObj.remove(); window._deMapObj=null; } }catch(e){}
-  const map=L.map(el,{zoomControl:true,attributionControl:true,scrollWheelZoom:false,tap:true}); window._deMapObj=map;
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:18}).addTo(map);
+  const map=L.map(el,{zoomControl:false,attributionControl:true,tap:true}); window._deMapObj=map;
+  L.tileLayer(deTiles(),{attribution:'© OpenStreetMap © CARTO',subdomains:'abcd',maxZoom:19}).addTo(map);
   const pts=[me,del,pu].filter(Boolean).map(p=>[+p.lat,+p.lon]);
   const pin=(ll,color,label,txt)=>L.marker(ll,{icon:L.divIcon({className:'de-pin',html:'<div style="background:'+color+';">'+label+'</div>',iconSize:[30,30],iconAnchor:[15,15]})}).addTo(map).bindPopup(deEsc(txt||''));
   pin(pts[0], me.src==='eld'?'#2563EB':'#16A34A', '●', deT('Estás en: ','You are in: ')+(hereTxt||''));
@@ -15400,7 +15495,7 @@ async function deDrawMap(me, del, pu, hereTxt, puTxt, delTxt){
     const r=await fetch('https://router.project-osrm.org/route/v1/driving/'+pts.map(p=>p[1]+','+p[0]).join(';')+'?overview=simplified&geometries=geojson');
     const d=r.ok?await r.json():null; const g=d&&d.routes&&d.routes[0]&&d.routes[0].geometry;
     if(window._deMapObj!==map) return;
-    if(g&&g.coordinates&&g.coordinates.length){ const line=L.polyline(g.coordinates.map(c=>[c[1],c[0]]),{color:'#1E3A8A',weight:5,opacity:.85}).addTo(map); map.fitBounds(line.getBounds().pad(0.15)); return; }
+    if(g&&g.coordinates&&g.coordinates.length){ const line=L.polyline(g.coordinates.map(c=>[c[1],c[0]]),{color:'#1A73E8',weight:6,opacity:.9}).addTo(map); map.fitBounds(line.getBounds().pad(0.15)); return; }
   }catch(e){}
   if(window._deMapObj===map) L.polyline(pts,{color:'#1E3A8A',weight:4,opacity:.7,dashArray:'8 8'}).addTo(map);
 }
@@ -15553,7 +15648,7 @@ function sidebarNav(id){
   if(id==='pagos') renderPagos();
   if(id==='gas') renderGas();
   if(id==='miviaje') renderMiViaje();
-  if(id==='eta'){ try{ document.querySelectorAll('.eta-st-l').forEach(function(e){ e.textContent=window.TL_LANG==='en'?'State':'Estado'; }); deLocate(false); }catch(e){} }
+  if(id==='eta'){ try{ deOpenPage(); }catch(e){ console.warn('eta',e); } }
   if(id==='misganancias') renderMisGanancias(); if(id==='dmk') renderDmk();
   if(id==='misdocs') renderDocs();
   if(id==='inspeccion'){ if(currentUser&&currentUser.role==='driver'){ return sidebarNav('home'); } renderInspeccion(); }

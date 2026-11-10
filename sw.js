@@ -1,7 +1,7 @@
 // YENAVI Truck Trip Log — service worker
 // Abre rápido y funciona con mala señal: la página se pide a internet primero (para tener siempre la versión nueva)
 // y si no hay señal usa la copia guardada. No toca Firebase, Google ni otros servicios: esos van directo a internet.
-const VERSION = 'yenavi-2026-11-10a';
+const VERSION = 'yenavi-2026-11-10b';
 const SHELL = ['./', './index.html', './driver.html', './manifest.webmanifest', './driver.webmanifest',
   './icon-192.png', './icon-512.png', './apple-touch-icon.png', './driver-icon-192.png', './driver-icon-512.png', './driver-apple-touch-icon.png'];
 
@@ -20,7 +20,7 @@ self.addEventListener('fetch', (e) => {
   if (url.origin !== self.location.origin) return;             // Firebase, Google, mapas: directo a internet
   const isPage = req.mode === 'navigate' || /\.html$/.test(url.pathname) || url.pathname.endsWith('/');
   if (isPage) {
-    e.respondWith(fetch(req).then((res) => {
+    e.respondWith(fetch(req, { cache: 'no-store' }).then((res) => {   // siempre la versión nueva (sin la copia de 10 min del navegador)
       if (res && res.ok) { const copy = res.clone(); caches.open(VERSION).then((c) => c.put(req, copy)); }
       return res;
     }).catch(() => caches.match(req).then((r) => r || caches.match('./index.html'))));

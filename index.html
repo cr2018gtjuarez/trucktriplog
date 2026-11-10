@@ -5584,7 +5584,7 @@ function openLightbox(src){document.getElementById('lightbox-img').src=src;docum
 function closeLightbox(){document.getElementById('lightbox').classList.remove('open');}
 
 // ===== Validación de cargas de diesel (para que el MPG salga real) =====
-const DIESEL_PRICE_MIN=2.50, DIESEL_PRICE_MAX=7.50, DIESEL_GAL_MIN=5, DIESEL_GAL_MAX=400;
+const DIESEL_PRICE_MIN=2.50, DIESEL_PRICE_MAX=10.00, DIESEL_GAL_MIN=5, DIESEL_GAL_MAX=400;
 function dieselLoadError(gal, price, tipo){
   tipo=tipo||'diesel'; if(tipo==='otro') return null;
   if(!(gal>0)||!(price>0)) return 'Ingresa los galones y el precio por galón del recibo.';

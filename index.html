@@ -1605,14 +1605,11 @@ label.dead-lock-lbl{color:#B91C1C!important;font-weight:800;}
   <!-- EN TRÁNSITO -->
   <div class="page" id="page-eta">
     <style id="eta-css">
-.eta-row{display:flex;flex-direction:column;gap:8px}
-.eta-stats{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;order:2}
-.eta-info{order:1;min-width:0}
+.eta-stats{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;max-width:520px}
 .eta-tile{background:var(--bg3);border-radius:12px;padding:10px 12px}
 .eta-big{font-size:28px;font-weight:800;line-height:1.05;white-space:nowrap}
-.eta-cap{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;margin-top:3px}
-.eta-first{grid-column:1/-1;font-size:11px;font-weight:800;color:#1A73E8;text-align:center}
-@media(min-width:700px){.eta-row{flex-direction:row;align-items:flex-start;gap:16px}.eta-info{flex:1}.eta-stats{order:2;width:400px;flex-shrink:0}.eta-big{font-size:34px}}
+.eta-cap{font-size:12px;font-weight:700;color:var(--text3);margin-top:3px}
+@media(min-width:700px){.eta-big{font-size:38px}}
 </style>
     <div id="eta-page-body" data-no-tr></div>
   </div>
@@ -5910,7 +5907,7 @@ let _etaLast=null, _etaFleet=null, _etaMap=null, _etaLayer=null, _etaSugT=null, 
 const US_ST={AL:'Alabama',AK:'Alaska',AZ:'Arizona',AR:'Arkansas',CA:'California',CO:'Colorado',CT:'Connecticut',DE:'Delaware',DC:'District of Columbia',FL:'Florida',GA:'Georgia',HI:'Hawaii',ID:'Idaho',IL:'Illinois',IN:'Indiana',IA:'Iowa',KS:'Kansas',KY:'Kentucky',LA:'Louisiana',ME:'Maine',MD:'Maryland',MA:'Massachusetts',MI:'Michigan',MN:'Minnesota',MS:'Mississippi',MO:'Missouri',MT:'Montana',NE:'Nebraska',NV:'Nevada',NH:'New Hampshire',NJ:'New Jersey',NM:'New Mexico',NY:'New York',NC:'North Carolina',ND:'North Dakota',OH:'Ohio',OK:'Oklahoma',OR:'Oregon',PA:'Pennsylvania',RI:'Rhode Island',SC:'South Carolina',SD:'South Dakota',TN:'Tennessee',TX:'Texas',UT:'Utah',VT:'Vermont',VA:'Virginia',WA:'Washington',WV:'West Virginia',WI:'Wisconsin',WY:'Wyoming'};
 function etaStAbbr(s){ s=String(s||'').trim(); if(!s) return ''; const u=s.toUpperCase(); if(US_ST[u]) return u; const lo=s.toLowerCase(); return Object.keys(US_ST).find(a=>US_ST[a].toLowerCase()===lo)||''; }
 function etaEsc(x){ return String(x==null?'':x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-function etaDur(ms){ const m=Math.max(0,Math.round(ms/60000)); if(m<60) return m+' min'; const h=Math.floor(m/60), r=m%60; if(h<24) return h+' h'+(r?' '+r+' min':''); const d=Math.floor(h/24); return d+' d '+(h%24)+' h'; }
+function etaDur(ms){ const m=Math.max(0,Math.round(ms/60000)); if(m<60) return m+' min'; const h=Math.floor(m/60), r=m%60; if(h<24) return h+'h'+(r?' '+r+'m':''); const d=Math.floor(h/24); return d+'d '+(h%24)+'h'; }
 const ETA_SVG_SEARCH='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5F6368" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>';
 const ETA_SVG_PIN='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5F6368" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.5-7-12a7 7 0 0 1 14 0c0 5.5-7 12-7 12z"/><circle cx="12" cy="9" r="2.5"/></svg>';
 const ETA_SVG_MAP='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1A73E8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3z"/><path d="M9 3v15M15 6v15"/></svg>';
@@ -5932,7 +5929,7 @@ function renderEtaPage(){
   const box=document.getElementById('eta-page-body'); if(!box) return;
   if(box.dataset.ready!=='1'){
     box.innerHTML=`
-<div style="position:relative;border-radius:18px;overflow:hidden;border:1px solid var(--border);background:#E8EEF1;">
+<div style="position:relative;isolation:isolate;z-index:0;border-radius:18px;overflow:hidden;border:1px solid var(--border);background:#E8EEF1;">
   <div id="eta-map" style="height:44vh;min-height:280px;max-height:520px;"></div>
   <div style="position:absolute;top:10px;left:10px;right:10px;z-index:1001;">
     <div style="background:#fff;border-radius:24px;box-shadow:0 2px 6px rgba(0,0,0,.25);overflow:hidden;">
@@ -6235,33 +6232,41 @@ function etaPaint(){
         : (H?etaHereMsg(H,now)+' ':'')+'Empty and available. ')
       +'ETA to pickup in '+puName+(r.pu.zip?' '+r.pu.zip:'')+': '+dlLocal(r.eta,puTz)+' ('+dead+' mi).'+(truckDimsText(r.tr,{en:true}).length?'\n'+truckDimsText(r.tr,{en:true}).join('\n'):'');
     const L2=truckDimsText(r.tr);
-    return `<div style="padding:12px 0;${i?'border-top:1px solid var(--border);':''}">
-      <div onclick="etaFocus(${i})" class="eta-row" style="cursor:pointer;">
-        <div class="eta-stats">
-          <div class="eta-tile"><div class="eta-big" style="color:${durColor};">${etaDur(r.eta-now)}</div><div class="eta-cap">${TR('Para llegar','To arrive')}</div></div>
-          <div class="eta-tile"><div class="eta-big">${dead.toLocaleString('en-US')}<span style="font-size:.55em;"> mi</span></div><div class="eta-cap">${TR('Millas al pick up','Miles to pick up')}${r.est?' ('+TR('aprox.','approx.')+')':''}</div></div>
-          ${isBest?`<div class="eta-first">${TR('LLEGA PRIMERO','ARRIVES FIRST')}</div>`:''}
+    const whereNow=H?[H.city,H.st].filter(Boolean).join(', ')+(H.zip?' '+H.zip:''):'';
+    const firstTxt=act?(act.arrived?TR('Está descargando en ','Unloading in ')+act.place:TR('Primero entrega en ','First delivers in ')+act.place):(r.steps.length?TR('Primero hace sus cargas programadas','First does scheduled loads'):'');
+    return `<div style="padding:14px 0;${i?'border-top:1px solid var(--border);':''}">
+      <div onclick="etaFocus(${i})" style="cursor:pointer;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+          <div style="font-size:17px;font-weight:800;">${esc(r.tr.name)}${r.drvName?' · '+esc(r.drvName.split(' ')[0]):''}</div>
+          ${isBest?`<span style="font-size:12px;font-weight:800;background:#1A73E8;color:#fff;padding:4px 10px;border-radius:12px;white-space:nowrap;">${TR('Llega primero','Arrives first')}</span>`:''}
         </div>
-        <div class="eta-info">
-        <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;">
-          <div style="font-size:15px;font-weight:800;">${esc(r.tr.name)}${r.drvName?' · '+esc(r.drvName.split(' ')[0]):''}</div>
-          <div style="font-size:12px;font-weight:800;padding:5px 10px;border-radius:14px;white-space:nowrap;${isBest?'background:#1A73E8;color:#fff;':'border:1px solid var(--border);color:var(--text);'}">${detaWhen(r.eta)}</div>
+        <div style="font-size:14px;color:var(--text2);margin-top:2px;">${TR('Ahora en','Now in')}: <b style="color:var(--text);">${esc(whereNow||TR('sin ubicación','no location'))}</b>${H&&H.src==='last'?' <span style="font-size:12px;color:#E37400;">('+TR('última entrega','last delivery')+')</span>':''}</div>
+        <div class="eta-stats" style="margin-top:10px;">
+          <div class="eta-tile"><div class="eta-big" style="color:${durColor};">${etaDur(r.eta-now)}</div><div class="eta-cap">${TR('Tarda en llegar','Time to arrive')}</div></div>
+          <div class="eta-tile"><div class="eta-big">${dead.toLocaleString('en-US')}<span style="font-size:.55em;"> mi</span></div><div class="eta-cap">${TR('Millas','Miles')}</div></div>
         </div>
-        <div style="font-size:12px;color:var(--text2);margin-top:6px;">${r.tot.toFixed(1)} h ${TR('de camino','on the road')}${rest?' · <span style="color:#E37400;font-weight:700;">'+TR('incluye descanso 10 h','incl. 10 h rest')+'</span>':''}${fuel!=null?' · '+TR('diésel ~','diesel ~')+asstMoney(fuel):''}</div>
-        <div style="font-size:12px;color:var(--text2);">${target.kind==='state'?'Pick up: <b>'+esc(puName)+(r.pu.zip?' '+esc(r.pu.zip):'')+'</b> · ':''}${TR('llega hora local','arrives local time')} <b>${dlLocal(r.eta,puTz)}</b></div>
-        ${etaHereHtml(H,now)}
-        ${stepsHtml}
-        ${r.busy?'':`<div style="font-size:12px;margin-top:4px;color:#137333;font-weight:700;">✅ ${TR('Sin carga: libre','Empty: available')}</div>`}
-        </div>
+        <div style="font-size:15px;margin-top:10px;">${TR('Llega','Arrives')}: <b>${detaWhen(r.eta)}</b> <span style="font-size:12px;color:var(--text3);">(${TR('hora de','time in')} ${esc(r.pu.abbr||'')})</span></div>
+        ${target.kind==='state'?`<div style="font-size:13px;color:var(--text2);">Pick up: <b>${esc(puName)}${r.pu.zip?' '+esc(r.pu.zip):''}</b></div>`:''}
+        ${firstTxt?`<div style="font-size:13px;color:#B06000;font-weight:700;margin-top:2px;">${esc(firstTxt)}</div>`:`<div style="font-size:13px;color:#137333;font-weight:700;margin-top:2px;">${TR('Está vacío, listo para salir','Empty, ready to go')}</div>`}
+        ${rest?`<div style="font-size:12px;color:#E37400;margin-top:2px;">${TR('Ya incluye el descanso de 10 horas','Includes the 10-hour rest')}</div>`:''}
       </div>
       ${rateHtml}
-      ${L2.length?`<details style="margin-top:4px;"><summary style="font-size:12px;cursor:pointer;color:var(--text2);">📏 ${esc(L2[0].replace(/^Caja por dentro \(L x A x Al\): /,'Caja '))}</summary><div style="font-size:12px;color:var(--text2);">${L2.map(esc).join('<br/>')}</div></details>`:''}
-      <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap;">
-        <button type="button" data-msg="${esc(msg)}" onclick="etaCopy(this)" style="font-size:12px;font-weight:700;padding:7px 12px;border-radius:16px;border:none;background:#1A73E8;color:#fff;cursor:pointer;">📋 ${TR('Copiar para el broker','Copy for broker')}</button>
-        <button type="button" onclick="tcPdf('${r.tr.id}',this)" style="font-size:12px;font-weight:700;padding:7px 12px;border-radius:16px;border:1px solid var(--border);background:var(--bg3);color:var(--text);cursor:pointer;">📸 Truck check PDF</button>
-        ${r.busy?'':`<label style="font-size:11px;color:var(--text3);display:flex;align-items:center;gap:4px;">${TR('Horas que le quedan','Hours left')} <input type="number" min="0" max="11" step="0.5" value="${r.avail}" onchange="etaSetAvail(${i},this.value)" style="width:52px;padding:4px;border:1px solid var(--border);border-radius:6px;background:var(--bg3);color:var(--text);"/></label>
-        <label style="font-size:11px;color:var(--text3);display:flex;align-items:center;gap:4px;">${TR('Sale a las','Leaves at')} <input type="time" value="${esc(r.leave)}" onchange="etaSetLeave(${i},this.value)" style="padding:3px;border:1px solid var(--border);border-radius:6px;background:var(--bg3);color:var(--text);"/></label>`}
-      </div></div>`; }).join('')+`<div style="font-size:11px;color:var(--text3);margin-top:4px;">${TR('Promedio '+ETA_MPH+' mph por carretera, con 30 min de descanso cada 8 h y 10 h al terminar sus horas. Si va cargado: '+ETA_UNLOAD_H+' h para descargar; cargas programadas: '+ETA_LOAD_H+' h para cargar.','Average '+ETA_MPH+' mph by road, with a 30-min break every 8 h and 10 h after the shift. Loaded: '+ETA_UNLOAD_H+' h to unload; scheduled loads: '+ETA_LOAD_H+' h to load.')}</div>`;
+      <button type="button" data-msg="${esc(msg)}" onclick="etaCopy(this)" style="width:100%;margin-top:10px;font-size:15px;font-weight:800;padding:12px;border-radius:12px;border:none;background:#1A73E8;color:#fff;cursor:pointer;">📋 ${TR('Copiar para el broker','Copy for broker')}</button>
+      <details style="margin-top:8px;"><summary style="font-size:13px;color:var(--text3);cursor:pointer;">${TR('Más detalles','More details')}</summary>
+        <div style="padding-top:4px;">
+        <div style="font-size:12px;color:var(--text2);">${r.tot.toFixed(1)} h ${TR('de camino','on the road')}${fuel!=null?' · '+TR('diésel ~','diesel ~')+asstMoney(fuel):''}${r.est?' · '+TR('millas aprox.','approx. miles'):''}</div>
+        <div style="font-size:12px;color:var(--text2);">${TR('Llega hora local','Arrives local time')} <b>${dlLocal(r.eta,puTz)}</b></div>
+        ${etaHereHtml(H,now)}
+        ${stepsHtml}
+        ${L2.length?`<div style="font-size:12px;color:var(--text2);margin-top:4px;">${L2.map(esc).join('<br/>')}</div>`:''}
+        <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap;">
+          <button type="button" onclick="tcPdf('${r.tr.id}',this)" style="font-size:12px;font-weight:700;padding:7px 12px;border-radius:16px;border:1px solid var(--border);background:var(--bg3);color:var(--text);cursor:pointer;">📸 Truck check PDF</button>
+          ${r.busy?'':`<label style="font-size:11px;color:var(--text3);display:flex;align-items:center;gap:4px;">${TR('Horas que le quedan','Hours left')} <input type="number" min="0" max="11" step="0.5" value="${r.avail}" onchange="etaSetAvail(${i},this.value)" style="width:52px;padding:4px;border:1px solid var(--border);border-radius:6px;background:var(--bg3);color:var(--text);"/></label>
+          <label style="font-size:11px;color:var(--text3);display:flex;align-items:center;gap:4px;">${TR('Sale a las','Leaves at')} <input type="time" value="${esc(r.leave)}" onchange="etaSetLeave(${i},this.value)" style="padding:3px;border:1px solid var(--border);border-radius:6px;background:var(--bg3);color:var(--text);"/></label>`}
+        </div>
+        <div style="font-size:11px;color:var(--text3);margin-top:6px;">${TR('Calculado a '+ETA_MPH+' mph promedio, con descansos de horas de servicio.','Calculated at '+ETA_MPH+' mph average, with hours-of-service breaks.')}</div>
+        </div></details>
+    </div>`; }).join('');
   etaDraw();
 }
 // ===== DOCUMENTOS (admin): licencia, tarjeta médica, registro, seguro, IFTA, inspección anual — los sube el chofer en su app

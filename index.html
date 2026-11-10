@@ -1603,6 +1603,10 @@ label.dead-lock-lbl{color:#B91C1C!important;font-weight:800;}
   </div>
 
   <!-- EN TRÁNSITO -->
+  <div class="page" id="page-eta">
+    <div id="eta-page-body" data-no-tr></div>
+  </div>
+
   <div class="page" id="page-entransito">
 
     <!-- LISTA de viajes activos -->
@@ -5889,33 +5893,72 @@ async function fillTransitEtas(){
   }
 }
 
-// ===== ETA RÁPIDO AL PICK UP: escribes el ZIP y ves cuánto tarda cada camión =====
+// ===== ETA AL PICK UP — página propia del admin, estilo Maps =====
+// Busca por ZIP, ciudad o estado. Antes de buscar muestra dónde está cada camión ahorita (ciudad, estado y ZIP).
 const ETA_MPH=55, ETA_LIVE_MIN=60;
-let _etaLast=null;
+let _etaLast=null, _etaFleet=null, _etaMap=null, _etaLayer=null, _etaSugT=null, _etaSugs=[], _etaBusy=0;
+const US_ST={AL:'Alabama',AK:'Alaska',AZ:'Arizona',AR:'Arkansas',CA:'California',CO:'Colorado',CT:'Connecticut',DE:'Delaware',DC:'District of Columbia',FL:'Florida',GA:'Georgia',HI:'Hawaii',ID:'Idaho',IL:'Illinois',IN:'Indiana',IA:'Iowa',KS:'Kansas',KY:'Kentucky',LA:'Louisiana',ME:'Maine',MD:'Maryland',MA:'Massachusetts',MI:'Michigan',MN:'Minnesota',MS:'Mississippi',MO:'Missouri',MT:'Montana',NE:'Nebraska',NV:'Nevada',NH:'New Hampshire',NJ:'New Jersey',NM:'New Mexico',NY:'New York',NC:'North Carolina',ND:'North Dakota',OH:'Ohio',OK:'Oklahoma',OR:'Oregon',PA:'Pennsylvania',RI:'Rhode Island',SC:'South Carolina',SD:'South Dakota',TN:'Tennessee',TX:'Texas',UT:'Utah',VT:'Vermont',VA:'Virginia',WA:'Washington',WV:'West Virginia',WI:'Wisconsin',WY:'Wyoming'};
+function etaStAbbr(s){ s=String(s||'').trim(); if(!s) return ''; const u=s.toUpperCase(); if(US_ST[u]) return u; const lo=s.toLowerCase(); return Object.keys(US_ST).find(a=>US_ST[a].toLowerCase()===lo)||''; }
+function etaEsc(x){ return String(x==null?'':x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function etaDur(ms){ const m=Math.max(0,Math.round(ms/60000)); if(m<60) return m+' min'; const h=Math.floor(m/60), r=m%60; if(h<24) return h+' h'+(r?' '+r+' min':''); const d=Math.floor(h/24); return d+' d '+(h%24)+' h'; }
+const ETA_SVG_SEARCH='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5F6368" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>';
+const ETA_SVG_PIN='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5F6368" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.5-7-12a7 7 0 0 1 14 0c0 5.5-7 12-7 12z"/><circle cx="12" cy="9" r="2.5"/></svg>';
+const ETA_SVG_MAP='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1A73E8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3z"/><path d="M9 3v15M15 6v15"/></svg>';
+
+// Inicio: solo un acceso directo a la página ETA
 function renderEtaBox(){
-  const box=document.getElementById('home-eta'); if(!box) return;
-  if(box.dataset.ready==='1'){ box.style.display='block'; return; }
-  box.innerHTML=`  <div style="background:var(--card,#fff);border:2px solid #1E3A8A;border-radius:16px;padding:14px;margin-bottom:12px;">
-    <div style="font-size:15px;font-weight:800;margin-bottom:2px;">📞 ${TR('¿Cuánto tarda en llegar a la carga?','How long to reach the load?')}</div>
-    <div style="font-size:12px;color:var(--text3);margin-bottom:10px;">${TR('Para cuando el broker pregunta: escribe el ZIP del pick up y ve dónde está cada camión ahorita y cuándo llega.','When a broker asks: type the pick up ZIP and see where each truck is now and when it arrives.')}</div>
-    <select id="eta-driver" onfocus="etaFillDrv()" onchange="if(_etaLast) etaCalc()" style="width:100%;font-size:14px;padding:8px 10px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg3);color:var(--text);margin-bottom:8px;"><option value="">${TR('Todos los camiones','All trucks')}</option></select>
-    <div style="display:flex;gap:8px;">
-      <input id="eta-zip" onkeydown="if(event.key==='Enter') etaCalc()" type="text" inputmode="numeric" maxlength="5" placeholder="${TR('ZIP del pick up','Pick up ZIP')}" style="flex:1;min-width:0;font-size:16px;padding:10px 12px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg3);color:var(--text);" onkeydown="if(event.key==='Enter')etaCalc()"/>
-      <button type="button" onclick="etaCalc()" style="padding:10px 16px;border-radius:10px;border:none;background:#1E3A8A;color:#fff;font-weight:800;font-size:14px;cursor:pointer;">${TR('Calcular','Calculate')}</button>
-    </div>
-    <details style="margin-top:8px;"><summary style="font-size:12px;color:var(--text3);cursor:pointer;">${TR('Opcional: pago y millas de la carga (para saber si te conviene)','Optional: load pay and miles (to see if it pays)')}</summary>
-      <div style="display:flex;gap:8px;margin-top:8px;">
-        <input id="eta-pay" type="number" min="0" step="50" placeholder="${TR('Pago $','Pay $')}" style="flex:1;min-width:0;font-size:15px;padding:9px 10px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg3);color:var(--text);" oninput="etaPaint()"/>
-        <input id="eta-lmi" type="number" min="0" step="10" placeholder="${TR('Millas de la carga','Load miles')}" style="flex:1;min-width:0;font-size:15px;padding:9px 10px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg3);color:var(--text);" oninput="etaPaint()"/>
-      </div></details>
-    <div id="eta-res" style="margin-top:10px;"></div></div>
-<div style="background:var(--card,#fff);border:1px solid var(--border);border-radius:16px;padding:14px;margin-bottom:12px;">
-    <div style="font-size:15px;font-weight:800;margin-bottom:2px;">📍 ${TR('¿Dónde está el driver?','Where is the driver?')}</div>
-    <div style="font-size:12px;color:var(--text3);margin-bottom:10px;">${TR('Elige el driver: ubicación, hora del lugar, ETA al delivery y ETA a la siguiente carga.','Pick a driver: location, local time, ETA to delivery and ETA to the next load.')}</div>
-    <select id="dl-driver" onfocus="dlFillSel()" onchange="dlRun()" style="width:100%;font-size:16px;padding:10px 12px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg3);color:var(--text);"></select>
-    <div id="dl-res" style="margin-top:10px;"></div></div>`;
-  box.dataset.ready='1'; box.style.display='block'; try{ dlFillSel(); etaFillDrv(); }catch(e){}
+  const hb=document.getElementById('home-eta'); if(!hb) return;
+  if(hb.dataset.ready!=='2'){
+    hb.innerHTML=`<button type="button" onclick="sidebarNav('eta')" style="width:100%;display:flex;align-items:center;gap:12px;text-align:left;border:2px solid #1E3A8A;background:var(--card,#fff);border-radius:16px;padding:14px;cursor:pointer;font-family:inherit;color:var(--text);">
+      <span style="width:42px;height:42px;border-radius:12px;background:#1E3A8A;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.5-7-12a7 7 0 0 1 14 0c0 5.5-7 12-7 12z"/><circle cx="12" cy="9" r="2.5"/></svg></span>
+      <span style="flex:1;min-width:0;"><span style="display:block;font-size:15px;font-weight:800;">${TR('ETA al pick up','ETA to pick up')}</span><span style="display:block;font-size:12px;color:var(--text3);">${TR('Dónde está cada camión y cuándo llega a la carga','Where each truck is and when it reaches the load')}</span></span>
+      <span style="font-size:22px;color:var(--text3);">›</span></button>`;
+    hb.dataset.ready='2';
+  }
+  hb.style.display='block';
 }
+
+function renderEtaPage(){
+  const box=document.getElementById('eta-page-body'); if(!box) return;
+  if(box.dataset.ready!=='1'){
+    box.innerHTML=`
+<div style="position:relative;border-radius:18px;overflow:hidden;border:1px solid var(--border);background:#E8EEF1;">
+  <div id="eta-map" style="height:44vh;min-height:280px;max-height:520px;"></div>
+  <div style="position:absolute;top:10px;left:10px;right:10px;z-index:1001;">
+    <div style="background:#fff;border-radius:24px;box-shadow:0 2px 6px rgba(0,0,0,.25);overflow:hidden;">
+      <div style="display:flex;align-items:center;gap:8px;padding:2px 6px 2px 14px;">
+        ${ETA_SVG_SEARCH}
+        <input id="eta-q" autocomplete="off" autocapitalize="words" enterkeyhint="search" placeholder="${TR('ZIP, ciudad o estado del pick up','Pick up ZIP, city or state')}" oninput="etaSug()" onkeydown="etaKey(event)" onfocus="etaSug()" style="flex:1;min-width:0;border:none;outline:none;box-shadow:none;font-size:16px;padding:11px 0;background:transparent;color:#202124;"/>
+        <button type="button" id="eta-x" onclick="etaClear()" aria-label="${TR('Borrar','Clear')}" style="display:none;border:none;background:transparent;font-size:18px;color:#5F6368;padding:6px 10px;cursor:pointer;">✕</button>
+      </div>
+      <div id="eta-sug"></div>
+    </div>
+  </div>
+  <button type="button" onclick="etaFit()" aria-label="${TR('Ver todo','Fit all')}" style="position:absolute;right:10px;bottom:10px;z-index:1001;width:40px;height:40px;border-radius:50%;border:none;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.3);cursor:pointer;display:flex;align-items:center;justify-content:center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1A73E8" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></button>
+</div>
+<div style="background:var(--card,#fff);border:1px solid var(--border);border-radius:18px;margin-top:10px;padding:8px 14px 14px;">
+  <div style="width:38px;height:4px;border-radius:2px;background:var(--border);margin:0 auto 10px;"></div>
+  <div id="eta-head"></div>
+  <details id="eta-opt" style="display:none;margin:4px 0 8px;"><summary style="font-size:12px;color:var(--text3);cursor:pointer;">${TR('Opcional: pago y millas de la carga (para saber si te conviene)','Optional: load pay and miles (to see if it pays)')}</summary>
+    <div style="display:flex;gap:8px;margin-top:8px;">
+      <input id="eta-pay" type="number" min="0" step="50" placeholder="${TR('Pago $','Pay $')}" style="flex:1;min-width:0;font-size:15px;padding:9px 10px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg3);color:var(--text);" oninput="etaPaint()"/>
+      <input id="eta-lmi" type="number" min="0" step="10" placeholder="${TR('Millas de la carga','Load miles')}" style="flex:1;min-width:0;font-size:15px;padding:9px 10px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg3);color:var(--text);" oninput="etaPaint()"/>
+    </div></details>
+  <div id="eta-res"></div>
+</div>
+<div style="background:var(--card,#fff);border:1px solid var(--border);border-radius:16px;padding:14px;margin-top:12px;">
+  <div style="font-size:15px;font-weight:800;margin-bottom:2px;">${TR('Detalle por driver','Driver detail')}</div>
+  <div style="font-size:12px;color:var(--text3);margin-bottom:10px;">${TR('Elige el driver: ubicación, hora del lugar, ETA al delivery y ETA a la siguiente carga.','Pick a driver: location, local time, ETA to delivery and ETA to the next load.')}</div>
+  <select id="dl-driver" onfocus="dlFillSel()" onchange="dlRun()" style="width:100%;font-size:16px;padding:10px 12px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg3);color:var(--text);"></select>
+  <div id="dl-res" style="margin-top:10px;"></div></div>`;
+    box.dataset.ready='1';
+    try{ dlFillSel(); }catch(e){}
+    document.addEventListener('click',ev=>{ const s=document.getElementById('eta-sug'); if(s&&s.innerHTML&&!ev.target.closest('#eta-sug')&&ev.target.id!=='eta-q') etaSugClose(); });
+  }
+  etaInitMap();
+  if(_etaLast) { etaPaint(); } else etaLoadFleet();
+}
+
 // Simula el manejo con las reglas de horas: 30 min de descanso cada 8 h manejando y 10 h de descanso al terminar las horas disponibles
 function etaDriveHours(h,avail){ let t=0,rem=h,a=avail,since=0; while(rem>0.001){ if(a<=0){ t+=10; a=11; since=0; continue; } const c=Math.min(rem,a,8-since); if(c<=0){ t+=0.5; since=0; continue; } t+=c; rem-=c; a-=c; since+=c; } return t; }
 async function etaLiveLocations(){
@@ -5927,39 +5970,198 @@ async function etaCityOf(lat,lon){
   try{ const r=await fetch('https://nominatim.openstreetmap.org/reverse?format=json&zoom=10&lat='+lat+'&lon='+lon); if(!r.ok) return null; const j=await r.json(); const a=j.address||{};
     const c=a.city||a.town||a.village||a.county||''; const st=(a['ISO3166-2-lvl4']||'').split('-')[1]||a.state||''; return c?(c+(st?', '+st:'')):null; }catch(e){ return null; }
 }
-// Al teléfono con el broker: ZIP de la carga → dónde está cada camión AHORA (ZIP, ciudad, hora local) y cuándo llega al pick up.
+
+// ---------- Mapa ----------
+function etaInitMap(){
+  const el=document.getElementById('eta-map'); if(!el||typeof L==='undefined'||!L.map) return;
+  if(!_etaMap){
+    _etaMap=L.map(el,{zoomControl:false}).setView([33.5,-92],5);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{maxZoom:19,subdomains:'abcd',attribution:'© OpenStreetMap © CARTO'}).addTo(_etaMap);
+    _etaLayer=L.layerGroup().addTo(_etaMap);
+  }
+  setTimeout(()=>{ try{ _etaMap.invalidateSize(); }catch(e){} },200);
+}
+function etaTruckIcon(label,color){
+  return L.divIcon({className:'',iconSize:null,iconAnchor:[14,14],html:`<div style="display:flex;align-items:center;gap:4px;white-space:nowrap;"><div style="width:28px;height:28px;border-radius:50%;background:${color};border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 6h12.5v10H1.5z"/><path d="M14 9h4l3 3.5V16h-7"/></svg></div><div style="background:#fff;color:#202124;font:700 11px/1.2 system-ui,sans-serif;padding:3px 7px;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.3);">${etaEsc(label)}</div></div>`});
+}
+function etaPinIcon(){ return L.divIcon({className:'',iconSize:[26,36],iconAnchor:[13,34],html:'<svg width="26" height="36" viewBox="0 0 26 36"><path d="M13 35s11-12.5 11-21A11 11 0 0 0 2 14c0 8.5 11 21 11 21z" fill="#EA4335" stroke="#B31412" stroke-width="1.2"/><circle cx="13" cy="13.5" r="4.2" fill="#B31412"/></svg>'}); }
+function etaDraw(){
+  if(!_etaMap||!_etaLayer) return; _etaLayer.clearLayers(); const pts=[];
+  const fleet=(_etaLast&&_etaLast.calc)||(_etaFleet||[]);
+  const best=_etaLast&&_etaLast.best;
+  fleet.forEach(r=>{
+    const H=r.here; const lab=(r.tr&&r.tr.name||'')+(r.drvName?' · '+r.drvName.split(' ')[0]:'');
+    if(r.route&&r.route.length>1){ const isB=best&&best===r; L.polyline(r.route,{color:isB?'#1A73E8':'#80868B',weight:isB?6:4,opacity:isB?.95:.75,dashArray:isB?null:'8 8'}).addTo(_etaLayer); }
+    else if(r.from&&r.pu&&!r.none){ L.polyline([[r.from.lat,r.from.lon],[r.pu.lat,r.pu.lon]],{color:'#80868B',weight:3,dashArray:'6 8'}).addTo(_etaLayer); }
+    if(H&&r.from&&r.busy&&(Math.abs(H.lat-r.from.lat)>0.01||Math.abs(H.lon-r.from.lon)>0.01)){ L.polyline([[H.lat,H.lon],[r.from.lat,r.from.lon]],{color:'#1E3A8A',weight:3,opacity:.6,dashArray:'2 7'}).addTo(_etaLayer); L.circleMarker([r.from.lat,r.from.lon],{radius:6,color:'#fff',weight:2,fillColor:'#1E3A8A',fillOpacity:1}).bindTooltip(TR('Entrega en ','Delivers in ')+r.from.name).addTo(_etaLayer); pts.push([r.from.lat,r.from.lon]); }
+    if(H){ L.marker([H.lat,H.lon],{icon:etaTruckIcon(lab,H.src==='last'?'#80868B':'#1E3A8A'),zIndexOffset:500}).addTo(_etaLayer); pts.push([H.lat,H.lon]); }
+    if(r.pu&&!r.none){ pts.push([r.pu.lat,r.pu.lon]); }
+  });
+  const pus={}; fleet.forEach(r=>{ if(r.pu&&!r.none) pus[r.pu.lat.toFixed(3)+','+r.pu.lon.toFixed(3)]=r.pu; });
+  Object.values(pus).forEach(p=>L.marker([p.lat,p.lon],{icon:etaPinIcon(),zIndexOffset:900}).bindTooltip('Pick up: '+[p.city,p.abbr].filter(Boolean).join(', ')+(p.zip?' '+p.zip:'')).addTo(_etaLayer));
+  _etaLast&&_etaLast.target&&_etaLast.target.kind==='point'&&!Object.keys(pus).length&&pts.push([_etaLast.target.lat,_etaLast.target.lon]);
+  _etaMap._etaPts=pts; etaFit();
+}
+function etaFit(){ if(!_etaMap) return; const p=_etaMap._etaPts||[]; try{ _etaMap.invalidateSize(); if(p.length>1) _etaMap.fitBounds(p,{padding:[40,40],paddingTopLeft:[30,70],maxZoom:11}); else if(p.length===1) _etaMap.setView(p[0],9); }catch(e){} }
+function etaFocus(i){ const r=_etaLast&&_etaLast.calc&&_etaLast.calc[i]; if(!r||!_etaMap) return; const p=[]; if(r.here) p.push([r.here.lat,r.here.lon]); if(r.pu) p.push([r.pu.lat,r.pu.lon]); (r.route||[]).forEach(x=>p.push(x));
+  try{ document.getElementById('eta-map').scrollIntoView({behavior:'smooth',block:'start'}); if(p.length>1) _etaMap.fitBounds(p,{padding:[40,40],paddingTopLeft:[30,70],maxZoom:11}); else if(p.length) _etaMap.setView(p[0],9); }catch(e){} }
+// Ruta por carretera con la línea para dibujar en el mapa
+const _etaRtCache={};
+async function etaRoute(lat1,lon1,lat2,lon2){
+  const k=[lat1,lon1,lat2,lon2].map(v=>(+v).toFixed(3)).join(','); if(_etaRtCache[k]&&Date.now()-_etaRtCache[k].at<15*60000) return _etaRtCache[k];
+  try{ const r=await fetch('https://router.project-osrm.org/route/v1/driving/'+lon1+','+lat1+';'+lon2+','+lat2+'?overview=simplified&geometries=geojson'); if(!r.ok) return null; const d=await r.json();
+    if(d.routes&&d.routes[0]){ const o={miles:d.routes[0].distance/1609.34,line:(d.routes[0].geometry&&d.routes[0].geometry.coordinates||[]).map(c=>[c[1],c[0]]),at:Date.now()}; _etaRtCache[k]=o; return o; } }catch(e){}
+  return null;
+}
+
+// ---------- Búsqueda: ZIP, ciudad o estado ----------
+function etaSugClose(){ const s=document.getElementById('eta-sug'); if(s) s.innerHTML=''; }
+function etaSugShow(){
+  const s=document.getElementById('eta-sug'); if(!s) return;
+  s.innerHTML=_etaSugs.map((x,i)=>x.hint
+    ?`<div style="padding:10px 14px;border-top:1px solid #EEE;font-size:13px;color:#5F6368;">${etaEsc(x.hint)}</div>`
+    :`<div onclick="etaPick(${i})" style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-top:1px solid #EEE;cursor:pointer;color:#202124;">${x.type==='state'?ETA_SVG_MAP:ETA_SVG_PIN}<div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:600;${x.type==='state'?'color:#1A73E8;':''}">${etaEsc(x.label)}</div>${x.sub?`<div style="font-size:12px;color:#5F6368;">${etaEsc(x.sub)}</div>`:''}</div>${x.zip&&x.type!=='zip'?`<span style="font-size:12px;color:#5F6368;">${etaEsc(x.zip)}</span>`:''}</div>`).join('');
+}
+function etaKey(e){ if(e.key==='Enter'){ e.preventDefault(); const i=_etaSugs.findIndex(x=>!x.hint); if(i>=0) etaPick(i); else etaGo(null); } else if(e.key==='Escape') etaSugClose(); }
+function etaClear(){ const q=document.getElementById('eta-q'); if(q){ q.value=''; } const x=document.getElementById('eta-x'); if(x) x.style.display='none'; _etaSugs=[]; etaSugClose(); _etaLast=null; const o=document.getElementById('eta-opt'); if(o) o.style.display='none'; etaLoadFleet(); }
+function etaSug(){
+  const q=(document.getElementById('eta-q')?.value||'').trim(); const x=document.getElementById('eta-x'); if(x) x.style.display=q?'block':'none';
+  clearTimeout(_etaSugT);
+  if(!q){ _etaSugs=[]; etaSugClose(); return; }
+  if(/^\d+$/.test(q)){
+    if(q.length<5){ _etaSugs=[{hint:TR('Escribe los 5 dígitos del ZIP','Type all 5 ZIP digits')}]; etaSugShow(); return; }
+    const z=q.slice(0,5); _etaSugs=[{type:'zip',zip:z,label:'ZIP '+z,sub:TR('Buscando…','Searching…')}]; etaSugShow();
+    _etaSugT=setTimeout(async()=>{ const p=await fetchZip(z); if((document.getElementById('eta-q')?.value||'').trim().slice(0,5)!==z) return;
+      _etaSugs=p?[{type:'zip',zip:z,label:p.city+', '+p.abbr+' '+z,sub:p.state}]:[{hint:TR('No encontré ese ZIP','ZIP not found')}]; etaSugShow(); },150);
+    return;
+  }
+  const base=[]; const st=etaStAbbr(q); if(st) base.push({type:'state',st,label:TR('Todo ','All of ')+US_ST[st]+' ('+st+')',sub:TR('ETA a la ciudad de '+st+' más cercana a cada camión','ETA to the closest city in '+st+' for each truck')});
+  _etaSugs=base.length?base:[{hint:TR('Buscando…','Searching…')}]; etaSugShow();
+  if(q.length<3){ if(!base.length){ _etaSugs=[]; etaSugClose(); } return; }
+  _etaSugT=setTimeout(async()=>{ const r=await etaPlaceSearch(q); if((document.getElementById('eta-q')?.value||'').trim()!==q) return;
+    _etaSugs=base.concat(r); if(!_etaSugs.length) _etaSugs=[{hint:TR('Sin resultados. Prueba con el ZIP o "Ciudad, TX"','No results. Try the ZIP or "City, TX"')}]; etaSugShow(); },350);
+}
+async function etaPlaceSearch(q){
+  let city=q, st=''; const m=q.match(/^(.+?)[,\s]+([A-Za-z]{2})$/); if(m&&US_ST[m[2].toUpperCase()]){ city=m[1].trim(); st=m[2].toUpperCase(); }
+  const out=[], seen={};
+  const add=(name,stA,lat,lon,zip)=>{ if(!name||!stA||isNaN(lat)||isNaN(lon)) return; if(st&&stA!==st) return; const k=name.toLowerCase()+'|'+stA; if(seen[k]) return; seen[k]=1;
+    out.push({type:'city',city:name,st:stA,lat:+lat,lon:+lon,zip:String(zip||'').slice(0,5),label:name+', '+stA,sub:US_ST[stA]||''}); };
+  try{ const r=await fetch('https://photon.komoot.io/api/?limit=12&lang=en&osm_tag=place:city&osm_tag=place:town&osm_tag=place:village&bbox=-125,24,-66.5,49.6&q='+encodeURIComponent(city+(st?' '+US_ST[st]:'')));
+    if(r.ok){ const j=await r.json(); (j.features||[]).forEach(f=>{ const p=f.properties||{}; if(p.countrycode&&p.countrycode!=='US') return; const c=(f.geometry&&f.geometry.coordinates)||[]; add(p.name,etaStAbbr(p.state),c[1],c[0],p.postcode); }); } }catch(e){}
+  if(!out.length){ try{ const r=await fetch('https://nominatim.openstreetmap.org/search?format=json&countrycodes=us&addressdetails=1&limit=8&city='+encodeURIComponent(city)+(st?'&state='+encodeURIComponent(US_ST[st]):''));
+    if(r.ok){ const j=await r.json(); j.forEach(x=>{ const a=x.address||{}; add(a.city||a.town||a.village||a.hamlet||(x.name||''),((a['ISO3166-2-lvl4']||'').split('-')[1]||etaStAbbr(a.state)),+x.lat,+x.lon,a.postcode); }); } }catch(e){} }
+  return out.slice(0,6);
+}
+function etaPick(i){ const s=_etaSugs[i]; if(!s||s.hint) return; const q=document.getElementById('eta-q'); if(q){ q.value=s.label; q.blur(); } etaSugClose(); etaGo(s); }
+async function etaGo(s){
+  const res=document.getElementById('eta-res'), head=document.getElementById('eta-head');
+  const q=(document.getElementById('eta-q')?.value||'').trim();
+  const err=t=>{ if(res) res.innerHTML='<div style="color:#DC2626;font-size:13px;font-weight:700;padding:6px 0;">'+t+'</div>'; };
+  if(!s){
+    if(!q) return;
+    if(/^\d{5}/.test(q)) s={type:'zip',zip:q.slice(0,5)};
+    else if(etaStAbbr(q)) s={type:'state',st:etaStAbbr(q)};
+    else { if(res) res.innerHTML='<div style="font-size:13px;color:var(--text3);">'+TR('Buscando…','Searching…')+'</div>'; const r=await etaPlaceSearch(q); if(!r.length) return err(TR('No encontré ese lugar. Prueba con el ZIP o "Ciudad, TX".','Place not found. Try the ZIP or "City, TX".')); s=r[0]; }
+  }
+  if(head) head.innerHTML=''; if(res) res.innerHTML='<div style="font-size:13px;color:var(--text3);padding:6px 0;">⏳ '+TR('Calculando ruta de cada camión…','Calculating each truck\'s route…')+'</div>';
+  let target=null;
+  if(s.type==='zip'){ const p=await fetchZip(s.zip); if(!p) return err(TR('No encontré ese ZIP.','ZIP not found.')); target={kind:'point',lat:p.lat,lon:p.lon,city:p.city,abbr:p.abbr,zip:s.zip}; }
+  else if(s.type==='city'){ let z=s.zip; if(!/^\d{5}$/.test(z||'')){ const g=await dlRevGeo(s.lat,s.lon); z=(g&&g.zip)||''; } target={kind:'point',lat:s.lat,lon:s.lon,city:s.city,abbr:s.st,zip:z}; }
+  else if(s.type==='state'){
+    let bb=null,c=null; try{ const r=await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&country=USA&state='+encodeURIComponent(US_ST[s.st])); if(r.ok){ const j=await r.json(); if(j[0]){ bb=j[0].boundingbox.map(Number); c={lat:+j[0].lat,lon:+j[0].lon}; } } }catch(e){}
+    if(!bb) return err(TR('No pude cargar el mapa de ese estado. Intenta con una ciudad o ZIP.','Could not load that state. Try a city or ZIP.'));
+    target={kind:'state',st:s.st,name:US_ST[s.st],bbox:bb,lat:c.lat,lon:c.lon};
+  }
+  const o=document.getElementById('eta-opt'); if(o) o.style.display='block';
+  await etaCalc(target);
+}
+// Punto del estado más cercano al camión (para "Todo GA")
+async function etaNearestInState(T,from){
+  const [s,n,w,e]=T.bbox; let lat=Math.min(n,Math.max(s,from.lat)), lon=Math.min(e,Math.max(w,from.lon));
+  for(let k=0;k<5;k++){ const g=await dlRevGeo(lat,lon); if(g&&g.st===T.st&&g.city) return {lat,lon,city:g.city,abbr:T.st,zip:g.zip||''}; lat+=(T.lat-lat)*0.35; lon+=(T.lon-lon)*0.35; }
+  const g=await dlRevGeo(T.lat,T.lon); return {lat:T.lat,lon:T.lon,city:(g&&g.city)||T.name,abbr:T.st,zip:(g&&g.zip)||''};
+}
+
+// ---------- Dónde está cada camión ahorita ----------
+async function etaHere(tr,drivers,live,lastDone,now){
+  const recs=drivers.map(u=>live[u.username]&&Object.assign({src:'phone'},live[u.username])).concat(live['truck_'+tr.id]?[Object.assign({src:'eld'},live['truck_'+tr.id])]:[]).filter(x=>x&&x.lat!=null&&x.lon!=null)
+    .map(x=>Object.assign({},x,{tm:typeof x.time==='number'?x.time:Date.parse(x.time)})).filter(x=>!isNaN(x.tm)).sort((a,b)=>b.tm-a.tm);
+  const lv=recs[0];
+  if(lv && now-lv.tm<=ETA_LIVE_MIN*60000){ const g=await dlRevGeo(+lv.lat,+lv.lon); return {lat:+lv.lat,lon:+lv.lon,city:(g&&g.city)||'',st:(g&&g.st)||'',zip:(g&&g.zip)||'',src:lv.src,ago:Math.round((now-lv.tm)/60000),moving:lv.movingStatus,speed:lv.speedMph}; }
+  if(lastDone && !(lv && lv.tm>(Date.parse(tripDeliveryDate(lastDone)+'T23:59:59')||0))){ const z=ZC[lastDone.z2]||await fetchZip(lastDone.z2); if(z) return {lat:z.lat,lon:z.lon,city:lastDone.city2||z.city,st:lastDone.state2||z.abbr,zip:lastDone.z2,src:'last',deliv:tripDeliveryDate(lastDone)}; }
+  if(lv){ const g=await dlRevGeo(+lv.lat,+lv.lon); return {lat:+lv.lat,lon:+lv.lon,city:(g&&g.city)||'',st:(g&&g.st)||'',zip:(g&&g.zip)||'',src:lv.src,ago:Math.round((now-lv.tm)/60000),old:true,moving:lv.movingStatus}; }
+  return null;
+}
+function etaDrvName(drivers,active,lastDone){ const d0=drivers[0]; return (d0&&((d0.firstName&&d0.lastName)?d0.firstName+' '+d0.lastName:(d0.name||d0.username)))||(active&&active.driverName)||(lastDone&&lastDone.driverName)||''; }
+function etaHereHtml(H,now,big){
+  if(!H) return `<div style="font-size:13px;color:var(--text3);margin-top:4px;">${TR('Sin ubicación conocida','No known location')}</div>`;
+  const tz=dlTz(H.st,H.lat,H.lon); const where=[H.city,H.st].filter(Boolean).join(', ');
+  const lt=new Date(now).toLocaleTimeString('en-US',{timeZone:tz,hour:'numeric',minute:'2-digit',timeZoneName:'short'});
+  const src=H.src==='last'?TR('Última entrega','Last delivery')+(H.deliv?' '+fmtDate(H.deliv):'')+' · '+TR('sin señal en vivo','no live signal')
+    :(H.src==='eld'?'ELD':TR('Celular','Phone'))+' · '+TR('hace '+detaAgo(H.ago),detaAgo(H.ago)+' ago')+(H.old?' · ⚠️ '+TR('señal vieja','old signal'):'');
+  const mv=H.src==='last'?'':H.moving==='driving'?`<span style="color:#188038;font-weight:700;">● ${TR('manejando','driving')}${H.speed!=null?' '+Math.round(H.speed)+' mph':''}</span>`:H.moving==='stopped'?`<span style="color:#E37400;font-weight:700;">● ${TR('detenido','stopped')}</span>`:'';
+  return `<div style="font-size:11px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.3px;margin-top:6px;">${H.src==='last'?TR('Última ubicación conocida','Last known location'):TR('Ubicación actual','Current location')}</div>
+    <div style="font-size:${big?18:16}px;font-weight:800;line-height:1.25;">${etaEsc(where||TR('Lugar sin nombre','Unnamed place'))}${H.zip?` <span style="font-weight:700;color:var(--text2);">${etaEsc(H.zip)}</span>`:''}</div>
+    <div style="font-size:12px;color:var(--text2);">${TR('Hora allá','Local time')} <b>${lt}</b>${mv?' · '+mv:''}</div>
+    <div style="font-size:11px;color:var(--text3);">${src}</div>`;
+}
+function etaHereMsg(H,now){ if(!H) return ''; const tz=dlTz(H.st,H.lat,H.lon); const where=[H.city,H.st].filter(Boolean).join(', ')+(H.zip?' '+H.zip:'');
+  return H.src==='last'?'Truck last delivered in '+where+'.':'Truck is currently in '+where+' (local time '+new Date(now).toLocaleTimeString('en-US',{timeZone:tz,hour:'numeric',minute:'2-digit',timeZoneName:'short'})+').'; }
+
+// Vista inicial: ubicación actual de cada camión
+async function etaLoadFleet(){
+  const res=document.getElementById('eta-res'), head=document.getElementById('eta-head'); if(!res) return;
+  const my=++_etaBusy;
+  if(head) head.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;"><div style="font-size:15px;font-weight:800;">${TR('¿Dónde están los camiones?','Where are the trucks?')}</div><button type="button" onclick="etaLoadFleet()" style="font-size:12px;font-weight:700;padding:6px 10px;border-radius:16px;border:1px solid var(--border);background:var(--bg3);color:var(--text);cursor:pointer;">↻ ${TR('Actualizar','Refresh')}</button></div>`;
+  if(!_etaFleet) res.innerHTML='<div style="font-size:13px;color:var(--text3);padding:6px 0;">⏳ '+TR('Buscando la ubicación de cada camión…','Locating each truck…')+'</div>';
+  const trips=loadTrips(), trucks=loadTrucks()||[], users=getUsers(), live=await etaLiveLocations(), now=Date.now(); const rows=[];
+  for(const tr of trucks){
+    const drivers=users.filter(u=>u.role!=='admin'&&String(u.truckId)===String(tr.id));
+    const mine=trips.filter(t=>tripTruckId(t)===String(tr.id));
+    const active=mine.filter(t=>t.tripStatus==='active').sort((a,b)=>mlTripTime(b)-mlTripTime(a))[0]||null;
+    const lastDone=lastDoneTripOfTruck(tr.id);
+    if(!drivers.length&&!active&&!lastDone) continue;
+    const here=await etaHere(tr,drivers,live,lastDone,now);
+    rows.push({tr,drvName:etaDrvName(drivers,active,lastDone),here,active});
+  }
+  if(my!==_etaBusy||_etaLast) return;
+  _etaFleet=rows;
+  res.innerHTML=(rows.length?rows.map((r,i)=>{ const a=r.active;
+    const st=a?`<span style="font-size:11px;font-weight:800;background:#E8F0FE;color:#1967D2;padding:3px 8px;border-radius:10px;white-space:nowrap;">${TR('Cargado','Loaded')} → ${etaEsc((a.city2||a.z2||'')+(a.state2?', '+a.state2:''))}</span>`
+      :`<span style="font-size:11px;font-weight:800;background:#E6F4EA;color:#137333;padding:3px 8px;border-radius:10px;white-space:nowrap;">${TR('Libre','Empty')}</span>`;
+    const msg=etaHereMsg(r.here,now)+(a?' Loaded, delivering in '+(a.city2||a.z2||'')+(a.state2?', '+a.state2:'')+'.':' Empty and available.');
+    return `<div style="padding:10px 0;${i?'border-top:1px solid var(--border);':''}">
+      <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;"><div style="font-size:14px;font-weight:800;">${etaEsc(r.tr.name)}${r.drvName?' · '+etaEsc(r.drvName.split(' ')[0]):''}</div>${st}</div>
+      ${etaHereHtml(r.here,now,true)}
+      ${r.here?`<button type="button" data-msg="${etaEsc(msg)}" onclick="etaCopy(this)" style="margin-top:6px;font-size:12px;font-weight:700;padding:6px 10px;border-radius:16px;border:1px solid var(--border);background:var(--bg3);color:var(--text);cursor:pointer;">📋 ${TR('Copiar ubicación para el broker','Copy location for broker')}</button>`:''}
+    </div>`; }).join(''):`<div style="font-size:13px;color:var(--text3);">${TR('No hay camiones con driver asignado.','No trucks with an assigned driver.')}</div>`)
+    +`<div style="font-size:11px;color:var(--text3);margin-top:6px;">${TR('Busca arriba el ZIP, ciudad o estado del pick up para ver cuándo llega cada camión.','Search the pick up ZIP, city or state above to see when each truck arrives.')}</div>`;
+  etaDraw();
+}
+
+// ---------- Cálculo al pick up ----------
 // Si va cargado: primero entrega; si tiene cargas programadas: las hace en orden; luego va a la carga nueva.
 const ETA_LOAD_H=2, ETA_UNLOAD_H=2;
 let _etaOpts={};   // por camión: {avail, leave}
-async function etaCalc(){
-  const zip=(document.getElementById('eta-zip')?.value||'').trim(); const res=document.getElementById('eta-res');
-  if(!/^\d{5}$/.test(zip)){ res.innerHTML='<div style="color:#DC2626;font-size:13px;font-weight:700;">'+TR('Escribe un ZIP de 5 dígitos.','Enter a 5-digit ZIP.')+'</div>'; return; }
-  res.innerHTML='<div style="font-size:13px;color:var(--text3);">⏳ '+TR('Calculando…','Calculating…')+'</div>';
-  const pu=ZC[zip]||await fetchZip(zip); if(!pu){ res.innerHTML='<div style="color:#DC2626;font-size:13px;font-weight:700;">'+TR('No encontré ese ZIP.','ZIP not found.')+'</div>'; return; }
-  const onlyDrv=(document.getElementById('eta-driver')?.value||'');
+async function etaCalc(target){
+  if(!target&&_etaLast) target=_etaLast.target; if(!target) return;
+  const my=++_etaBusy;
   const trips=loadTrips(), trucks=loadTrucks()||[], users=getUsers(), live=await etaLiveLocations(), now=Date.now();
   const rows=[];
   for(const tr of trucks){
     const drivers=users.filter(u=>u.role!=='admin'&&String(u.truckId)===String(tr.id));
-    if(onlyDrv && !drivers.some(u=>u.username===onlyDrv)) continue;
     const mine=trips.filter(t=>tripTruckId(t)===String(tr.id));
     const active=mine.filter(t=>t.tripStatus==='active').sort((a,b)=>mlTripTime(b)-mlTripTime(a))[0]||null;
     const sched=mine.filter(t=>t.tripStatus==='scheduled').sort((a,b)=>String(a.date||'').localeCompare(String(b.date||'')));
     const lastDone=lastDoneTripOfTruck(tr.id);
-    const d0=drivers[0]; const drvName=(d0&&((d0.firstName&&d0.lastName)?d0.firstName+' '+d0.lastName:(d0.name||d0.username)))||(active&&active.driverName)||(lastDone&&lastDone.driverName)||'';
-    // ¿Dónde está ahora?
-    const liveRecs=drivers.map(u=>live[u.username]&&Object.assign({src:'phone'},live[u.username])).concat(live['truck_'+tr.id]?[Object.assign({src:'eld'},live['truck_'+tr.id])]:[]).filter(x=>x&&x.lat!=null&&x.lon!=null)
-      .map(x=>Object.assign({},x,{tm:typeof x.time==='number'?x.time:Date.parse(x.time)})).filter(x=>!isNaN(x.tm)).sort((a,b)=>b.tm-a.tm);
-    const lv=liveRecs[0]; let here=null;
-    if(lv && now-lv.tm<=ETA_LIVE_MIN*60000){ const g=await dlRevGeo(+lv.lat,+lv.lon); here={lat:+lv.lat,lon:+lv.lon,city:(g&&g.city)||'',st:(g&&g.st)||'',zip:(g&&g.zip)||'',src:lv.src,ago:Math.round((now-lv.tm)/60000),moving:lv.movingStatus,speed:lv.speedMph}; }
-    else if(lastDone){ const z=ZC[lastDone.z2]||await fetchZip(lastDone.z2); if(z) here={lat:z.lat,lon:z.lon,city:lastDone.city2||z.city,st:lastDone.state2||z.abbr,zip:lastDone.z2,src:'last',deliv:tripDeliveryDate(lastDone)}; }
-    else if(lv){ const g=await dlRevGeo(+lv.lat,+lv.lon); here={lat:+lv.lat,lon:+lv.lon,city:(g&&g.city)||'',st:(g&&g.st)||'',zip:(g&&g.zip)||'',src:lv.src,ago:Math.round((now-lv.tm)/60000),old:true}; }
-    // Cadena de cargas: entregar la actual → hacer las programadas en orden → quedar libre
+    if(!drivers.length&&!active&&!lastDone) continue;
+    const drvName=etaDrvName(drivers,active,lastDone);
+    const here=await etaHere(tr,drivers,live,lastDone,now);
     const steps=[]; let at=null, t=now, est=false;
     if(active){
       let del=null; try{ del=await deliveryEta(active); }catch(e){}
       const dz=ZC[active.z2]||await fetchZip(active.z2);
-      if(del&&dz){ at={lat:dz.lat,lon:dz.lon,name:(active.city2||dz.city)+', '+(active.state2||dz.abbr)}; t=del.eta+(del.arrived?0:0)+ETA_UNLOAD_H*3600000;
+      if(del&&dz){ at={lat:dz.lat,lon:dz.lon,name:(active.city2||dz.city)+', '+(active.state2||dz.abbr)}; t=del.eta+ETA_UNLOAD_H*3600000;
         steps.push({kind:'active',trip:active,eta:del.eta,arrived:del.arrived,miles:del.miles,place:at.name,zip:active.z2}); }
     }
     if(!at && here){ at={lat:here.lat,lon:here.lon,name:[here.city,here.st].filter(Boolean).join(', ')}; }
@@ -5974,66 +6176,77 @@ async function etaCalc(){
       at={lat:a2.lat,lon:a2.lon,name:(sc.city2||a2.city)+', '+(sc.state2||a2.abbr)}; t=arrDel+ETA_UNLOAD_H*3600000;
     }
     if(!at){ rows.push({tr,drvName,here,none:true}); continue; }
-    const rt=await fetchRoadRoute(at.lat,at.lon,pu.lat,pu.lon);
+    const pu=target.kind==='state'?await etaNearestInState(target,at):{lat:target.lat,lon:target.lon,city:target.city,abbr:target.abbr,zip:target.zip};
+    const rt=await etaRoute(at.lat,at.lon,pu.lat,pu.lon);
     const miles=rt?Math.round(rt.miles):Math.round(haversineKm(at.lat,at.lon,pu.lat,pu.lon)*0.621371*1.2); if(!rt) est=true;
-    rows.push({tr,drvName,here,steps,from:at,freeAt:t,busy:steps.length>0,miles,est});
+    rows.push({tr,drvName,here,steps,from:at,freeAt:t,busy:steps.length>0,miles,est,pu,route:rt?rt.line:null});
   }
-  _etaLast={zip,pu,rows}; etaPaint();
+  if(my!==_etaBusy) return;
+  _etaLast={target,rows}; etaPaint();
 }
-function etaFillDrv(){ const sel=document.getElementById('eta-driver'); if(!sel) return; const keep=sel.value; const trucks=loadTrucks()||[];
-  sel.innerHTML='<option value="">'+TR('Todos los camiones','All trucks')+'</option>'+dlDrivers().filter(x=>x.u.truckId!=null&&x.u.truckId!=='').map(x=>{ const tk=trucks.find(t=>String(t.id)===String(x.u.truckId)); return '<option value="'+String(x.u.username).replace(/"/g,'&quot;')+'">'+x.label.replace(/</g,'&lt;')+(tk?' · '+tk.name:'')+'</option>'; }).join(''); sel.value=keep; }
+function etaFillDrv(){}
 function etaSetAvail(i,v){ if(!_etaLast||!_etaLast.rows[i]) return; const k=String(_etaLast.rows[i].tr.id); const n=parseFloat(v); (_etaOpts[k]=_etaOpts[k]||{}).avail=isNaN(n)?11:Math.max(0,Math.min(11,n)); etaPaint(); }
 function etaSetLeave(i,v){ if(!_etaLast||!_etaLast.rows[i]) return; const k=String(_etaLast.rows[i].tr.id); (_etaOpts[k]=_etaOpts[k]||{}).leave=v||''; etaPaint(); }
 function etaPaint(){
-  const res=document.getElementById('eta-res'); if(!res||!_etaLast) return;
-  const {pu,zip,rows}=_etaLast; const pay=parseFloat(document.getElementById('eta-pay')?.value)||0, lmi=parseFloat(document.getElementById('eta-lmi')?.value)||0;
+  const res=document.getElementById('eta-res'), head=document.getElementById('eta-head'); if(!res||!_etaLast) return;
+  const {target,rows}=_etaLast; const pay=parseFloat(document.getElementById('eta-pay')?.value)||0, lmi=parseFloat(document.getElementById('eta-lmi')?.value)||0;
   let BE=null; try{ const b=asstBreakEven(); BE=b?b.be:null; }catch(e){}
-  const esc=x=>String(x==null?'':x).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-  const puName=pu.city+', '+pu.abbr, puTz=dlTz(pu.abbr,pu.lat,pu.lon);
-  const now=Date.now();
+  const esc=etaEsc, now=Date.now();
   const calc=rows.map(r=>{ if(r.none) return r; const o=_etaOpts[String(r.tr.id)]||{};
     let start=r.busy?r.freeAt:now;
     if(!r.busy && o.leave){ const [hh,mm]=o.leave.split(':').map(Number); const d=new Date(); d.setHours(hh,mm||0,0,0); if(d.getTime()<now-30*60000) d.setDate(d.getDate()+1); start=d.getTime(); }
     const avail=r.busy?11:(o.avail!=null?o.avail:11);
     const h=r.miles/ETA_MPH, tot=etaDriveHours(h,avail), eta=start+tot*3600000; return {...r,h,tot,eta,start,avail,leave:o.leave||''}; });
-  const ok=calc.filter(r=>!r.none); const best=ok.slice().sort((a,b)=>a.eta-b.eta)[0];
-  res.innerHTML=`<div style="font-size:12px;color:var(--text3);margin-bottom:8px;">${TR('Pick up en','Pick up in')} <b>${esc(puName)} ${esc(zip)}</b> · ${TR('hora allá ahorita','local time now')}: <b>${dlLocal(now,puTz)}</b></div>`+calc.map((r,i)=>{
-    const H=r.here; const hTz=H?dlTz(H.st,H.lat,H.lon):null;
-    const where=H?[H.city,H.st].filter(Boolean).join(', ')+(H.zip?' '+H.zip:''):'';
-    const hereHtml=H?`<div style="font-size:17px;font-weight:800;margin-top:4px;">📍 ${esc(where||TR('Ubicación sin nombre','Unknown place'))}</div><div style="font-size:13px;">${TR('hora allá','local time')} <b>${new Date(now).toLocaleTimeString('en-US',{timeZone:hTz,hour:'numeric',minute:'2-digit',timeZoneName:'short'})}</b></div>
-      <div style="font-size:11px;color:var(--text3);">${H.src==='last'?TR('Última entrega','Last delivery')+(H.deliv?' '+fmtDate(H.deliv):'')+' · '+TR('sin señal en vivo','no live signal'):(H.src==='eld'?'📡 ELD':'📱 '+TR('Celular','Phone'))+' · '+TR('hace '+H.ago+' min',H.ago+' min ago')+(H.old?' ⚠️ '+TR('señal vieja','old signal'):'')+(H.moving==='driving'?' · 🟢 '+TR('manejando','driving')+(H.speed!=null?' '+H.speed+' mph':''):H.moving==='stopped'?' · 🟠 '+TR('detenido','stopped'):'')}</div>`
-      :`<div style="font-size:12px;color:var(--text3);margin-top:4px;">${TR('Sin ubicación conocida','No known location')}</div>`;
-    if(r.none) return `<div style="border:1px solid var(--border);border-radius:12px;padding:10px 12px;margin-bottom:8px;"><b>${esc(r.tr.name)}${r.drvName?' · '+esc(r.drvName.split(' ')[0]):''}</b>${hereHtml}</div>`;
+  const ok=calc.filter(r=>!r.none); const best=ok.slice().sort((a,b)=>a.eta-b.eta)[0]||null;
+  _etaLast.calc=calc; _etaLast.best=best;
+  if(head){
+    const tz0=target.kind==='point'?dlTz(target.abbr,target.lat,target.lon):null;
+    head.innerHTML=target.kind==='state'
+      ?`<div style="font-size:15px;font-weight:800;">${TR('Pick up en todo','Pick up anywhere in')} ${esc(target.name)}</div><div style="font-size:12px;color:var(--text3);margin-bottom:6px;">${TR('Cada camión va a la ciudad de '+target.st+' que le queda más cerca.','Each truck goes to the closest city in '+target.st+'.')}</div>`
+      :`<div style="font-size:15px;font-weight:800;">Pick up: ${esc(target.city)}, ${esc(target.abbr)}${target.zip?' '+esc(target.zip):''}</div><div style="font-size:12px;color:var(--text3);margin-bottom:6px;">${TR('Hora allá ahorita','Local time now')}: <b>${dlLocal(now,tz0)}</b></div>`;
+  }
+  res.innerHTML=calc.map((r,i)=>{
+    const H=r.here;
+    if(r.none) return `<div style="padding:10px 0;${i?'border-top:1px solid var(--border);':''}"><div style="font-size:14px;font-weight:800;">${esc(r.tr.name)}${r.drvName?' · '+esc(r.drvName.split(' ')[0]):''}</div>${etaHereHtml(H,now)}</div>`;
+    const puTz=dlTz(r.pu.abbr,r.pu.lat,r.pu.lon); const puName=[r.pu.city,r.pu.abbr].filter(Boolean).join(', '); const hTz=H?dlTz(H.st,H.lat,H.lon):null;
+    const rest=r.tot>r.h+0.4, isBest=best===r&&ok.length>1;
+    const durColor=r.busy?'#B06000':rest?'#E37400':'#188038';
     const stepsHtml=r.steps.length?r.steps.map(s=>s.kind==='active'
-        ?`<div style="font-size:12px;margin-top:3px;">🚚 ${TR('Cargado','Loaded')}${s.trip.rc?' RC #'+esc(s.trip.rc):''}: ${s.arrived?TR('ya está en el delivery en ','at delivery in '):TR('entrega en ','delivering in ')}<b>${esc(s.place)}</b>${s.arrived?'':' · ETA '+detaWhen(s.eta)}</div>`
-        :`<div style="font-size:12px;margin-top:3px;">🗓️ ${TR('Luego programada','Then scheduled')}${s.trip.rc?' RC #'+esc(s.trip.rc):''}: ${esc(s.from)} → <b>${esc(s.place)}</b> · ${TR('entrega aprox.','delivers approx.')} ${detaWhen(s.eta)}</div>`).join('')
-      :`<div style="font-size:12px;margin-top:3px;color:#16A34A;font-weight:700;">✅ ${TR('Sin carga: libre','Empty: available')}</div>`;
+        ?`<div style="font-size:12px;margin-top:4px;">🚚 ${TR('Cargado','Loaded')}${s.trip.rc?' RC #'+esc(s.trip.rc):''}: ${s.arrived?TR('ya está en el delivery en ','at delivery in '):TR('entrega en ','delivering in ')}<b>${esc(s.place)}</b>${s.arrived?'':' · ETA '+detaWhen(s.eta)}</div>`
+        :`<div style="font-size:12px;margin-top:4px;">🗓️ ${TR('Luego programada','Then scheduled')}${s.trip.rc?' RC #'+esc(s.trip.rc):''}: ${esc(s.from)} → <b>${esc(s.place)}</b> · ${TR('entrega aprox.','delivers approx.')} ${detaWhen(s.eta)}</div>`).join('')
+      :'';
     const dead=r.miles, fuel=(()=>{ try{ const x=deadFuelCost(dead,8); return x?x.cost:null; }catch(e){ return null; } })();
     let rateHtml='';
     if(pay>0&&lmi>0){ const rate=pay/(lmi+dead), need=BE?Math.ceil(BE*(lmi+dead)/50)*50:null, good=BE?rate>=BE:null;
       rateHtml=`<div style="margin-top:6px;font-size:13px;font-weight:700;color:${good===false?'#DC2626':good?'#16A34A':'var(--text)'};">${TR('Rate real con millas vacías','Real rate incl. empty miles')}: $${rate.toFixed(2)}/mi${need?' · '+(good?TR('te conviene','it pays'):TR('pide mínimo ','ask at least ')+asstMoney(need)):''}</div>`; }
-    const loc=where?where:'';
     const act=r.steps.find(s=>s.kind==='active');
     const msg=(r.busy
-        ? (loc?'Truck is currently near '+loc+(H&&H.src!=='last'?' (local time '+new Date(now).toLocaleTimeString('en-US',{timeZone:hTz,hour:'numeric',minute:'2-digit',timeZoneName:'short'})+')':'')+'. ':'')+(act?'Loaded, delivering in '+act.place+(act.arrived?' now':' ETA '+new Date(act.eta).toLocaleString('en-US',{weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}))+'. ':'')+'Available after delivery in '+r.from.name+'. '
-        : 'Truck is empty and available'+(loc?' in '+loc:'')+(H&&H.src!=='last'?' (local time '+new Date(now).toLocaleTimeString('en-US',{timeZone:hTz,hour:'numeric',minute:'2-digit',timeZoneName:'short'})+')':'')+'. ')
-      +'ETA to pickup in '+puName+' '+zip+': '+dlLocal(r.eta,puTz)+' ('+dead+' mi).'+(truckDimsText(r.tr,{en:true}).length?'\n'+truckDimsText(r.tr,{en:true}).join('\n'):'');
-    const isBest=best&&best===r&&ok.length>1;
-    return `<div style="border:${isBest?'2px solid #1E3A8A':'1px solid var(--border)'};border-radius:12px;padding:11px 12px;margin-bottom:8px;">
-      <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start;"><div style="font-size:14px;font-weight:800;">${esc(r.tr.name)}${r.drvName?' · '+esc(r.drvName.split(' ')[0]):''}</div>${isBest?`<span style="font-size:11px;font-weight:800;background:#E0E7FF;color:#3730A3;padding:3px 8px;border-radius:8px;white-space:nowrap;">${TR('Llega primero','Arrives first')}</span>`:''}</div>
-      ${hereHtml}${stepsHtml}${(()=>{ const L=truckDimsText(r.tr); return L.length?`<details style="margin-top:4px;"><summary style="font-size:12px;cursor:pointer;color:var(--text2);">📏 ${esc(L[0].replace(/^Caja por dentro \(L x A x Al\): /,'Caja '))}</summary><div style="font-size:12px;color:var(--text2);">${L.map(esc).join('<br/>')}</div></details>`:`<div style="font-size:11px;color:var(--text3);margin-top:3px;">📏 Sin medidas (agrégalas en Mantenimiento)</div>`; })()}
-      <div style="margin-top:8px;padding-top:8px;border-top:1px dashed var(--border);">
-        <div style="font-size:11px;font-weight:800;color:#1E3A8A;text-transform:uppercase;">${TR('ETA al pick up','ETA to pick up')}</div>
-        <div style="font-size:22px;font-weight:800;margin:2px 0;">${detaWhen(r.eta)}</div>
-        <div style="font-size:12px;color:var(--text2);">${TR('hora local del pick up','pick up local time')}: <b>${dlLocal(r.eta,puTz)}</b></div>
-        <div style="font-size:12px;color:var(--text3);">${dead.toLocaleString('en-US')} mi${r.est?' ('+TR('aprox.','approx.')+')':''} ${TR('desde','from')} ${esc(r.from.name)} · ${r.tot.toFixed(1)} h ${TR('de camino','on the road')}${r.tot>r.h+0.4?' ('+TR('con descanso','incl. rest')+')':''}${fuel!=null?' · '+TR('diésel vacío ~','empty diesel ~')+asstMoney(fuel):''}</div></div>
+        ? (H?etaHereMsg(H,now)+' ':'')+(act?'Loaded, delivering in '+act.place+(act.arrived?' now':' ETA '+new Date(act.eta).toLocaleString('en-US',{weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}))+'. ':'')+'Available after delivery in '+r.from.name+'. '
+        : (H?etaHereMsg(H,now)+' ':'')+'Empty and available. ')
+      +'ETA to pickup in '+puName+(r.pu.zip?' '+r.pu.zip:'')+': '+dlLocal(r.eta,puTz)+' ('+dead+' mi).'+(truckDimsText(r.tr,{en:true}).length?'\n'+truckDimsText(r.tr,{en:true}).join('\n'):'');
+    const L2=truckDimsText(r.tr);
+    return `<div style="padding:12px 0;${i?'border-top:1px solid var(--border);':''}">
+      <div onclick="etaFocus(${i})" style="cursor:pointer;">
+        <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start;">
+          <div style="min-width:0;"><div style="font-size:20px;font-weight:800;color:${durColor};line-height:1.15;">${etaDur(r.eta-now)}</div>
+            <div style="font-size:13px;font-weight:700;margin-top:1px;">${esc(r.tr.name)}${r.drvName?' · '+esc(r.drvName.split(' ')[0]):''}</div></div>
+          <div style="text-align:right;flex-shrink:0;"><div style="font-size:12px;font-weight:800;padding:5px 10px;border-radius:14px;${isBest?'background:#1A73E8;color:#fff;':'border:1px solid var(--border);color:var(--text);'}">${detaWhen(r.eta)}</div>${isBest?`<div style="font-size:10px;font-weight:800;color:#1A73E8;margin-top:3px;">${TR('LLEGA PRIMERO','ARRIVES FIRST')}</div>`:''}</div>
+        </div>
+        <div style="font-size:12px;color:var(--text2);margin-top:3px;">${dead.toLocaleString('en-US')} mi ${TR('vacías','empty')}${r.est?' ('+TR('aprox.','approx.')+')':''} · ${r.tot.toFixed(1)} h ${TR('de camino','on the road')}${rest?' · <span style="color:#E37400;font-weight:700;">'+TR('incluye descanso 10 h','incl. 10 h rest')+'</span>':''}${fuel!=null?' · '+TR('diésel ~','diesel ~')+asstMoney(fuel):''}</div>
+        <div style="font-size:12px;color:var(--text2);">${target.kind==='state'?'Pick up: <b>'+esc(puName)+(r.pu.zip?' '+esc(r.pu.zip):'')+'</b> · ':''}${TR('llega hora local','arrives local time')} <b>${dlLocal(r.eta,puTz)}</b></div>
+        ${etaHereHtml(H,now)}
+        ${stepsHtml}
+        ${r.busy?'':`<div style="font-size:12px;margin-top:4px;color:#137333;font-weight:700;">✅ ${TR('Sin carga: libre','Empty: available')}</div>`}
+      </div>
       ${rateHtml}
+      ${L2.length?`<details style="margin-top:4px;"><summary style="font-size:12px;cursor:pointer;color:var(--text2);">📏 ${esc(L2[0].replace(/^Caja por dentro \(L x A x Al\): /,'Caja '))}</summary><div style="font-size:12px;color:var(--text2);">${L2.map(esc).join('<br/>')}</div></details>`:''}
       <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap;">
-        <button type="button" data-msg="${esc(msg)}" onclick="etaCopy(this)" style="font-size:12px;font-weight:700;padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg3);color:var(--text);cursor:pointer;">📋 ${TR('Copiar para el broker','Copy for broker')}</button>
-        <button type="button" onclick="tcPdf('${r.tr.id}',this)" style="font-size:12px;font-weight:700;padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg3);color:var(--text);cursor:pointer;">📸 Truck check PDF</button>
+        <button type="button" data-msg="${esc(msg)}" onclick="etaCopy(this)" style="font-size:12px;font-weight:700;padding:7px 12px;border-radius:16px;border:none;background:#1A73E8;color:#fff;cursor:pointer;">📋 ${TR('Copiar para el broker','Copy for broker')}</button>
+        <button type="button" onclick="tcPdf('${r.tr.id}',this)" style="font-size:12px;font-weight:700;padding:7px 12px;border-radius:16px;border:1px solid var(--border);background:var(--bg3);color:var(--text);cursor:pointer;">📸 Truck check PDF</button>
         ${r.busy?'':`<label style="font-size:11px;color:var(--text3);display:flex;align-items:center;gap:4px;">${TR('Horas que le quedan','Hours left')} <input type="number" min="0" max="11" step="0.5" value="${r.avail}" onchange="etaSetAvail(${i},this.value)" style="width:52px;padding:4px;border:1px solid var(--border);border-radius:6px;background:var(--bg3);color:var(--text);"/></label>
         <label style="font-size:11px;color:var(--text3);display:flex;align-items:center;gap:4px;">${TR('Sale a las','Leaves at')} <input type="time" value="${esc(r.leave)}" onchange="etaSetLeave(${i},this.value)" style="padding:3px;border:1px solid var(--border);border-radius:6px;background:var(--bg3);color:var(--text);"/></label>`}
-      </div></div>`; }).join('')+`<div style="font-size:11px;color:var(--text3);">${TR('Promedio '+ETA_MPH+' mph por carretera, con 30 min de descanso cada 8 h y 10 h al terminar sus horas. Si va cargado: '+ETA_UNLOAD_H+' h para descargar; cargas programadas: '+ETA_LOAD_H+' h para cargar.','Average '+ETA_MPH+' mph by road, with a 30-min break every 8 h and 10 h after the shift. Loaded: '+ETA_UNLOAD_H+' h to unload; scheduled loads: '+ETA_LOAD_H+' h to load.')}</div>`;
+      </div></div>`; }).join('')+`<div style="font-size:11px;color:var(--text3);margin-top:4px;">${TR('Promedio '+ETA_MPH+' mph por carretera, con 30 min de descanso cada 8 h y 10 h al terminar sus horas. Si va cargado: '+ETA_UNLOAD_H+' h para descargar; cargas programadas: '+ETA_LOAD_H+' h para cargar.','Average '+ETA_MPH+' mph by road, with a 30-min break every 8 h and 10 h after the shift. Loaded: '+ETA_UNLOAD_H+' h to unload; scheduled loads: '+ETA_LOAD_H+' h to load.')}</div>`;
+  etaDraw();
 }
 // ===== DOCUMENTOS (admin): licencia, tarjeta médica, registro, seguro, IFTA, inspección anual — los sube el chofer en su app
 const ADOC={cdl:'🪪 CDL',medical:'🩺 Tarjeta médica',registration:'📄 Registro',insurance:'🛡️ Seguro',ifta:'⛽ IFTA',annual:'🔧 Inspección anual'};
@@ -17899,6 +18112,7 @@ const ADMIN_SIDEBAR_ITEMS = [
   {id:'dashboard', icon:'📊', label:'Dashboard', section:'General'},
   {id:'new',       icon:'➕', label:'Nuevo viaje', section:'Operaciones'},
   {id:'entransito', icon:'🚚', label:'En Tránsito', section:'Operaciones'},
+  {id:'eta',       icon:'⏱️', label:'ETA al pick up', section:'Operaciones'},
   {id:'log',       icon:'📋', label:'Historial', section:'Operaciones'},
   {id:'ubicacion', icon:'📍', label:'Ubicación', section:'Operaciones'},
   {id:'gastos',    icon:'⛽', label:'Gastos', section:'Finanzas'},
@@ -17999,6 +18213,7 @@ function sidebarNav(id){
   if(id==='otrosgastos') renderOtrosGastos();
   if(id==='reporte') renderReporte();
   if(id==='entransito') renderEnTransito();
+  if(id==='eta'){ if(!currentUser||currentUser.role!=='admin') return sidebarNav('home'); renderEtaPage(); }
   if(id==='brokerreport') renderBrokerReport();
   if(id==='brokernamereport') renderBrokerNameReport();
   if(id==='dispatcherpay') renderDispatcherPay();
@@ -18087,6 +18302,7 @@ window.addEventListener('load', function(){
 <script>
 /* ══════════ TEMA CORPORATIVO: íconos y limpieza de emojis ══════════ */
 const PRO_ICONS={
+  eta:'<path d="M12 21s-7-6.5-7-12a7 7 0 0 1 14 0c0 5.5-7 12-7 12z"/><path d="M12 6v3.5l2 1.5"/>',
   home:'<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M10 21v-6h4v6"/>',
   dashboard:'<path d="M3 3v18h18"/><path d="M8 17v-5"/><path d="M13 17V8"/><path d="M18 17v-8"/>',
   new:'<rect x="3" y="3" width="18" height="18" rx="3"/><path d="M12 8v8M8 12h8"/>',

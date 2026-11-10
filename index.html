@@ -5929,6 +5929,8 @@ function renderEtaPage(){
   const box=document.getElementById('eta-page-body'); if(!box) return;
   if(box.dataset.ready!=='1'){
     box.innerHTML=`
+<div style="font-size:12px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.3px;margin:0 0 6px 2px;">${TR('Elige el driver','Pick the driver')}</div>
+<div id="eta-drv" style="display:flex;gap:8px;overflow-x:auto;padding:0 0 10px;-webkit-overflow-scrolling:touch;"></div>
 <div style="position:relative;isolation:isolate;z-index:0;border-radius:18px;overflow:hidden;border:1px solid var(--border);background:#E8EEF1;">
   <div id="eta-map" style="height:44vh;min-height:280px;max-height:520px;"></div>
   <div style="position:absolute;top:10px;left:10px;right:10px;z-index:1001;">
@@ -5962,8 +5964,22 @@ function renderEtaPage(){
     try{ dlFillSel(); }catch(e){}
     document.addEventListener('click',ev=>{ const s=document.getElementById('eta-sug'); if(s&&s.innerHTML&&!ev.target.closest('#eta-sug')&&ev.target.id!=='eta-q') etaSugClose(); });
   }
+  etaChips();
   etaInitMap();
   if(_etaLast) { etaPaint(); } else etaLoadFleet();
+}
+let _etaDrv='';   // camión elegido ('' = todos)
+function etaShow(rows){ return _etaDrv?(rows||[]).filter(r=>String(r.tr.id)===_etaDrv):(rows||[]); }
+function etaChips(){
+  const box=document.getElementById('eta-drv'); if(!box) return; const trucks=loadTrucks()||[];
+  const list=dlDrivers().filter(x=>x.u.truckId!=null&&x.u.truckId!==''&&trucks.some(t=>String(t.id)===String(x.u.truckId)));
+  const chip=(id,label,sub)=>{ const on=_etaDrv===id; return `<button type="button" onclick="etaPickDrv('${etaEsc(id)}')" style="flex-shrink:0;display:flex;flex-direction:column;align-items:flex-start;padding:8px 14px;border-radius:14px;cursor:pointer;font-family:inherit;${on?'background:#1E3A8A;color:#fff;border:2px solid #1E3A8A;':'background:var(--card,#fff);color:var(--text);border:2px solid var(--border);'}"><span style="font-size:14px;font-weight:800;white-space:nowrap;">${etaEsc(label)}</span>${sub?`<span style="font-size:11px;font-weight:600;white-space:nowrap;${on?'color:rgba(255,255,255,.75);':'color:var(--text3);'}">${etaEsc(sub)}</span>`:''}</button>`; };
+  box.innerHTML=chip('',TR('Todos','All'),TR('todos los camiones','all trucks'))+list.map(x=>{ const tk=trucks.find(t=>String(t.id)===String(x.u.truckId)); return chip(String(x.u.truckId),x.label.split(' ')[0],tk?tk.name:''); }).join('');
+}
+function etaPickDrv(id){
+  _etaDrv=String(id||''); etaChips();
+  if(_etaLast) etaPaint(); else etaPaintFleet();
+  try{ const sel=document.getElementById('dl-driver'); if(sel){ dlFillSel(); const u=_etaDrv?getUsers().find(x=>x.role!=='admin'&&String(x.truckId)===_etaDrv):null; sel.value=u?u.username:''; dlRun(); } }catch(e){}
 }
 
 // Simula el manejo con las reglas de horas: 30 min de descanso cada 8 h manejando y 10 h de descanso al terminar las horas disponibles
@@ -5994,7 +6010,7 @@ function etaTruckIcon(label,color){
 function etaPinIcon(){ return L.divIcon({className:'',iconSize:[26,36],iconAnchor:[13,34],html:'<svg width="26" height="36" viewBox="0 0 26 36"><path d="M13 35s11-12.5 11-21A11 11 0 0 0 2 14c0 8.5 11 21 11 21z" fill="#EA4335" stroke="#B31412" stroke-width="1.2"/><circle cx="13" cy="13.5" r="4.2" fill="#B31412"/></svg>'}); }
 function etaDraw(){
   if(!_etaMap||!_etaLayer) return; _etaLayer.clearLayers(); const pts=[];
-  const fleet=(_etaLast&&_etaLast.calc)||(_etaFleet||[]);
+  const fleet=(_etaLast&&_etaLast.calc)||etaShow(_etaFleet||[]);
   const best=_etaLast&&_etaLast.best;
   fleet.forEach(r=>{
     const H=r.here; const lab=(r.tr&&r.tr.name||'')+(r.drvName?' · '+r.drvName.split(' ')[0]:'');
@@ -6119,7 +6135,6 @@ function etaHereMsg(H,now){ if(!H) return ''; const tz=dlTz(H.st,H.lat,H.lon); c
 async function etaLoadFleet(){
   const res=document.getElementById('eta-res'), head=document.getElementById('eta-head'); if(!res) return;
   const my=++_etaBusy;
-  if(head) head.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;"><div style="font-size:15px;font-weight:800;">${TR('¿Dónde están los camiones?','Where are the trucks?')}</div><button type="button" onclick="etaLoadFleet()" style="font-size:12px;font-weight:700;padding:6px 10px;border-radius:16px;border:1px solid var(--border);background:var(--bg3);color:var(--text);cursor:pointer;">↻ ${TR('Actualizar','Refresh')}</button></div>`;
   if(!_etaFleet) res.innerHTML='<div style="font-size:13px;color:var(--text3);padding:6px 0;">⏳ '+TR('Buscando la ubicación de cada camión…','Locating each truck…')+'</div>';
   const trips=loadTrips(), trucks=loadTrucks()||[], users=getUsers(), live=await etaLiveLocations(), now=Date.now(); const rows=[];
   for(const tr of trucks){
@@ -6132,7 +6147,14 @@ async function etaLoadFleet(){
     rows.push({tr,drvName:etaDrvName(drivers,active,lastDone),here,active});
   }
   if(my!==_etaBusy||_etaLast) return;
-  _etaFleet=rows;
+  _etaFleet=rows; _etaFleetAt=now; etaPaintFleet();
+}
+let _etaFleetAt=0;
+function etaPaintFleet(){
+  const res=document.getElementById('eta-res'), head=document.getElementById('eta-head'); if(!res||!_etaFleet) return;
+  const now=Date.now(), rows=etaShow(_etaFleet);
+  const one=_etaDrv&&rows[0];
+  if(head) head.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;"><div style="font-size:15px;font-weight:800;">${one?TR('¿Dónde está ','Where is ')+etaEsc((one.drvName||one.tr.name).split(' ')[0])+'?':TR('¿Dónde están los camiones?','Where are the trucks?')}</div><button type="button" onclick="etaLoadFleet()" style="font-size:12px;font-weight:700;padding:6px 10px;border-radius:16px;border:1px solid var(--border);background:var(--bg3);color:var(--text);cursor:pointer;">↻ ${TR('Actualizar','Refresh')}</button></div>`;
   res.innerHTML=(rows.length?rows.map((r,i)=>{ const a=r.active;
     const st=a?`<span style="font-size:11px;font-weight:800;background:#E8F0FE;color:#1967D2;padding:3px 8px;border-radius:10px;white-space:nowrap;">${TR('Cargado','Loaded')} → ${etaEsc((a.city2||a.z2||'')+(a.state2?', '+a.state2:''))}</span>`
       :`<span style="font-size:11px;font-weight:800;background:#E6F4EA;color:#137333;padding:3px 8px;border-radius:10px;white-space:nowrap;">${TR('Libre','Empty')}</span>`;
@@ -6192,8 +6214,8 @@ async function etaCalc(target){
   _etaLast={target,rows}; etaPaint();
 }
 function etaFillDrv(){}
-function etaSetAvail(i,v){ if(!_etaLast||!_etaLast.rows[i]) return; const k=String(_etaLast.rows[i].tr.id); const n=parseFloat(v); (_etaOpts[k]=_etaOpts[k]||{}).avail=isNaN(n)?11:Math.max(0,Math.min(11,n)); etaPaint(); }
-function etaSetLeave(i,v){ if(!_etaLast||!_etaLast.rows[i]) return; const k=String(_etaLast.rows[i].tr.id); (_etaOpts[k]=_etaOpts[k]||{}).leave=v||''; etaPaint(); }
+function etaSetAvail(k,v){ k=String(k); const n=parseFloat(v); (_etaOpts[k]=_etaOpts[k]||{}).avail=isNaN(n)?11:Math.max(0,Math.min(11,n)); etaPaint(); }
+function etaSetLeave(k,v){ k=String(k); (_etaOpts[k]=_etaOpts[k]||{}).leave=v||''; etaPaint(); }
 function etaPaint(){
   const res=document.getElementById('eta-res'), head=document.getElementById('eta-head'); if(!res||!_etaLast) return;
   const {target,rows}=_etaLast; const pay=parseFloat(document.getElementById('eta-pay')?.value)||0, lmi=parseFloat(document.getElementById('eta-lmi')?.value)||0;
@@ -6204,15 +6226,15 @@ function etaPaint(){
     if(!r.busy && o.leave){ const [hh,mm]=o.leave.split(':').map(Number); const d=new Date(); d.setHours(hh,mm||0,0,0); if(d.getTime()<now-30*60000) d.setDate(d.getDate()+1); start=d.getTime(); }
     const avail=r.busy?11:(o.avail!=null?o.avail:11);
     const h=r.miles/ETA_MPH, tot=etaDriveHours(h,avail), eta=start+tot*3600000; return {...r,h,tot,eta,start,avail,leave:o.leave||''}; });
-  const ok=calc.filter(r=>!r.none); const best=ok.slice().sort((a,b)=>a.eta-b.eta)[0]||null;
-  _etaLast.calc=calc; _etaLast.best=best;
+  const shown=etaShow(calc); const ok=shown.filter(r=>!r.none); const best=ok.slice().sort((a,b)=>a.eta-b.eta)[0]||null;
+  _etaLast.calc=shown; _etaLast.best=best;
   if(head){
     const tz0=target.kind==='point'?dlTz(target.abbr,target.lat,target.lon):null;
     head.innerHTML=target.kind==='state'
       ?`<div style="font-size:15px;font-weight:800;">${TR('Pick up en todo','Pick up anywhere in')} ${esc(target.name)}</div><div style="font-size:12px;color:var(--text3);margin-bottom:6px;">${TR('Cada camión va a la ciudad de '+target.st+' que le queda más cerca.','Each truck goes to the closest city in '+target.st+'.')}</div>`
       :`<div style="font-size:15px;font-weight:800;">Pick up: ${esc(target.city)}, ${esc(target.abbr)}${target.zip?' '+esc(target.zip):''}</div><div style="font-size:12px;color:var(--text3);margin-bottom:6px;">${TR('Hora allá ahorita','Local time now')}: <b>${dlLocal(now,tz0)}</b></div>`;
   }
-  res.innerHTML=calc.map((r,i)=>{
+  res.innerHTML=shown.map((r,i)=>{
     const H=r.here;
     if(r.none) return `<div style="padding:10px 0;${i?'border-top:1px solid var(--border);':''}"><div style="font-size:14px;font-weight:800;">${esc(r.tr.name)}${r.drvName?' · '+esc(r.drvName.split(' ')[0]):''}</div>${etaHereHtml(H,now)}</div>`;
     const puTz=dlTz(r.pu.abbr,r.pu.lat,r.pu.lon); const puName=[r.pu.city,r.pu.abbr].filter(Boolean).join(', '); const hTz=H?dlTz(H.st,H.lat,H.lon):null;
@@ -6261,8 +6283,8 @@ function etaPaint(){
         ${L2.length?`<div style="font-size:12px;color:var(--text2);margin-top:4px;">${L2.map(esc).join('<br/>')}</div>`:''}
         <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap;">
           <button type="button" onclick="tcPdf('${r.tr.id}',this)" style="font-size:12px;font-weight:700;padding:7px 12px;border-radius:16px;border:1px solid var(--border);background:var(--bg3);color:var(--text);cursor:pointer;">📸 Truck check PDF</button>
-          ${r.busy?'':`<label style="font-size:11px;color:var(--text3);display:flex;align-items:center;gap:4px;">${TR('Horas que le quedan','Hours left')} <input type="number" min="0" max="11" step="0.5" value="${r.avail}" onchange="etaSetAvail(${i},this.value)" style="width:52px;padding:4px;border:1px solid var(--border);border-radius:6px;background:var(--bg3);color:var(--text);"/></label>
-          <label style="font-size:11px;color:var(--text3);display:flex;align-items:center;gap:4px;">${TR('Sale a las','Leaves at')} <input type="time" value="${esc(r.leave)}" onchange="etaSetLeave(${i},this.value)" style="padding:3px;border:1px solid var(--border);border-radius:6px;background:var(--bg3);color:var(--text);"/></label>`}
+          ${r.busy?'':`<label style="font-size:11px;color:var(--text3);display:flex;align-items:center;gap:4px;">${TR('Horas que le quedan','Hours left')} <input type="number" min="0" max="11" step="0.5" value="${r.avail}" onchange="etaSetAvail('${r.tr.id}',this.value)" style="width:52px;padding:4px;border:1px solid var(--border);border-radius:6px;background:var(--bg3);color:var(--text);"/></label>
+          <label style="font-size:11px;color:var(--text3);display:flex;align-items:center;gap:4px;">${TR('Sale a las','Leaves at')} <input type="time" value="${esc(r.leave)}" onchange="etaSetLeave('${r.tr.id}',this.value)" style="padding:3px;border:1px solid var(--border);border-radius:6px;background:var(--bg3);color:var(--text);"/></label>`}
         </div>
         <div style="font-size:11px;color:var(--text3);margin-top:6px;">${TR('Calculado a '+ETA_MPH+' mph promedio, con descansos de horas de servicio.','Calculated at '+ETA_MPH+' mph average, with hours-of-service breaks.')}</div>
         </div></details>

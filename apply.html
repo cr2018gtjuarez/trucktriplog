@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Driver Application · YENAVI FREIGHT</title>
+<meta name="theme-color" content="#0E1B3D">
+<link rel="icon" href="driver-icon-192.png">
+<style>
+:root{--bg:#EEF1F6;--card:#fff;--ink:#0F172A;--mu:#64748B;--line:#E2E8F0;--acc:#1E3A8A;--acc2:#2563EB;--ok:#067647;--bad:#B42318;--soft:#F5F7FB}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,"SF Pro Text",Inter,"Segoe UI",Roboto,Arial,sans-serif;-webkit-text-size-adjust:100%}
+.top{background:#0E1B3D;color:#fff;padding:16px 16px 18px;padding-top:max(16px,env(safe-area-inset-top))}
+.top .row{display:flex;align-items:center;gap:10px;max-width:720px;margin:0 auto}
+.top .co{font-size:11px;letter-spacing:1.2px;opacity:.75;text-transform:uppercase}
+.top h1{font-size:20px;margin:2px 0 0}
+.lang{margin-left:auto;display:flex;background:rgba(255,255,255,.12);border-radius:999px;padding:3px}
+.lang button{border:0;background:none;color:#fff;font-weight:700;font-size:12px;padding:6px 11px;border-radius:999px;cursor:pointer}
+.lang button.on{background:#fff;color:#0E1B3D}
+.prog{max-width:720px;margin:12px auto 0;display:flex;gap:4px}
+.prog i{flex:1;height:5px;border-radius:3px;background:rgba(255,255,255,.2)}
+.prog i.on{background:#60A5FA}.prog i.done{background:#fff}
+.stepname{max-width:720px;margin:8px auto 0;font-size:12px;opacity:.85}
+main{max-width:720px;margin:0 auto;padding:14px 14px 120px}
+.card{background:var(--card);border-radius:14px;padding:16px;margin-bottom:12px;box-shadow:0 1px 3px rgba(15,23,42,.06)}
+.card h2{font-size:17px;margin:0 0 4px}
+.card .lead{font-size:13px;color:var(--mu);margin:0 0 12px;line-height:1.45}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 12px}
+.f{display:flex;flex-direction:column;gap:5px;min-width:0}
+.f.full{grid-column:1/-1}
+label.l{font-size:12px;font-weight:700;color:#334155}
+label.l .rq{color:var(--bad)}
+input,select,textarea{font:inherit;font-size:16px;color:var(--ink);background:#fff;border:1.5px solid var(--line);border-radius:10px;padding:11px 12px;width:100%;min-width:0}
+textarea{min-height:76px;resize:vertical}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--acc2);box-shadow:0 0 0 3px rgba(37,99,235,.15)}
+.f.err input,.f.err select,.f.err textarea,.f.err .yn{border-color:var(--bad)}
+.f .em{font-size:12px;color:var(--bad);display:none}.f.err .em{display:block}
+.yn{display:flex;border:1.5px solid var(--line);border-radius:10px;overflow:hidden}
+.yn button{flex:1;border:0;background:#fff;padding:11px 0;font:inherit;font-weight:700;color:#334155;cursor:pointer}
+.yn button+button{border-left:1.5px solid var(--line)}
+.yn button.on.y{background:#FEF3F2;color:var(--bad)}.yn button.on.n{background:#ECFDF3;color:var(--ok)}
+.yn.pos button.on.y{background:#ECFDF3;color:var(--ok)}.yn.pos button.on.n{background:#FEF3F2;color:var(--bad)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips button{border:1.5px solid var(--line);background:#fff;border-radius:999px;padding:8px 12px;font:inherit;font-size:14px;font-weight:600;color:#334155;cursor:pointer}
+.chips button.on{border-color:var(--acc2);background:#EFF6FF;color:var(--acc)}
+.rep{border:1.5px dashed #CBD5E1;border-radius:12px;padding:12px;margin:10px 0;background:var(--soft)}
+.rep .rh{display:flex;align-items:center;margin-bottom:8px;font-weight:800;font-size:14px;color:var(--acc)}
+.rep .rh button{margin-left:auto;border:0;background:none;color:var(--bad);font-weight:700;font-size:13px;cursor:pointer}
+.add{border:1.5px solid var(--acc2);color:var(--acc2);background:#fff;border-radius:10px;padding:10px 14px;font:inherit;font-weight:700;cursor:pointer;width:100%}
+.none{display:flex;align-items:center;gap:10px;background:#ECFDF3;border:1px solid #ABEFC6;border-radius:10px;padding:11px 12px;font-weight:600;font-size:14px;cursor:pointer;margin-bottom:6px}
+.none input{width:20px;height:20px;flex:none}
+.photo{border:1.5px dashed #94A3B8;border-radius:12px;padding:12px;display:flex;align-items:center;gap:12px;cursor:pointer;background:#fff}
+.photo img{width:84px;height:58px;object-fit:cover;border-radius:8px;background:var(--soft);flex:none}
+.photo .ph{width:84px;height:58px;border-radius:8px;background:var(--soft);display:grid;place-items:center;flex:none;color:#94A3B8;font-size:24px}
+.photo b{display:block;font-size:14px}.photo span{font-size:12px;color:var(--mu)}
+.legal{font-size:13px;line-height:1.5;color:#334155;background:var(--soft);border-radius:10px;padding:12px;max-height:260px;overflow:auto}
+.legal h4{margin:10px 0 4px;font-size:13px;color:var(--acc)}.legal h4:first-child{margin-top:0}
+.chk{display:flex;gap:10px;align-items:flex-start;font-size:14px;line-height:1.4;margin:10px 0;cursor:pointer}
+.chk input{width:22px;height:22px;flex:none;margin:0}
+.sig{border:1.5px solid var(--line);border-radius:12px;background:#fff;position:relative;touch-action:none}
+.sig canvas{display:block;width:100%;height:170px;border-radius:12px}
+.sig .ln{position:absolute;left:16px;right:16px;bottom:38px;border-top:1px dashed #CBD5E1;pointer-events:none}
+.sig .x{position:absolute;left:14px;bottom:40px;color:#94A3B8;font-size:18px;pointer-events:none}
+.sig .clr{position:absolute;right:8px;top:8px;border:0;background:var(--soft);border-radius:8px;padding:6px 10px;font:inherit;font-size:12px;font-weight:700;color:#334155;cursor:pointer}
+.rev{font-size:13px}.rev .sec{font-weight:800;color:var(--acc);margin:12px 0 4px;font-size:12px;text-transform:uppercase;letter-spacing:.4px}
+.rev .kv{display:flex;gap:8px;padding:5px 0;border-bottom:1px solid #F1F5F9}.rev .kv span{color:var(--mu);flex:0 0 42%}.rev .kv b{font-weight:600;word-break:break-word}
+.rev .edit{border:0;background:none;color:var(--acc2);font-weight:700;font-size:12px;cursor:pointer;padding:0;margin-left:6px}
+.nav{position:fixed;left:0;right:0;bottom:0;background:rgba(255,255,255,.96);backdrop-filter:blur(8px);border-top:1px solid var(--line);padding:10px 14px;padding-bottom:max(10px,env(safe-area-inset-bottom))}
+.nav .in{max-width:720px;margin:0 auto;display:flex;gap:10px}
+.btn{flex:1;border:0;border-radius:12px;padding:14px;font:inherit;font-weight:800;font-size:16px;cursor:pointer}
+.btn.p{background:var(--acc);color:#fff}.btn.s{background:#E2E8F0;color:#0F172A;flex:0 0 34%}
+.btn:disabled{opacity:.55}
+.toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#0F172A;color:#fff;padding:10px 14px;border-radius:10px;font-size:14px;max-width:90%;display:none;z-index:9}
+.done{text-align:center;padding:30px 16px}
+.done .ic{width:72px;height:72px;border-radius:50%;background:#ECFDF3;display:grid;place-items:center;margin:0 auto 12px;font-size:36px}
+.note{font-size:12px;color:var(--mu);margin-top:6px;line-height:1.4}
+.hide{display:none!important}
+@media(max-width:520px){.grid{grid-template-columns:1fr}.f.half-m{grid-column:auto}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="row">
+    <div><div class="co" id="co-name">YENAVI FREIGHT LLC</div><h1 id="title">Driver Application</h1></div>
+    <div class="lang"><button data-l="en" onclick="setLang('en')">EN</button><button data-l="es" onclick="setLang('es')">ES</button></div>
+  </div>
+  <div class="prog" id="prog"></div>
+  <div class="stepname" id="stepname"></div>
+</header>
+<main id="main"></main>
+<nav class="nav" id="nav"><div class="in">
+  <button class="btn s" id="back" onclick="go(-1)">Back</button>
+  <button class="btn p" id="next" onclick="go(1)">Next</button>
+</div></nav>
+<div class="toast" id="toast"></div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script>
+// ══════════ YENAVI · Solicitud de empleo para choferes (FMCSA 49 CFR 391.21) ══════════
+// Página pública: el candidato la llena sin usuario. Se guarda en Firestore (applications/<id>),
+// las fotos (CDL y médico) van al servicio de fotos (Google Drive) y llega un correo a operations@.
+const firebaseConfig={apiKey:"AIzaSyDqOc1qREzUev62Kicpiq6wOgL7LvmEn3k",authDomain:"truck-trip-log.firebaseapp.com",projectId:"truck-trip-log",storageBucket:"truck-trip-log.firebasestorage.app",messagingSenderId:"682712057989",appId:"1:682712057989:web:215a6e6e305455d11ac1ec"};
+const EMAIL_URL_DEFAULT='https://script.google.com/macros/s/AKfycbxhaLy0VGwJSWuriq-4WrDKm_NpEjbPbKIuQks-UlIP6skRtOFRKtcNMtF6fx5DEl46bQ/exec';
+const EMAIL_KEY='-uxf0ooK054-c2la2dSmMmxW', PH_KEY='yenavi-fotos-4Rk8', OPS='operations@yenavifreight.com';
+const DRAFT_KEY='yenavi_apply_draft_v1';
+let db=null; try{ firebase.initializeApp(firebaseConfig); db=firebase.firestore(); }catch(e){ console.warn('firebase',e); }
+
+let LANG='en'; try{ LANG=localStorage.getItem('yenavi_apply_lang')||((navigator.language||'').toLowerCase().startsWith('es')?'es':'en'); }catch(e){}
+const L=(en,es)=>LANG==='es'?es:en;
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+const STATES=['AL','AK','AZ','AR','CA','CO','CT','DE','DC','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY','Mexico','Canada'];
+
+// ── Campos ──
+// type: text, tel, email, date, month, num, sel, yn (sí/no), area, chips
+const F=(k,en,es,type,o)=>Object.assign({k,en,es,type:type||'text',req:true},o||{});
+const OPT=o=>Object.assign({req:false},o||{});
+const ADDR=[F('street','Street address','Dirección','text',{full:true}),F('city','City','Ciudad'),F('state','State','Estado','sel',{opts:STATES}),F('zip','ZIP','Código postal','text',{im:'numeric'}),F('from','Lived here since','Vivo aquí desde','month')];
+const PREV_ADDR=[F('street','Street address','Dirección','text',{full:true}),F('city','City','Ciudad'),F('state','State','Estado','sel',{opts:STATES}),F('zip','ZIP','Código postal','text',OPT({im:'numeric'})),F('from','From','Desde','month'),F('to','To','Hasta','month')];
+const LIC=[F('state','State','Estado','sel',{opts:STATES}),F('number','License number','Número de licencia'),F('cls','Class','Clase','sel',{opts:['A','B','C','Non-CDL']}),F('exp','Expiration','Vencimiento','date'),
+  F('endorse','Endorsements','Endosos','chips',OPT({full:true,opts:[['H','H · Hazmat','H · Hazmat'],['N','N · Tank','N · Tanque'],['T','T · Doubles/Triples','T · Dobles/Triples'],['X','X · Tank + Hazmat','X · Tanque + Hazmat'],['P','P · Passenger','P · Pasajeros'],['S','S · School bus','S · Autobús escolar'],['TWIC','TWIC card','Tarjeta TWIC']]})),
+  F('restrict','Restrictions (if any)','Restricciones (si tiene)','text',OPT({full:true}))];
+const EXP=[F('equip','Equipment','Equipo','sel',{opts:[['tractor-semi','Tractor + semi-trailer','Tractor + semirremolque'],['tractor-2','Tractor + two trailers','Tractor + dos remolques'],['straight','Straight truck / box truck','Camión rígido / caja seca'],['hotshot','Hotshot / pickup + trailer','Hotshot / pickup + remolque'],['other','Other','Otro']]}),
+  F('trailer','Trailer type','Tipo de remolque','sel',{opts:[['dryvan','Dry van','Caja seca'],['reefer','Reefer','Refrigerado'],['flatbed','Flatbed','Plataforma'],['stepdeck','Step deck','Step deck'],['tanker','Tanker','Tanque'],['other','Other','Otro']]}),
+  F('from','From','Desde','month'),F('to','To (blank = now)','Hasta (vacío = hoy)','month',OPT()),F('miles','Approx. total miles','Millas aprox. en total','num',OPT())];
+const ACC=[F('date','Date','Fecha','date'),F('where','City, State','Ciudad, Estado'),F('what','What happened','Qué pasó','area',{full:true}),F('fatal','Fatalities','Muertos','num',{im:'numeric'}),F('injur','Injuries','Heridos','num',{im:'numeric'}),F('hazmat','Hazmat spill?','¿Derrame de hazmat?','yn')];
+const VIO=[F('date','Date','Fecha','date'),F('where','City, State','Ciudad, Estado'),F('charge','Violation / charge','Infracción / cargo','text',{full:true}),F('vehicle','Vehicle','Vehículo','sel',{opts:[['cmv','Commercial (CMV)','Comercial (CMV)'],['personal','Personal','Personal']]}),F('penalty','Penalty','Multa / sanción')];
+const EMP=[F('name','Company name','Nombre de la empresa','text',{full:true}),F('phone','Phone','Teléfono','tel'),F('contact','Contact person','Persona de contacto','text',OPT()),
+  F('city','City','Ciudad'),F('state','State','Estado','sel',{opts:STATES}),F('position','Position','Puesto'),F('from','From','Desde','month'),F('to','To (blank = now)','Hasta (vacío = hoy)','month',OPT()),
+  F('reason','Reason for leaving','Razón por la que salió','text',{full:true}),
+  F('fmcsr','Subject to the FMCSRs (DOT) while employed?','¿Estaba sujeto a las reglas FMCSR (DOT) en ese trabajo?','yn',{full:true,pos:true}),
+  F('dot','Was the job a safety-sensitive function subject to DOT drug & alcohol testing (49 CFR Part 40)?','¿El puesto tenía pruebas de drogas y alcohol del DOT (49 CFR Parte 40)?','yn',{full:true,pos:true})];
+
+const STEPS=[
+ {id:'me',en:'About you',es:'Tus datos',
+  lead:['Fill out this application to drive with us. It takes about 15 minutes. Your progress is saved on this phone.','Llena esta solicitud para manejar con nosotros. Toma unos 15 minutos. Lo que llenes se guarda en este teléfono.'],
+  fields:[F('first','First name','Nombre'),F('middle','Middle name','Segundo nombre','text',OPT()),F('last','Last name','Apellido'),F('dob','Date of birth','Fecha de nacimiento','date'),
+   F('phone','Cell phone','Celular','tel'),F('email','Email','Correo','email'),
+   F('position','Position','Puesto','sel',{opts:[['company','Company driver','Chofer de la compañía'],['owner','Owner operator','Owner operator'],['team','Team driver','Chofer en equipo']]}),
+   F('start','Available to start','Puedo empezar el','date'),
+   F('auth','Are you legally authorized to work in the United States?','¿Tiene permiso legal para trabajar en Estados Unidos?','yn',{full:true,pos:true}),
+   F('english','Can you read and speak English well enough to talk with the public, understand road signs and fill out reports? (49 CFR 391.11)','¿Lee y habla inglés lo suficiente para hablar con el público, entender las señales y llenar reportes? (49 CFR 391.11)','yn',{full:true,pos:true}),
+   F('refby','How did you hear about us?','¿Cómo supo de nosotros?','text',OPT({full:true}))]},
+ {id:'addr',en:'Addresses',es:'Domicilios',
+  lead:['Your current address and every address where you lived in the last 3 years.','Tu domicilio actual y todos los lugares donde viviste en los últimos 3 años.'],
+  fields:[{group:'addr',title:['Current address','Domicilio actual'],fields:ADDR,fixed:true},
+          {group:'prevAddr',title:['Previous address','Domicilio anterior'],fields:PREV_ADDR,min:0,addLbl:['+ Add previous address','+ Agregar domicilio anterior'],hint:['Add one if you have lived at your current address less than 3 years.','Agrega uno si tienes menos de 3 años en tu domicilio actual.']}]},
+ {id:'lic',en:'Licenses',es:'Licencias',
+  lead:['Every driver license you have held in the last 3 years (49 CFR 391.21).','Todas las licencias de manejo que has tenido en los últimos 3 años (49 CFR 391.21).'],
+  fields:[{group:'licenses',title:['License','Licencia'],fields:LIC,min:1,addLbl:['+ Add another license','+ Agregar otra licencia']},
+   F('licDenied','Have you ever been denied a license, permit or privilege to operate a motor vehicle?','¿Alguna vez le negaron una licencia o permiso para manejar?','yn',{full:true,explain:'licDeniedWhy'}),
+   F('licSusp','Has any license, permit or privilege ever been suspended or revoked?','¿Alguna vez le suspendieron o quitaron una licencia o permiso?','yn',{full:true,explain:'licSuspWhy'})]},
+ {id:'exp',en:'Experience',es:'Experiencia',
+  lead:['The types of equipment you have driven.','Los tipos de equipo que has manejado.'],
+  fields:[F('years','Years of CDL driving experience','Años de experiencia manejando con CDL','num',{im:'decimal'}),
+   F('ottr','Willing to run OTR (over the road, 2+ weeks out)?','¿Está dispuesto a salir OTR (2 semanas o más fuera)?','yn',{pos:true}),
+   {group:'exp',title:['Equipment','Equipo'],fields:EXP,min:1,addLbl:['+ Add equipment','+ Agregar equipo']}]},
+ {id:'rec',en:'Accidents & tickets',es:'Accidentes y multas',
+  lead:['Accidents and moving violations in the last 3 years, in any vehicle. Parking tickets do not count.','Accidentes e infracciones de tránsito de los últimos 3 años, en cualquier vehículo. Las multas de estacionamiento no cuentan.'],
+  fields:[{group:'acc',title:['Accident','Accidente'],fields:ACC,min:0,noneKey:'noAcc',none:['I had no accidents in the last 3 years','No tuve accidentes en los últimos 3 años'],addLbl:['+ Add accident','+ Agregar accidente']},
+          {group:'vio',title:['Violation','Infracción'],fields:VIO,min:0,noneKey:'noVio',none:['I had no moving violations in the last 3 years','No tuve infracciones en los últimos 3 años'],addLbl:['+ Add violation','+ Agregar infracción']},
+          F('dui','In the last 3 years, have you been convicted of DUI/DWI, leaving the scene of an accident, or a felony involving a motor vehicle?','En los últimos 3 años, ¿lo han condenado por manejar ebrio (DUI/DWI), huir de un accidente o un delito grave con un vehículo?','yn',{full:true,explain:'duiWhy'})]},
+ {id:'emp',en:'Employment',es:'Empleos',
+  lead:['All employers for the last 3 years, and every employer where you drove a commercial vehicle in the last 10 years. Start with the most recent.','Todos tus empleos de los últimos 3 años, y todos los trabajos donde manejaste vehículo comercial en los últimos 10 años. Empieza por el más reciente.'],
+  fields:[{group:'emp',title:['Employer','Empleo'],fields:EMP,min:1,addLbl:['+ Add employer','+ Agregar empleo']},
+   F('gaps','Periods without work in the last 3 years (dates and why)','Tiempos sin trabajo en los últimos 3 años (fechas y por qué)','area',OPT({full:true}))]},
+ {id:'docs',en:'Documents',es:'Documentos',
+  lead:['Take clear photos. They go straight to YENAVI and are only used for hiring.','Toma fotos claras. Van directo a YENAVI y solo se usan para la contratación.'],
+  fields:[{photo:'cdlFront',en:'CDL — front',es:'CDL — frente',req:true},{photo:'cdlBack',en:'CDL — back',es:'CDL — atrás',req:true},{photo:'medCard',en:'DOT medical card',es:'Certificado médico DOT',req:false},
+   F('medExp','Medical card expiration','Vencimiento del certificado médico','date',OPT()),
+   F('drugTest','In the last 3 years, have you tested positive, or refused to test, on a DOT pre-employment drug or alcohol test for a job you applied for but did not get? (49 CFR 40.25(j))','En los últimos 3 años, ¿salió positivo o se negó a hacer una prueba de drogas o alcohol del DOT antes de entrar a un trabajo que no obtuvo? (49 CFR 40.25(j))','yn',{full:true,explain:'drugTestWhy',explainLbl:['If yes, did you complete the return-to-duty process? Explain.','Si es así, ¿terminó el proceso de regreso al trabajo (return-to-duty)? Explique.']})]},
+ {id:'sign',en:'Review & sign',es:'Revisar y firmar',lead:['Check your answers, read the authorizations and sign.','Revisa tus respuestas, lee las autorizaciones y firma.'],fields:[]}
+];
+
+// ── Estado ──
+let A={}, step=0, photos={}, sigData='', sigDirty=false;
+try{ const d=JSON.parse(localStorage.getItem(DRAFT_KEY)||'null'); if(d&&d.A){ A=d.A; step=Math.min(d.step||0,STEPS.length-1); } }catch(e){}
+if(!A.addr) A.addr=[{}];
+['prevAddr','acc','vio'].forEach(g=>{ if(!A[g]) A[g]=[]; });
+['licenses','exp','emp'].forEach(g=>{ if(!A[g]||!A[g].length) A[g]=[{}]; });
+function saveDraft(){ try{ localStorage.setItem(DRAFT_KEY,JSON.stringify({A,step,at:Date.now()})); }catch(e){} }
+function getV(path){ return path.split('.').reduce((o,k)=>o==null?undefined:o[k],A); }
+function setV(path,v){ const ks=path.split('.'); let o=A; for(let i=0;i<ks.length-1;i++){ o=o[ks[i]]=o[ks[i]]||{}; } o[ks[ks.length-1]]=v; saveDraft(); }
+
+// ── Dibujo ──
+function optLabel(o){ return Array.isArray(o)?L(o[1],o[2]):o; }
+function optVal(o){ return Array.isArray(o)?o[0]:o; }
+function fieldHTML(f,path){
+  const v=getV(path); const lbl=L(f.en,f.es); const rq=f.req?' <span class="rq">*</span>':'';
+  let inp='';
+  if(f.type==='sel'){ inp='<select data-p="'+path+'" onchange="onIn(this)"><option value="">'+L('Select…','Elige…')+'</option>'+f.opts.map(o=>'<option value="'+esc(optVal(o))+'"'+(String(v||'')===String(optVal(o))?' selected':'')+'>'+esc(optLabel(o))+'</option>').join('')+'</select>'; }
+  else if(f.type==='yn'){ inp='<div class="yn'+(f.pos?' pos':'')+'" data-p="'+path+'"><button type="button" class="y'+(v==='yes'?' on':'')+'" onclick="setYN(\''+path+'\',\'yes\')">'+L('Yes','Sí')+'</button><button type="button" class="n'+(v==='no'?' on':'')+'" onclick="setYN(\''+path+'\',\'no\')">No</button></div>'; }
+  else if(f.type==='area'){ inp='<textarea data-p="'+path+'" oninput="onIn(this)">'+esc(v||'')+'</textarea>'; }
+  else if(f.type==='chips'){ const cur=v||[]; inp='<div class="chips" data-p="'+path+'">'+f.opts.map(o=>'<button type="button" class="'+(cur.includes(o[0])?'on':'')+'" onclick="togChip(\''+path+'\',\''+o[0]+'\',this)">'+esc(optLabel(o))+'</button>').join('')+'</div>'; }
+  else { const t={tel:'tel',email:'email',date:'date',month:'month',num:'text'}[f.type]||'text';
+    const im=f.im||(f.type==='num'?'decimal':f.type==='tel'?'tel':'');
+    const ac={first:'given-name',middle:'additional-name',last:'family-name',phone:'tel',email:'email',street:'street-address',city:'address-level2',zip:'postal-code',dob:'bday'}[f.k]||'off';
+    inp='<input type="'+t+'" data-p="'+path+'" value="'+esc(v||'')+'"'+(im?' inputmode="'+im+'"':'')+' autocomplete="'+ac+'" oninput="onIn(this)">'; }
+  let h='<div class="f'+(f.full?' full':'')+'" data-f="'+path+'"><label class="l">'+esc(lbl)+rq+'</label>'+inp+'<div class="em">'+L('Required','Obligatorio')+'</div></div>';
+  if(f.explain){ const show=v==='yes'; h+='<div class="f full'+(show?'':' hide')+'" data-f="'+f.explain+'" data-ex="'+path+'"><label class="l">'+esc(f.explainLbl?L(f.explainLbl[0],f.explainLbl[1]):L('Please explain','Explique por favor'))+' <span class="rq">*</span></label><textarea data-p="'+f.explain+'" oninput="onIn(this)">'+esc(getV(f.explain)||'')+'</textarea><div class="em">'+L('Required','Obligatorio')+'</div></div>'; }
+  return h;
+}
+function groupHTML(g){
+  const arr=A[g.group]||[]; const none=g.noneKey&&A[g.noneKey];
+  let h='';
+  if(g.noneKey) h+='<label class="none"><input type="checkbox" '+(none?'checked':'')+' onchange="setNone(\''+g.noneKey+'\',\''+g.group+'\',this.checked)">'+esc(L(g.none[0],g.none[1]))+'</label>';
+  if(none) return h;
+  if(g.hint) h+='<div class="note" style="margin-bottom:6px">'+esc(L(g.hint[0],g.hint[1]))+'</div>';
+  arr.forEach((it,i)=>{
+    const canDel=!g.fixed && (arr.length>(g.min||0));
+    h+='<div class="rep"><div class="rh">'+esc(L(g.title[0],g.title[1]))+(g.fixed?'':' '+(i+1))+(canDel?'<button type="button" onclick="delRow(\''+g.group+'\','+i+')">'+L('Remove','Quitar')+'</button>':'')+'</div><div class="grid">'+g.fields.map(f=>fieldHTML(f,g.group+'.'+i+'.'+f.k)).join('')+'</div></div>';
+  });
+  if(!g.fixed) h+='<button type="button" class="add" onclick="addRow(\''+g.group+'\')">'+esc(L(g.addLbl[0],g.addLbl[1]))+'</button>';
+  return h;
+}
+function photoHTML(p){
+  const ph=photos[p.photo];
+  return '<div class="f full" data-f="photo.'+p.photo+'"><label class="l">'+esc(L(p.en,p.es))+(p.req?' <span class="rq">*</span>':'')+'</label>'+
+   '<label class="photo"><input type="file" accept="image/*" capture="environment" class="hide" onchange="onPhoto(\''+p.photo+'\',this)">'+
+   (ph?'<img src="'+ph+'">':'<div class="ph">📷</div>')+'<div><b>'+(ph?L('Photo ready ✓','Foto lista ✓'):L('Take or choose photo','Tomar o elegir foto'))+'</b><span>'+(ph?L('Tap to change','Toca para cambiar'):L('Lay it flat, good light, no glare','Sobre una mesa, con buena luz, sin reflejo'))+'</span></div></label><div class="em">'+L('Required','Obligatorio')+'</div></div>';
+}
+function render(){
+  document.documentElement.lang=LANG;
+  document.querySelectorAll('.lang button').forEach(b=>b.classList.toggle('on',b.dataset.l===LANG));
+  document.getElementById('title').textContent=L('Driver Application','Solicitud de empleo · Chofer');
+  document.title=L('Driver Application','Solicitud de chofer')+' · YENAVI FREIGHT';
+  document.getElementById('prog').innerHTML=STEPS.map((s,i)=>'<i class="'+(i<step?'done':i===step?'on':'')+'"></i>').join('');
+  const S=STEPS[step];
+  document.getElementById('stepname').textContent=L('Step','Paso')+' '+(step+1)+' '+L('of','de')+' '+STEPS.length+' · '+L(S.en,S.es);
+  let h='<div class="card"><h2>'+esc(L(S.en,S.es))+'</h2><p class="lead">'+esc(L(S.lead[0],S.lead[1]))+'</p>';
+  if(S.id==='sign') h+=signHTML();
+  else{ let grid=[]; const flush=()=>{ if(grid.length){ h+='<div class="grid">'+grid.join('')+'</div>'; grid=[]; } };
+    S.fields.forEach(f=>{ if(f.group){ flush(); h+=groupHTML(f); } else if(f.photo){ grid.push(photoHTML(f)); } else grid.push(fieldHTML(f,f.k)); });
+    flush(); }
+  h+='</div>';
+  document.getElementById('main').innerHTML=h;
+  document.getElementById('back').textContent=L('Back','Atrás');
+  document.getElementById('back').style.visibility=step===0?'hidden':'visible';
+  document.getElementById('next').textContent=step===STEPS.length-1?L('Submit application','Enviar solicitud'):L('Next','Siguiente');
+  if(S.id==='sign') initSig();
+}
+function onIn(el){ setV(el.dataset.p, el.value); const f=el.closest('.f'); if(f) f.classList.remove('err'); }
+function setYN(p,v){ setV(p,v); const box=document.querySelector('.yn[data-p="'+p+'"]'); box.querySelectorAll('button').forEach(b=>b.classList.toggle('on',(b.classList.contains('y')&&v==='yes')||(b.classList.contains('n')&&v==='no'))); box.closest('.f').classList.remove('err');
+  const ex=document.querySelector('[data-ex="'+p+'"]'); if(ex) ex.classList.toggle('hide',v!=='yes'); }
+function togChip(p,o,b){ const cur=(getV(p)||[]).slice(); const i=cur.indexOf(o); if(i>=0) cur.splice(i,1); else cur.push(o); setV(p,cur); b.classList.toggle('on'); }
+function addRow(g){ A[g].push({}); saveDraft(); render(); const r=document.querySelectorAll('.rep'); if(r.length) r[r.length-1].scrollIntoView({behavior:'smooth',block:'center'}); }
+function delRow(g,i){ A[g].splice(i,1); saveDraft(); render(); }
+function setNone(k,g,on){ A[k]=on; if(on) A[g]=[]; else if(!A[g].length) A[g]=[{}]; saveDraft(); render(); }
+function setLang(l){ LANG=l; try{ localStorage.setItem('yenavi_apply_lang',l); }catch(e){} render(); }
+function toast(t,ms){ const el=document.getElementById('toast'); el.textContent=t; el.style.display='block'; clearTimeout(toast._t); toast._t=setTimeout(()=>el.style.display='none',ms||3200); }
+
+// ── Fotos: se achican en el teléfono antes de subir ──
+function shrink(file,max,q){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>{ const im=new Image(); im.onload=()=>{ const s=Math.min(1,max/Math.max(im.width,im.height)); const c=document.createElement('canvas'); c.width=Math.round(im.width*s); c.height=Math.round(im.height*s); c.getContext('2d').drawImage(im,0,0,c.width,c.height); res(c.toDataURL('image/jpeg',q)); }; im.onerror=rej; im.src=r.result; }; r.onerror=rej; r.readAsDataURL(file); }); }
+async function onPhoto(k,inp){ const f=inp.files&&inp.files[0]; if(!f) return; try{ photos[k]=await shrink(f,1600,0.82); render(); }catch(e){ toast(L('Could not read that photo. Try another one.','No se pudo leer esa foto. Intenta con otra.')); } }
+
+// ── Validación ──
+function checkStep(i){
+  const S=STEPS[i]; const bad=[];
+  const chk=(f,path)=>{ if(!f.req) return; const v=getV(path); const empty=v==null||v===''||(Array.isArray(v)&&!v.length); if(empty) bad.push(path);
+    if(f.type==='email'&&v&&!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)) bad.push(path);
+    if(f.explain&&v==='yes'&&!String(getV(f.explain)||'').trim()) bad.push(f.explain); };
+  S.fields.forEach(f=>{
+    if(f.group){ if(f.noneKey&&A[f.noneKey]) return; (A[f.group]||[]).forEach((_,j)=>f.fields.forEach(ff=>chk(ff,f.group+'.'+j+'.'+ff.k))); }
+    else if(f.photo){ if(f.req&&!photos[f.photo]) bad.push('photo.'+f.photo); }
+    else chk(f,f.k);
+  });
+  if(S.id==='rec'){ if(!A.noAcc&&!(A.acc||[]).length) bad.push('_acc'); if(!A.noVio&&!(A.vio||[]).length) bad.push('_vio'); }
+  if(S.id==='sign'){ if(!A.cert) bad.push('cert'); if(!A.authBg) bad.push('authBg'); if(!A.authCh) bad.push('authCh'); if(!sigDirty) bad.push('sig'); if(!String(A.sigName||'').trim()) bad.push('sigName'); }
+  return bad;
+}
+function showErr(bad){
+  document.querySelectorAll('.f.err').forEach(e=>e.classList.remove('err'));
+  bad.forEach(p=>{ const el=document.querySelector('[data-f="'+p+'"]'); if(el) el.classList.add('err'); });
+  const first=document.querySelector('.f.err, .chk.err, .sigw.err');
+  if(bad.includes('_acc')||bad.includes('_vio')) toast(L('Add your accidents/violations or check "none".','Agrega tus accidentes/infracciones o marca "no tuve".'));
+  else toast(L('Please complete the fields in red.','Completa los campos en rojo.'));
+  if(first) first.scrollIntoView({behavior:'smooth',block:'center'});
+}
+function go(d){
+  if(d>0){ const bad=checkStep(step); if(bad.length){ showErr(bad); return; } if(step===STEPS.length-1){ for(let i=0;i<STEPS.length-1;i++){ const bb=checkStep(i); if(bb.length){ jump(i); setTimeout(()=>showErr(bb),60); return; } } submit(); return; } }
+  step=Math.max(0,Math.min(STEPS.length-1,step+d)); saveDraft(); render(); window.scrollTo(0,0);
+}
+function jump(i){ step=i; saveDraft(); render(); window.scrollTo(0,0); }
+
+// ── Revisar y firmar ──
+function fmtV(f,v){ if(v==null||v===''||(Array.isArray(v)&&!v.length)) return '—';
+  if(f.type==='yn') return v==='yes'?L('Yes','Sí'):'No';
+  if(f.type==='sel'){ const o=(f.opts||[]).find(o=>String(optVal(o))===String(v)); return o?optLabel(o):v; }
+  if(f.type==='chips') return v.join(', ');
+  return String(v); }
+function reviewHTML(lang){
+  const keep=LANG; if(lang) LANG=lang; let h='';
+  STEPS.forEach((S,i)=>{ if(S.id==='sign') return;
+    h+='<div class="sec">'+esc(L(S.en,S.es))+(lang?'':'<button class="edit" onclick="jump('+i+')">'+L('Edit','Editar')+'</button>')+'</div>';
+    S.fields.forEach(f=>{
+      if(f.group){ if(f.noneKey&&A[f.noneKey]){ h+='<div class="kv"><span>'+esc(L(f.title[0],f.title[1]))+'</span><b>'+esc(L(f.none[0],f.none[1]))+'</b></div>'; return; }
+        (A[f.group]||[]).forEach((it,j)=>{ h+='<div class="kv"><span>'+esc(L(f.title[0],f.title[1]))+(f.fixed?'':' '+(j+1))+'</span><b>'+f.fields.map(ff=>{ const v=fmtV(ff,it[ff.k]); return v==='—'?'':'<span style="color:#94A3B8;font-weight:400">'+esc(L(ff.en,ff.es))+':</span> '+esc(v); }).filter(Boolean).join('<br>')+'</b></div>'; }); }
+      else if(f.photo){ h+='<div class="kv"><span>'+esc(L(f.en,f.es))+'</span><b>'+(photos[f.photo]?L('Attached ✓','Adjunta ✓'):'—')+'</b></div>'; }
+      else{ h+='<div class="kv"><span>'+esc(L(f.en,f.es))+'</span><b>'+esc(fmtV(f,A[f.k]))+'</b></div>'; if(f.explain&&A[f.k]==='yes') h+='<div class="kv"><span>'+L('Explanation','Explicación')+'</span><b>'+esc(A[f.explain]||'')+'</b></div>'; }
+    });
+  });
+  LANG=keep; return h;
+}
+function legalHTML(co){
+  return L(
+   '<h4>Applicant certification</h4>This certifies that this application was completed by me, and that all entries on it and information in it are true and complete to the best of my knowledge. I understand that false or missing information may result in my application being rejected or my employment being ended.'+
+   '<h4>Investigation of driving record and previous employers</h4>I authorize '+esc(co)+' to make investigations and inquiries of my personal, employment, driving and safety history. This includes my motor vehicle record (MVR) from each state where I held a license in the last 3 years (49 CFR 391.23), and my safety performance history, including DOT drug and alcohol testing information, from my DOT-regulated employers of the last 3 years (49 CFR 391.23 and 40.25). I authorize those employers to release this information to '+esc(co)+'.'+
+   '<h4>Your rights about previous-employer information</h4>You have the right to review the information provided by previous employers; to have errors corrected by the previous employer, who must then send the corrected information to us; and to have a rebuttal statement attached to any information you believe is wrong. To use these rights, send a written request to us within 30 days after you are notified of a hiring decision.'+
+   '<h4>FMCSA Drug & Alcohol Clearinghouse</h4>I understand that before I can drive, '+esc(co)+' must run a full query of the FMCSA Clearinghouse, and I will need to give my consent in the Clearinghouse website (clearinghouse.fmcsa.dot.gov). I also agree to limited queries of the Clearinghouse while I work for '+esc(co)+'.',
+   '<h4>Certificación del solicitante</h4>Certifico que yo llené esta solicitud y que todo lo que dice es verdadero y completo a mi mejor saber. Entiendo que información falsa o incompleta puede hacer que rechacen mi solicitud o que terminen mi empleo.'+
+   '<h4>Investigación de mi historial de manejo y empleos anteriores</h4>Autorizo a '+esc(co)+' a investigar mi historial personal, de empleo, de manejo y de seguridad. Esto incluye mi récord de manejo (MVR) de cada estado donde tuve licencia en los últimos 3 años (49 CFR 391.23), y mi historial de seguridad, incluyendo información de pruebas de drogas y alcohol del DOT, con mis empleadores regulados por el DOT de los últimos 3 años (49 CFR 391.23 y 40.25). Autorizo a esos empleadores a dar esa información a '+esc(co)+'.'+
+   '<h4>Tus derechos sobre la información de empleos anteriores</h4>Tienes derecho a revisar la información que den tus empleadores anteriores; a que el empleador anterior corrija errores y nos mande la información corregida; y a que se agregue tu explicación a cualquier información que creas que está mal. Para usar estos derechos, mándanos una solicitud por escrito dentro de los 30 días después de que te avisemos la decisión de contratación.'+
+   '<h4>Clearinghouse de drogas y alcohol de la FMCSA</h4>Entiendo que antes de manejar, '+esc(co)+' debe hacer una consulta completa en el Clearinghouse de la FMCSA, y que yo tendré que dar mi consentimiento en su página (clearinghouse.fmcsa.dot.gov). También acepto las consultas limitadas al Clearinghouse mientras trabaje para '+esc(co)+'.');
+}
+let CO={name:'YENAVI FREIGHT LLC'};
+function signHTML(){
+  const full=[A.first,A.middle,A.last].filter(Boolean).join(' ');
+  if(!A.sigName&&full) A.sigName=full;
+  return '<div class="rev">'+reviewHTML()+'</div>'+
+   '<div class="sec" style="font-weight:800;color:var(--acc);margin:18px 0 6px;font-size:12px;text-transform:uppercase;letter-spacing:.4px">'+L('Authorizations','Autorizaciones')+'</div>'+
+   '<div class="legal">'+legalHTML(CO.name)+'</div>'+
+   chkHTML('cert',L('I certify that the information in this application is true and complete.','Certifico que la información de esta solicitud es verdadera y completa.'))+
+   chkHTML('authBg',L('I authorize the investigation of my driving record and previous employers described above.','Autorizo la investigación de mi récord de manejo y empleos anteriores descrita arriba.'))+
+   chkHTML('authCh',L('I understand the Clearinghouse query and agree to limited queries.','Entiendo la consulta al Clearinghouse y acepto las consultas limitadas.'))+
+   '<div class="grid" style="margin-top:8px"><div class="f full" data-f="sigName"><label class="l">'+L('Full legal name','Nombre legal completo')+' <span class="rq">*</span></label><input data-p="sigName" value="'+esc(A.sigName||'')+'" oninput="onIn(this)" autocomplete="name"><div class="em">'+L('Required','Obligatorio')+'</div></div></div>'+
+   '<div class="f full sigw" data-f="sig" style="margin-top:10px"><label class="l">'+L('Sign with your finger','Firma con tu dedo')+' <span class="rq">*</span></label><div class="sig"><canvas id="sig"></canvas><div class="ln"></div><div class="x">✕</div><button type="button" class="clr" onclick="clearSig()">'+L('Clear','Borrar')+'</button></div><div class="em">'+L('Please sign','Por favor firma')+'</div><div class="note">'+L('Date','Fecha')+': '+new Date().toLocaleDateString(LANG==='es'?'es-US':'en-US')+'</div></div>';
+}
+function chkHTML(k,t){ return '<label class="chk f" data-f="'+k+'"><input type="checkbox" '+(A[k]?'checked':'')+' onchange="setV(\''+k+'\',this.checked);this.closest(\'.f\').classList.remove(\'err\')"><span>'+esc(t)+'<span class="em" style="margin-top:3px">'+L('Required','Obligatorio')+'</span></span></label>'; }
+function initSig(){
+  const c=document.getElementById('sig'); if(!c) return;
+  const r=c.getBoundingClientRect(), dpr=window.devicePixelRatio||1; c.width=r.width*dpr; c.height=r.height*dpr;
+  const x=c.getContext('2d'); x.scale(dpr,dpr); x.lineWidth=2.4; x.lineCap='round'; x.lineJoin='round'; x.strokeStyle='#0F172A';
+  if(sigData){ const im=new Image(); im.onload=()=>x.drawImage(im,0,0,r.width,r.height); im.src=sigData; }
+  let drawing=false,last=null;
+  const pt=e=>{ const b=c.getBoundingClientRect(); return {x:e.clientX-b.left,y:e.clientY-b.top}; };
+  c.onpointerdown=e=>{ drawing=true; last=pt(e); c.setPointerCapture(e.pointerId); x.beginPath(); x.arc(last.x,last.y,1.1,0,7); x.fillStyle='#0F172A'; x.fill(); };
+  c.onpointermove=e=>{ if(!drawing) return; const p=pt(e); x.beginPath(); x.moveTo(last.x,last.y); x.lineTo(p.x,p.y); x.stroke(); last=p; sigDirty=true; };
+  c.onpointerup=c.onpointercancel=()=>{ if(drawing){ drawing=false; sigDirty=true; sigData=c.toDataURL('image/png'); document.querySelector('[data-f="sig"]').classList.remove('err'); } };
+}
+function clearSig(){ sigData=''; sigDirty=false; initSig(); }
+function sigSmall(){ const c=document.getElementById('sig'); if(!c) return sigData; const o=document.createElement('canvas'); o.width=600; o.height=Math.round(600*c.height/c.width); const x=o.getContext('2d'); x.fillStyle='#fff'; x.fillRect(0,0,o.width,o.height); x.drawImage(c,0,0,o.width,o.height); return o.toDataURL('image/png'); }
+
+// ── Documento final (mismo HTML para el correo y para el admin) ──
+function docHTML(sig,files,when){
+  const full=[A.first,A.middle,A.last].filter(Boolean).join(' ');
+  const pos={company:'Company driver',owner:'Owner operator',team:'Team driver'}[A.position]||A.position||'';
+  const lic=(A.licenses||[])[0]||{};
+  const css='body{font-family:Arial,Helvetica,sans-serif;color:#0F172A;margin:0;background:#fff}.w{max-width:720px;margin:0 auto;padding:16px}.hd{background:#0E1B3D;color:#fff;padding:16px 18px;border-radius:10px}.hd .co{font-size:11px;letter-spacing:1px;opacity:.75}.hd .t{font-size:20px;font-weight:800;margin-top:2px}.hd .s{font-size:13px;margin-top:4px;opacity:.9}.rev{font-size:13px}.sec{font-weight:800;color:#1E3A8A;margin:16px 0 4px;font-size:12px;text-transform:uppercase;letter-spacing:.4px;border-bottom:2px solid #1E3A8A;padding-bottom:3px}.kv{display:flex;gap:8px;padding:5px 0;border-bottom:1px solid #EEF0F4}.kv span{color:#64748B;flex:0 0 40%}.kv b{font-weight:600}.legal{font-size:11px;line-height:1.45;color:#334155}.legal h4{margin:8px 0 2px;font-size:11px;color:#1E3A8A}.sg{margin-top:12px;border:1px solid #E2E8F0;border-radius:8px;padding:10px}.ft{font-size:11px;color:#94A3B8;margin-top:14px}@media print{.hd{-webkit-print-color-adjust:exact;print-color-adjust:exact}}';
+  const fl=Object.entries(files||{}).map(([k,f])=>'<div class="kv"><span>'+({cdlFront:'CDL — front',cdlBack:'CDL — back',medCard:'DOT medical card'}[k]||k)+'</span><b>'+(f.link?'<a href="'+esc(f.link)+'">Open photo</a>':'Saved in the app')+'</b></div>').join('');
+  return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>'+css+'</style></head><body><div class="w">'+
+   '<div class="hd"><div class="co">'+esc(CO.name).toUpperCase()+'</div><div class="t">Driver Application · '+esc(full)+'</div><div class="s">'+esc(pos)+' · CDL '+esc(lic.cls||'')+' '+esc(lic.state||'')+' · '+esc(A.years||'?')+' yrs · '+esc(A.phone||'')+'</div></div>'+
+   '<div class="rev">'+reviewHTML('en')+'</div>'+(fl?'<div class="sec">Documents</div>'+fl:'')+
+   '<div class="sec">Authorizations</div><div class="legal">'+(()=>{ const k=LANG; LANG='en'; const t=legalHTML(CO.name); LANG=k; return t; })()+'</div>'+
+   '<div class="sg"><div class="kv"><span>Certified true & complete</span><b>'+(A.cert?'Yes':'No')+'</b></div><div class="kv"><span>Background / previous employer authorization</span><b>'+(A.authBg?'Yes':'No')+'</b></div><div class="kv"><span>Clearinghouse limited query consent</span><b>'+(A.authCh?'Yes':'No')+'</b></div>'+
+   (sig?'<div style="margin-top:8px"><img src="'+sig+'" alt="Signature" style="max-width:300px;width:100%;border-bottom:1px solid #94A3B8"></div>':'')+
+   '<div style="font-size:12px;margin-top:4px">Signed electronically by <b>'+esc(A.sigName||full)+'</b> on '+esc(when)+'</div></div>'+
+   '<div class="ft">Submitted from the YENAVI online application'+(LANG==='es'?' (filled out in Spanish)':'')+'.</div></div></body></html>';
+}
+
+// ── Enviar ──
+async function upload(url,b64,name,folder){
+  const r=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({key:PH_KEY,action:'upload',name,mime:'image/jpeg',b64:b64.split(',')[1],folder})});
+  const j=await r.json(); if(!j.ok) throw new Error(j.error||'upload'); return {id:j.id,link:j.webViewLink};
+}
+async function submit(){
+  const btn=document.getElementById('next'), back=document.getElementById('back'); btn.disabled=back.disabled=true; btn.textContent=L('Sending…','Enviando…');
+  try{
+    if(!db) throw new Error(L('No connection','Sin conexión'));
+    const id='app_'+Date.now()+'_'+Math.random().toString(36).slice(2,7);
+    const when=new Date().toLocaleString('en-US',{timeZone:'America/Chicago',dateStyle:'medium',timeStyle:'short'})+' CT';
+    const full=[A.first,A.middle,A.last].filter(Boolean).join(' ');
+    const sig=sigSmall();
+    const company=(await db.collection('data').doc('company').get().catch(()=>null));
+    const co=(company&&company.exists&&company.data())||{};
+    // Fotos → Drive (servicio de fotos). Si no hay servicio, una copia chica se guarda aparte en la nube.
+    const files={}, small={}, folder='aplicacion_'+(A.last||'')+'_'+(A.first||'')+'_'+new Date().toISOString().slice(0,10);
+    for(const k of Object.keys(photos)){
+      btn.textContent=L('Uploading photos…','Subiendo fotos…');
+      let ok=false;
+      if(/^https:\/\/script\.google(usercontent)?\.com\//.test(co.photoUrl||'')){ try{ files[k]=await upload(co.photoUrl,photos[k],k+'_'+(A.last||'')+'.jpg',folder); ok=true; }catch(e){ console.warn('upload',e); } }
+      if(!ok){ small[k]=await new Promise(res=>{ const im=new Image(); im.onload=()=>{ const s=Math.min(1,900/Math.max(im.width,im.height)); const c=document.createElement('canvas'); c.width=im.width*s; c.height=im.height*s; c.getContext('2d').drawImage(im,0,0,c.width,c.height); res(c.toDataURL('image/jpeg',0.6)); }; im.src=photos[k]; }); files[k]={inApp:true}; }
+    }
+    btn.textContent=L('Sending…','Enviando…');
+    if(Object.keys(small).length) await db.collection('applicationFiles').doc(id).set({files:small,createdAt:new Date().toISOString()});
+    const lic=(A.licenses||[])[0]||{};
+    const html=docHTML(sig,files,when);
+    const rec=JSON.parse(JSON.stringify(A)); delete rec.sigName;
+    await db.collection('applications').doc(id).set({
+      id, status:'new', createdAt:new Date().toISOString(), lang:LANG,
+      name:full, phone:A.phone||'', email:A.email||'', position:A.position||'', years:A.years||'', cdlClass:lic.cls||'', cdlState:lic.state||'',
+      city:((A.addr||[])[0]||{}).city||'', state:((A.addr||[])[0]||{}).state||'',
+      data:rec, sigName:A.sigName||full, signature:sig, signedAt:when, files, docHtml:html
+    });
+    // Correo a operations@ (no detiene el envío si falla)
+    try{ await fetch(co.emailUrl||EMAIL_URL_DEFAULT,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body:JSON.stringify({key:EMAIL_KEY,to:OPS,subject:'New driver application · '+full+' · CDL '+(lic.cls||'')+' · '+(A.years||'?')+' yrs',html})}); }catch(e){ console.warn('email',e); }
+    try{ localStorage.removeItem(DRAFT_KEY); }catch(e){}
+    document.getElementById('nav').classList.add('hide'); document.getElementById('prog').innerHTML=''; document.getElementById('stepname').textContent='';
+    document.getElementById('main').innerHTML='<div class="card done"><div class="ic">✓</div><h2>'+L('Application sent','Solicitud enviada')+'</h2><p class="lead">'+esc(L('Thank you, '+(A.first||'')+'. '+CO.name+' received your application and will contact you at '+(A.phone||'your phone')+'.','Gracias, '+(A.first||'')+'. '+CO.name+' recibió tu solicitud y te contactará al '+(A.phone||'teléfono que diste')+'.'))+'</p></div>';
+    window.scrollTo(0,0);
+  }catch(e){
+    console.warn(e); btn.disabled=back.disabled=false; btn.textContent=L('Submit application','Enviar solicitud');
+    toast(L('Could not send. Check your signal and try again. Your answers are saved.','No se pudo enviar. Revisa tu señal e intenta otra vez. Tus respuestas están guardadas.'),5000);
+  }
+}
+
+// Nombre de la empresa desde la nube
+if(db) db.collection('data').doc('company').get().then(s=>{ const n=s.exists&&s.data().name; if(n){ CO.name=n; document.getElementById('co-name').textContent=n; if(STEPS[step].id==='sign') render(); } }).catch(()=>{});
+render();
+</script>
+</body>
+</html>

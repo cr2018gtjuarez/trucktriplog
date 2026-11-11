@@ -16042,13 +16042,13 @@ function deRenderPage(){
 }
 function deHours(d){ const i=document.getElementById('de-hours'); if(!i) return; i.value=Math.max(0,Math.min(11,(+i.value||0)+d)); const l=document.getElementById('de-hours-lbl'); if(l) l.textContent=i.value; if(window._dePu) deCalc(); }
 function deOpenPage(){ deRenderPage(); deLocate(false).then(()=>{ if(!window._dePu&&window._deMe) deShowMe(window._deMe); }); setTimeout(()=>{ try{ window._deMapObj&&window._deMapObj.invalidateSize(); }catch(e){} },250); }
-function deTiles(){ return 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png'; }
+function deTiles(){ return 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}'; }
 // Mapa con solo mi camión (antes de buscar)
 function deShowMe(me){
   const el=document.getElementById('de-map'); if(!el||typeof L==='undefined'||!me) return;
   try{ if(window._deMapObj){ window._deMapObj.remove(); window._deMapObj=null; } }catch(e){}
   const map=L.map(el,{zoomControl:false,attributionControl:true,tap:true}); window._deMapObj=map;
-  L.tileLayer(deTiles(),{attribution:'© OpenStreetMap © CARTO',subdomains:'abcd',maxZoom:19}).addTo(map);
+  L.tileLayer(deTiles(),{attribution:'Tiles © Esri',maxZoom:19}).addTo(map);
   L.marker([+me.lat,+me.lon],{icon:L.divIcon({className:'de-pin',html:'<div style="background:'+(me.src==='eld'?'#2563EB':'#16A34A')+';">●</div>',iconSize:[30,30],iconAnchor:[15,15]})}).addTo(map);
   map.setView([+me.lat,+me.lon],9); setTimeout(()=>{ try{ map.invalidateSize(); }catch(e){} },250);
 }
@@ -16239,7 +16239,7 @@ async function deDrawMap(me, del, pu, hereTxt, puTxt, delTxt){
   const el=document.getElementById('de-map'); if(!el || typeof L==='undefined') { if(el) el.style.display='none'; return; }
   try{ if(window._deMapObj){ window._deMapObj.remove(); window._deMapObj=null; } }catch(e){}
   const map=L.map(el,{zoomControl:false,attributionControl:true,tap:true}); window._deMapObj=map;
-  L.tileLayer(deTiles(),{attribution:'© OpenStreetMap © CARTO',subdomains:'abcd',maxZoom:19}).addTo(map);
+  L.tileLayer(deTiles(),{attribution:'Tiles © Esri',maxZoom:19}).addTo(map);
   const pts=[me,del,pu].filter(Boolean).map(p=>[+p.lat,+p.lon]);
   const pin=(ll,color,label,txt)=>L.marker(ll,{icon:L.divIcon({className:'de-pin',html:'<div style="background:'+color+';">'+label+'</div>',iconSize:[30,30],iconAnchor:[15,15]})}).addTo(map).bindPopup(deEsc(txt||''));
   pin(pts[0], me.src==='eld'?'#2563EB':'#16A34A', '●', deT('Estás en: ','You are in: ')+(hereTxt||''));

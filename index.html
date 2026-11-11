@@ -4514,6 +4514,7 @@ if(ETA_APP){ try{
     html.eta-skin #bottom-nav.on{background:#060A18;border-top-color:#1F2850;}
     html.eta-skin input, html.eta-skin select, html.eta-skin textarea{background:#1A2246;color:#F1F5F9;border-color:#2F3A6B;}
     html.eta-skin .leaflet-container{background:#0B1022;}
+    html.eta-skin #bottom-nav{display:none !important;} html.eta-skin body.has-bottom-nav{--bn-h:0px;padding-bottom:0 !important;}
     html.eta-skin .de-loc{background:#0F2A1E;border-color:#166534;}
     html.eta-skin #de-loc-chg{color:#22C55E;}
     html.eta-skin .eta-copy{color:#22C55E !important;border-color:#22C55E !important;background:transparent !important;}
@@ -4530,8 +4531,8 @@ if(ETA_APP){ try{
   new MutationObserver(()=>{ document.querySelectorAll('.pro-company').forEach(e=>{ if(e.textContent!=='ETA') e.textContent='ETA'; }); const t=document.getElementById('app-tagline'); if(t&&t.textContent!=='YENAVI · ubicación en vivo') t.textContent='YENAVI · ubicación en vivo'; const lt=document.getElementById('login-title-txt'); if(lt&&lt.textContent!=='ETA') lt.textContent='ETA'; })
     .observe(document.getElementById('app-header')||document.body,{subtree:true,childList:true,characterData:true});
 }catch(e){ console.warn('eta skin',e); } }
-const ETA_APP_PAGES=['eta','pq','tql'];
-const ETA_APP_MENU=[{id:'eta',icon:'⏱️',label:'ETA',es:'ETA',en:'ETA',main:1},{id:'pq',icon:'💵',label:'Cotizar carga Premium',es:'Premium',en:'Premium',main:1},{id:'tql',icon:'📞',label:'Cargas TQL',es:'TQL · DAT · CHR',en:'TQL · DAT · CHR',main:1}];
+const ETA_APP_PAGES=['eta'];
+const ETA_APP_MENU=[{id:'eta',icon:'⏱️',label:'ETA',es:'ETA',en:'ETA',main:1}];
 function etaOnlyMode(){ return ETA_APP||(typeof currentUser!=='undefined'&&currentUser&&currentUser.role==='dispatch'); }
 const ZC={};
 let fuelCount=0;

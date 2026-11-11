@@ -6360,7 +6360,7 @@ function renderPQ(){
       <textarea id="pq-text" rows="5" style="width:100%;box-sizing:border-box;margin-top:6px;font-size:13px;padding:8px;border:1.5px solid var(--border,#ddd);border-radius:10px;background:var(--bg3,#fff);color:var(--text);"></textarea>
       <button type="button" onclick="pqFromText()" style="margin-top:6px;padding:8px 14px;border-radius:10px;border:1px solid var(--border,#ddd);background:var(--bg3,#fff);color:var(--text);font-weight:800;cursor:pointer;">${pqT('Leer texto','Read text')}</button></details>
   </div>
-  <div id="pq-price">${pqPriceHTML()}</div>
+  <div id="pq-alert">${pqAlertHTML()}</div><div id="pq-price">${pqPriceHTML()}</div>
   <div id="pq-why">${pqWhyHTML()}</div>
   ${R?`<div class="card" style="background:var(--card,#fff);border:1px solid var(--border,#ddd);border-radius:16px;padding:14px;margin-bottom:12px;">
     <div style="font-size:15px;font-weight:900;margin-bottom:2px;">${pqT('Datos de la carga','Load details')}</div>
@@ -6415,75 +6415,92 @@ function pqPriceHTML(){
     <div style="font-size:12px;color:var(--text3);margin-top:8px;line-height:1.5;">${pqT('Empieza en el verde, intenta cerrar en el amarillo y nunca bajes del rojo. El precio se calcula sobre las millas totales para cobrar también las millas vacías.','Start at green, try to close at yellow, never go below red. Prices use total miles so the empty miles get paid too.')}${admin&&dpm!=null?' '+pqT('Diésel: $'+dpm.toFixed(2)+'/milla, de tus viajes.','Diesel: $'+dpm.toFixed(2)+'/mile, from your trips.'):''}</div>
   </div>`;
 }
-// ===== ¿POR QUÉ ESTE PRECIO? — breve y preciso. Admin: costos. Driver: frases para decirle al broker =====
-// Diésel EIA (encuesta 26 oct 2026, $/gal) y tarifas DAT de salida (van, sin combustible, oct 2026). Actualizar aquí.
-const PQ_DATA={dieselDate:'EIA 10/26/2026',US:6.352,ROCKY:6.521,WCX:6.614,CA:8.155,datDate:'DAT Oct 2026',national:2.2};
+// ===== ¿POR QUÉ ESTE PRECIO? — análisis fácil para el driver (semáforo) + frases para el broker. El admin ve además los costos =====
+// Diésel EIA (encuesta 26 oct 2026, $/gal). Mercado: DAT dry van, tarifa de SALIDA por región (semana al 31 oct 2026; Lower Mountain: julio 2026). Actualizar aquí.
+const PQ_DATA={dieselDate:'EIA 10/26/2026',US:6.352,ROCKY:6.521,WCX:6.614,CA:8.155,datDate:'DAT 10/31/2026',national:2.24};
 const PQ_ROCKY=['MT','ID','WY','UT','CO'], PQ_WCX=['WA','OR','NV','AZ','AK','HI'];
-const PQ_MKT={CA:2.58,IL:2.55,IN:2.55,MI:2.55,OH:2.55,WI:2.55,KY:2.55,WV:2.55,NY:2.26,NJ:2.26,PA:2.26,CT:2.26,MA:2.26,RI:2.26,VT:2.26,NH:2.26,ME:2.26,GA:2.10,AL:2.10,MS:2.10,TN:2.10,FL:2.10,SC:2.10,TX:1.92,OK:1.92,AR:1.92,LA:1.92};
+const PQ_REG=[
+  ['California',2.62,['CA']], ['Great Lakes',2.51,['IL','IN','MI','OH','WI']], ['Ohio River',2.49,['KY','WV']],
+  ['Upper Atlantic',2.20,['NY','NJ','PA','CT','MA','RI','VT','NH','ME']], ['Lower Midwest',2.17,['MO','KS','NE','IA']],
+  ['Lower Atlantic',2.15,['VA','MD','DE','DC']], ['Southeast',2.01,['TN','AL','MS','GA']], ['Carolinas',1.98,['NC','SC']],
+  ['Lower Mountain',1.95,['AZ','NM','NV']], ['South Central',1.84,['TX','OK','AR','LA']], ['Florida',1.34,['FL']]];
+const PQ_THIN=['ND','SD','MT','WY','ID','UT','CO','MN','WA','OR']; // sin dato DAT: zonas con menos carga para box truck
+function pqMarket(st){ st=String(st||'').toUpperCase(); const r=PQ_REG.find(x=>x[2].includes(st)); if(r) return {name:r[0],rate:r[1],lvl:r[1]>=2.15?'g':r[1]>=1.90?'y':'r'}; if(PQ_THIN.includes(st)) return {name:st,rate:null,lvl:'y'}; return null; }
 function pqDieselPrice(st){ st=String(st||'').toUpperCase(); if(st==='CA') return PQ_DATA.CA; if(PQ_WCX.includes(st)) return PQ_DATA.WCX; if(PQ_ROCKY.includes(st)) return PQ_DATA.ROCKY; return PQ_DATA.US; }
 function pqMpg(){ try{ const v=parseFloat(JSON.parse(localStorage.getItem('trucklog_pq_cfg')||'{}').mpg); return v>3&&v<30?v:10; }catch(e){ return 10; } }
 function pqSetMpg(v){ try{ const c=JSON.parse(localStorage.getItem('trucklog_pq_cfg')||'{}'); c.mpg=parseFloat(v)||10; localStorage.setItem('trucklog_pq_cfg',JSON.stringify(c)); }catch(e){} const w=document.getElementById('pq-why'); if(w) w.innerHTML=pqWhyHTML(); }
-// Fecha/hora de una parada: "11/10 08:00 AM" → Date (aprox., sin zona horaria)
-function pqWhen(s){ const m=String(s||'').match(/(\d{1,2})\/(\d{1,2})\D{0,25}?(\d{1,2}):(\d{2})\s*(AM|PM)?/i); if(!m) return null;
-  let h=+m[3]; if(m[5]){ if(/PM/i.test(m[5])&&h<12) h+=12; if(/AM/i.test(m[5])&&h===12) h=0; }
-  return new Date(new Date().getFullYear(),+m[1]-1,+m[2],h,+m[4]); }
+// "11/10 08:00 AM CST – 11/10 03:00 PM CST" → [inicio, fin] (aprox., sin zona horaria)
+function pqTimes(s){ const rx=/(\d{1,2})\/(\d{1,2})\D{0,25}?(\d{1,2}):(\d{2})\s*(AM|PM)?/gi, out=[]; let m;
+  while((m=rx.exec(String(s||'')))){ let h=+m[3]; if(m[5]){ if(/PM/i.test(m[5])&&h<12) h+=12; if(/AM/i.test(m[5])&&h===12) h=0; } out.push(new Date(new Date().getFullYear(),+m[1]-1,+m[2],h,+m[4])); }
+  return out; }
 function pqWhy(){
   const R=_pq; if(!R) return null; const lm=+R.loaded||0, em=+R.empty||0, tot=lm+em; if(!(tot>0)) return null;
   const P=R.stops.find(s=>s.type==='pickup')||R.stops[0]||{}, D=[...R.stops].reverse().find(s=>s.type==='delivery')||R.stops[R.stops.length-1]||{};
   const oS=String(P.st||'').toUpperCase(), dS=String(D.st||'').toUpperCase(), mpg=pqMpg();
-  // Diésel: vacío + mitad cargada al precio del origen, la otra mitad al del destino
   const pO=pqDieselPrice(oS), pD=pqDieselPrice(dS);
-  const fuel=((em+lm/2)*pO+(lm/2)*pD)/mpg;
-  const fuelSmart=dS==='CA'?((em+lm/2)*pO+(lm/2)*PQ_DATA.WCX)/mpg:null; // llenando antes de entrar a California
-  // Peajes conocidos: Oklahoma I-44 (Will Rogers $4.92 + Turner $5.40 con PikePass; ~75% más sin PikePass)
+  const fuel=((em+lm/2)*pO+(lm/2)*pD)/mpg;                                        // vacío + mitad al precio del origen, mitad al del destino
+  const fuelSmart=dS==='CA'&&oS!=='CA'?((em+lm/2)*pO+(lm/2)*PQ_DATA.WCX)/mpg:null; // llenando antes de entrar a California
   const east=['MO','IL','IN','OH','MI','PA','KY','TN','WV','NY','NJ'], west=['OK','TX','NM','AZ','CA','NV'];
-  const okToll=oS==='OK'||dS==='OK'||(east.includes(oS)&&west.includes(dS))||(east.includes(dS)&&west.includes(oS));
+  const okToll=oS==='OK'||dS==='OK'||(east.includes(oS)&&west.includes(dS))||(east.includes(dS)&&west.includes(oS)); // I-44 Oklahoma: ~$10 con PikePass
   const tollHi=['KS','IL','IN','OH','PA','NJ','NY','MA','FL','MD','DE','WV'].filter(s=>s===oS||s===dS);
-  const toll=okToll?10:0;
-  // Peso (box truck carga hasta ~10,000 lb)
-  const w=+R.weight||0, wLvl=!w?null:w<=3000?'light':w<=7000?'mid':'heavy';
-  // Mercado del destino
-  const mk=PQ_MKT[dS]!=null?PQ_MKT[dS]:null;
-  // Tiempo: ¿llega un solo driver?
-  const t1=pqWhen(P.when), t2=pqWhen(D.when); let hrsHave=null, hrsNeed=null;
-  if(t1&&t2&&t2>t1){ hrsHave=(t2-t1)/36e5; const drive=lm/50; hrsNeed=drive+Math.floor(drive/11)*10+(String(R.drivers).toLowerCase()==='team'?-Math.floor(drive/11)*10:0); }
-  return {lm,em,tot,oS,dS,mpg,pO,pD,fuel,fuelSmart,okToll,tollHi,toll,w,wLvl,mk,hrsHave,hrsNeed,direct:!!R.direct,team:/team/i.test(R.drivers||'')};
+  const w=+R.weight||0, wLvl=!w?null:w<=3000?'light':w<=7000?'mid':'heavy';           // box truck carga hasta ~10,000 lb
+  const pt=pqTimes(P.when), dt=pqTimes(D.when), now=new Date();
+  const pickupGone=pt.length?(pt[pt.length-1]<now):false;
+  let hrsHave=null, hrsNeed=null; const drive=lm/50, team=/team/i.test(R.drivers||'');
+  if(pt.length&&dt.length){ const start=pickupGone?now:pt[0], end=dt[dt.length-1]; hrsHave=(end-start)/36e5; hrsNeed=drive+(team?0:Math.floor(drive/11)*10); }
+  return {lm,em,tot,oS,dS,dCity:D.city||'',mpg,pO,pD,fuel,fuelSmart,okToll,tollHi,w,wLvl,mk:pqMarket(dS),pickupGone,hrsHave,hrsNeed,direct:!!R.direct,team};
 }
 function pqWhyHTML(){
   const W=pqWhy(); if(!W) return ''; const admin=currentUser&&currentUser.role==='admin';
   const money=v=>'$'+Math.round(v).toLocaleString('en-US'), m2=v=>'$'+v.toFixed(2), n=v=>Math.round(v).toLocaleString('en-US');
-  const late=W.hrsHave!=null&&W.hrsNeed>W.hrsHave;
-  // Frases para el broker (inglés) con su significado en español
+  const C={g:['#16A34A','#E6F4EA'],y:['#B45309','#FEF3C7'],r:['#B91C1C','#FDECEC']};
+  const late=W.hrsHave!=null&&W.hrsNeed>W.hrsHave, ePct=Math.round(W.em/W.tot*100), mk=W.mk, place=(W.dCity?W.dCity+', ':'')+W.dS;
+  // ---- Alerta roja: entrega en zona con pocas cargas de salida ----
+  const redMkt=mk&&mk.lvl==='r';
+  // ---- Semáforo: cada punto en una línea ----
+  const it=[];
+  it.push([ePct<=10?'g':ePct<=25?'y':'r','🛣️',pqT('Millas','Miles'),`${n(W.tot)} mi`,pqT(`${n(W.lm)} cargado + ${n(W.em)} vacío (${ePct}%). El precio cobra las vacías también.`,`${n(W.lm)} loaded + ${n(W.em)} empty (${ePct}%). The price covers the empty miles too.`)]);
+  it.push([W.pD>=7?'y':'g','⛽',pqT('Diésel','Diesel'),`${m2(W.pD)}/gal`,W.dS==='CA'&&W.oS!=='CA'?pqT('California es lo más caro. Llena el tanque antes de entrar (Arizona/Nevada).','California is the most expensive. Fill up before you enter (Arizona/Nevada).'):pqT(`En ${W.dS||'el destino'}. Promedio del país ${m2(PQ_DATA.US)}.`,`In ${W.dS||'destination'}. US average ${m2(PQ_DATA.US)}.`)]);
+  it.push([W.okToll||W.tollHi.length?'y':'g','💳',pqT('Peajes','Tolls'),W.okToll?'~$10':W.tollHi.length?pqT('revisa','check'):'$0',W.okToll?pqT('Oklahoma (I-44). Usa PikePass: sin él cuesta ~75% más.','Oklahoma (I-44). Use PikePass: without it ~75% more.'):W.tollHi.length?pqT('Puede haber peaje en ','There may be tolls in ')+W.tollHi.join(', '):pqT('No se esperan peajes.','No tolls expected.')]);
+  if(W.wLvl) it.push([W.wLvl==='heavy'?'y':'g','⚖️',pqT('Peso','Weight'),`${n(W.w)} lb`,W.wLvl==='light'?pqT('Ligera. Gasta menos diésel.','Light. Uses less diesel.'):W.wLvl==='mid'?pqT('Peso normal para box truck.','Normal weight for a box truck.'):pqT('Pesada: pide +$0.10 por milla.','Heavy: ask +$0.10 per mile.')]);
+  if(W.pickupGone) it.push(['r','⏱️',pqT('Tiempo','Timing'),pqT('Ya pasó','Passed'),pqT('La ventana para cargar ya cerró. Pide fechas nuevas.','The pickup window already closed. Ask for new dates.')]);
+  else if(W.hrsHave!=null) it.push([late?'r':'g','⏱️',pqT('Tiempo','Timing'),late?pqT('No llegas','Can\'t make it'):pqT('Sí llegas','On time'),late?pqT(`Necesitas ~${n(W.hrsNeed)} h con descanso y hay ${n(W.hrsHave)} h. Pide otra cita.`,`You need ~${n(W.hrsNeed)} h with rest and there are ${n(W.hrsHave)} h. Ask for another appointment.`):pqT(`~${n(W.hrsNeed)} h de ${n(W.hrsHave)} h disponibles.`,`~${n(W.hrsNeed)} h of ${n(W.hrsHave)} h available.`)]);
+  if(mk) it.push([mk.lvl,'📍',pqT('Donde entregas','Where you deliver'),mk.rate?m2(mk.rate)+'/mi':pqT('pocas cargas','few loads'),
+    mk.lvl==='g'?pqT(`${place}: buen mercado, fácil conseguir la siguiente carga.`,`${place}: good market, easy to find the next load.`)
+    :mk.lvl==='y'?(mk.rate?pqT(`${place}: mercado regular. Puede tardar la siguiente carga.`,`${place}: average market. The next load may take time.`):pqT(`${place}: zona con pocas cargas para box truck.`,`${place}: few loads for box trucks.`))
+    :pqT(`${place}: pagan muy poco para salir. Ver alerta.`,`${place}: outbound pays very little. See alert.`)]);
+  if(W.direct) it.push(['g','🚚','DIRECT',pqT('Sí','Yes'),pqT('Tu camión va solo con esta carga: se cobra más.','Your truck carries only this load: charge more.')]);
+  const rows=it.map(x=>`<div style="display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-top:1px solid var(--border,#eee);">
+      <div style="width:12px;height:12px;border-radius:50%;background:${C[x[0]][0]};margin-top:5px;flex:none;"></div>
+      <div style="flex:1;min-width:0;"><div style="display:flex;justify-content:space-between;gap:8px;"><b style="font-size:14px;">${x[1]} ${x[2]}</b><b style="font-size:14px;color:${C[x[0]][0]};white-space:nowrap;">${x[3]}</b></div>
+      <div style="font-size:12px;color:var(--text3);margin-top:1px;line-height:1.4;">${x[4]}</div></div></div>`).join('');
+  // ---- Frases para el broker (inglés) con su significado ----
   const say=[];
-  if(W.direct) say.push(['It\'s DIRECT: my truck is dedicated to your load only, no other freight.','Va DIRECT: el camión va solo con su carga.']);
-  if(W.em>=50) say.push([`I'm ${n(W.em)} empty miles away. Total is ${n(W.tot)} miles, not ${n(W.lm)}.`,`Estoy a ${n(W.em)} millas vacías. Son ${n(W.tot)} millas en total, no ${n(W.lm)}.`]);
+  if(W.direct) say.push(['It\'s DIRECT: my truck is dedicated to your load only.','Va DIRECT: el camión va solo con su carga.']);
+  if(W.em>=50) say.push([`I'm ${n(W.em)} empty miles away. Total is ${n(W.tot)} miles, not ${n(W.lm)}.`,`Estoy a ${n(W.em)} millas vacías. Son ${n(W.tot)} en total, no ${n(W.lm)}.`]);
   if(W.pD>=7) say.push([`Diesel in ${W.dS} is over $${Math.floor(W.pD)} a gallon.`,`El diésel en ${W.dS} pasa de $${Math.floor(W.pD)} el galón.`]);
-  else say.push([`Diesel is about $${W.pO.toFixed(2)} a gallon right now.`,`El diésel está a unos $${W.pO.toFixed(2)} el galón.`]);
-  if(W.mk!=null&&W.mk<2.15) say.push([`${W.dS} is a slow market. I may come back empty, so I need a better rate.`,`${W.dS} es un mercado flojo. Puedo regresar vacío, necesito mejor precio.`]);
-  else if(W.mk!=null&&W.mk>=2.4) say.push([`Trucks out of ${W.dS} are paying $${W.mk.toFixed(2)} a mile. My rate is fair.`,`Las cargas que salen de ${W.dS} pagan $${W.mk.toFixed(2)} la milla. Mi precio es justo.`]);
-  if(W.wLvl==='heavy') say.push([`${n(W.w)} lbs is a heavy load for a box truck.`,`${n(W.w)} libras es pesado para un box truck.`]);
-  if(late) say.push(['Solo driver can\'t make that delivery time legally. I need a later appointment.','Un solo driver no llega legal a esa hora. Necesito otra cita de entrega.']);
+  if(redMkt||(mk&&mk.lvl==='y')) say.push([`${mk.rate?mk.name:W.dS} has very few loads out. I'll probably come back empty, so I need a better rate.`,`Allá hay pocas cargas de salida. Voy a regresar vacío, necesito mejor precio.`]);
+  else if(mk&&mk.lvl==='g') say.push([`Market rate out of ${mk.name} is $${mk.rate.toFixed(2)} a mile. My rate is fair.`,`El mercado allá paga $${mk.rate.toFixed(2)} la milla. Mi precio es justo.`]);
+  if(W.wLvl==='heavy') say.push([`${n(W.w)} lbs is heavy for a box truck.`,`${n(W.w)} libras es pesado para un box truck.`]);
+  if(W.pickupGone||late) say.push(['I can\'t make those times legally. I need new pickup and delivery times.','No llego legal a esas horas. Necesito horarios nuevos.']);
   const sayHTML=say.map(x=>`<div style="padding:8px 10px;border-radius:10px;background:var(--bg2,#F3F4F6);margin-top:6px;"><div style="font-size:14px;font-weight:800;color:var(--text);">“${pqEsc(x[0])}”</div><div style="font-size:12px;color:var(--text3);margin-top:2px;">${pqEsc(x[1])}</div></div>`).join('');
-  // Detalle corto para el admin
-  const row=(ic,t,v)=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-top:1px solid var(--border,#eee);font-size:13px;"><div>${ic} ${t}</div><div style="font-weight:800;text-align:right;">${v}</div></div>`;
-  const wTxt=W.wLvl==='light'?pqT('ligera, sin cargo extra','light, no extra'):W.wLvl==='mid'?pqT('media','medium'):W.wLvl==='heavy'?pqT('pesada: pide +$0.10/milla','heavy: ask +$0.10/mi'):'—';
-  const mkTxt=W.mk!=null?`${m2(W.mk)}/mi ${W.mk>=2.4?pqT('(fuerte)','(strong)'):W.mk<2.15?pqT('(flojo)','(weak)'):''}`:pqT('sin dato','no data');
-  const tollTxt=(W.okToll?'~$10 Oklahoma (PikePass)':'$0')+(W.tollHi.length?' + '+pqT('revisa ','check ')+W.tollHi.join(', '):'');
-  const timeTxt=W.hrsHave==null?'—':late?`<span style="color:#B91C1C;">${pqT('No llega','Can\'t make it')}: ${n(W.hrsNeed)}h vs ${n(W.hrsHave)}h</span>`:`<span style="color:#16A34A;">${pqT('Sí llega','On time')}</span>`;
-  const adminHTML=admin?`<div style="margin-top:10px;">
-      ${row('⛽',pqT(`Diésel (${W.mpg} mpg)`,`Diesel (${W.mpg} mpg)`),money(W.fuel)+' · '+m2(W.fuel/W.tot)+'/mi'+(W.fuelSmart?`<br><span style="font-size:11px;color:#16A34A;">${pqT('llenando antes de CA','fill before CA')}: ${money(W.fuelSmart)}</span>`:''))}
-      ${row('🛣️',pqT('Peajes','Tolls'),tollTxt)}
-      ${row('⚖️',pqT('Peso','Weight'),(W.w?n(W.w)+' lb · ':'')+wTxt)}
-      ${row('📈',pqT(`Mercado en ${W.dS||'destino'}`,`Market in ${W.dS||'destination'}`),mkTxt)}
-      ${row('⏱️',pqT('Tiempo','Timing'),timeTxt)}
-      <div style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:11px;color:var(--text3);">MPG <input type="number" step="0.5" value="${W.mpg}" onchange="pqSetMpg(this.value)" style="width:60px;padding:3px 6px;border:1px solid var(--border,#ddd);border-radius:6px;background:var(--bg3,#fff);color:var(--text);"/> · ${PQ_DATA.dieselDate} · ${PQ_DATA.datDate}</div>
-    </div>`:'';
+  const adminHTML=admin?`<div style="margin-top:10px;padding-top:8px;border-top:2px solid var(--border,#eee);font-size:13px;">
+      <b>⛽ ${pqT('Costo de diésel','Diesel cost')}:</b> ${money(W.fuel)} · ${m2(W.fuel/W.tot)}/mi${W.fuelSmart?` · <span style="color:#16A34A;">${pqT('llenando antes de CA','fill before CA')}: ${money(W.fuelSmart)}</span>`:''}
+      <div style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:11px;color:var(--text3);">MPG <input type="number" step="0.5" value="${W.mpg}" onchange="pqSetMpg(this.value)" style="width:60px;padding:3px 6px;border:1px solid var(--border,#ddd);border-radius:6px;background:var(--bg3,#fff);color:var(--text);"/> · ${PQ_DATA.dieselDate} · ${PQ_DATA.datDate}</div></div>`:'';
   return `<div class="card" style="background:var(--card,#fff);border:1px solid var(--border,#ddd);border-radius:16px;padding:14px;margin-bottom:12px;">
-    <div style="font-size:16px;font-weight:900;">💬 ${pqT('¿Por qué este precio?','Why this price?')}</div>
-    <div style="font-size:12px;color:var(--text3);margin-top:2px;">${pqT('Dile esto al broker:','Tell the broker:')}</div>
-    ${sayHTML}${adminHTML}
+    <div style="font-size:16px;font-weight:900;">📊 ${pqT('Análisis de la carga','Load analysis')}</div>
+    <div style="font-size:12px;color:var(--text3);margin-top:2px;">🟢 ${pqT('bien','good')} · 🟡 ${pqT('cuidado','careful')} · 🔴 ${pqT('alerta','alert')}</div>
+    <div style="margin-top:8px;">${rows}</div>${adminHTML}
+  </div>
+  <div class="card" style="background:var(--card,#fff);border:1px solid var(--border,#ddd);border-radius:16px;padding:14px;margin-bottom:12px;">
+    <div style="font-size:16px;font-weight:900;">💬 ${pqT('Dile esto al broker','Tell the broker')}</div>${sayHTML}
   </div>`;
 }
+function pqAlertHTML(){ const W=pqWhy(); const mk=W&&W.mk; if(!mk||mk.lvl!=='r') return ''; const m2=v=>'$'+v.toFixed(2);
+  return `<div style="border:2px solid #B91C1C;background:#FDECEC;border-radius:14px;padding:12px;margin-bottom:12px;">
+      <div style="font-size:16px;font-weight:900;color:#B91C1C;">🚨 ${pqT('ALERTA: zona con pocas cargas','ALERT: low-freight area')}</div>
+      <div style="font-size:14px;color:#7F1D1D;margin-top:4px;line-height:1.45;">${pqT(`Las cargas que salen de <b>${pqEsc(mk.name)}</b> pagan <b>${m2(mk.rate)}/milla</b> (promedio del país ${m2(PQ_DATA.national)}). Después de entregar te puede costar salir de ahí o regresar vacío.`,`Loads out of <b>${pqEsc(mk.name)}</b> pay <b>${m2(mk.rate)}/mile</b> (national average ${m2(PQ_DATA.national)}). After delivery it may be hard to get out or you may come back empty.`)}</div>
+      <div style="font-size:14px;font-weight:900;color:#B91C1C;margin-top:6px;">${pqT('En esta carga no bajes del amarillo. Avisa a la oficina antes de aceptar.','On this load do not go below yellow. Tell the office before accepting.')}</div></div>`; }
 // ===== COTIZACIONES: el driver guarda la carga + el precio que le mandó al broker → aviso al admin (campanita y Telegram) =====
 function pqAsks(R){ const tot=(+R.loaded||0)+(+R.empty||0); return PQ_RATES.map(x=>Math.round(tot*x.r/5)*5); }
 function pqRoute(r){ const P=(r.stops||[]).find(s=>s.type==='pickup')||(r.stops||[])[0]||{}, D=[...(r.stops||[])].reverse().find(s=>s.type==='delivery')||{}; return {P,D,txt:(P.city||'—')+(P.st?', '+P.st:'')+' → '+(D.city||'—')+(D.st?', '+D.st:'')}; }
@@ -6511,7 +6528,7 @@ function pqSync(){ if(!_pq) return; const g=id=>document.getElementById(id); con
   _pq.drivers=g('pq-drivers')?.value||''; _pq.truckTypes=g('pq-types')?.value||''; _pq.direct=!!g('pq-direct')?.checked;
   _pq.stops.forEach((s,i)=>{ const cs=(g('pq-s'+i+'-city')?.value||'').split(','); s.city=(cs[0]||'').trim(); s.st=(cs[1]||'').trim().toUpperCase().slice(0,2); s.zip=(g('pq-s'+i+'-zip')?.value||'').trim(); s.when=g('pq-s'+i+'-when')?.value||''; });
   const t=document.getElementById('pq-total'); if(t) t.textContent=((+_pq.loaded||0)+(+_pq.empty||0)).toLocaleString('en-US')+' mi';
-  const pb=document.getElementById('pq-price'); if(pb) pb.innerHTML=pqPriceHTML(); const pw=document.getElementById('pq-why'); if(pw) pw.innerHTML=pqWhyHTML(); }
+  const pb=document.getElementById('pq-price'); if(pb) pb.innerHTML=pqPriceHTML(); const pw=document.getElementById('pq-why'); if(pw) pw.innerHTML=pqWhyHTML(); const pa=document.getElementById('pq-alert'); if(pa) pa.innerHTML=pqAlertHTML(); }
 async function pqPicked(inp){
   const file=inp.files&&inp.files[0]; inp.value=''; if(!file) return;
   const msg=t=>{ const m=document.getElementById('pq-msg'); if(m) m.textContent=t; };

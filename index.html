@@ -6825,6 +6825,9 @@ function etaShotMount(){
   // arriba del mapa / buscador
   let host=q.closest('.de-map,.eta-map,[id$="-mapwrap"]')||q.parentElement; while(host&&host.parentElement&&!/page-/.test(host.parentElement.id||'')&&host.parentElement!==document.body&&!host.parentElement.classList.contains('page')) host=host.parentElement;
   if(host&&host.parentElement) host.parentElement.insertBefore(box,host); else q.parentElement.insertBefore(box,q);
+  // En la app ETA: cuánto tarda en llegar va arriba (debajo del botón), antes de la lista y del mapa
+  if(ETA_APP){ const res=document.getElementById('eta-res')||document.getElementById('de-res'); const card=res&&(res.closest('.card')||res.parentElement); const loads=document.getElementById('eta-loads');
+    if(card&&loads&&!box.contains(card)){ card.style.marginTop='0'; card.style.marginBottom='12px'; box.insertBefore(card,loads); } }
   etaLoadsRender();
 }
 async function etaShotPicked(inp){

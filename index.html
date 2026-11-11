@@ -1603,6 +1603,10 @@ label.dead-lock-lbl{color:#B91C1C!important;font-weight:800;}
   </div>
 
   <!-- EN TRÁNSITO -->
+  <div class="page" id="page-pq">
+    <div id="pq-body" data-no-tr></div>
+  </div>
+
   <div class="page" id="page-drvdocs">
     <div id="drvdocs-body" data-no-tr></div>
   </div>
@@ -6306,6 +6310,142 @@ function etaPaint(){
     </div>`; }).join('');
   etaDraw();
 }
+// ===== NEGOCIAR CARGA PREMIUM: leer la captura de pantalla de la app de Premium (Auction) =====
+// El driver (o el admin) sube la captura; Google lee el texto (OCR del servicio de fotos) y la app llena los datos para revisarlos.
+function pqT(es,en){ try{ if(typeof TR==='function') return TR(es,en); if(typeof deT==='function') return deT(es,en); }catch(e){} return es; }
+function pqEsc(x){ return String(x==null?'':x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+// Lee el texto de la captura y saca los datos de la carga
+function pqParse(text){
+  const T=String(text||'').replace(/\r/g,'').replace(/[“”]/g,'"');
+  const num=s=>{ const n=parseFloat(String(s||'').replace(/[, ]/g,'')); return isNaN(n)?null:n; };
+  const R={loaded:null,empty:null,stops:[],weight:null,pieces:null,truckTypes:'',drivers:'',direct:false};
+  let m;
+  if((m=T.match(/([\d,]{2,7})\s*load(?:ed)?\s*mi/i))) R.loaded=num(m[1]);
+  if((m=T.match(/([\d,]{1,6})\s*empty\s*mi/i))) R.empty=num(m[1]);
+  if((m=T.match(/weight\s*:?\s*([\d,]+)\s*(?:l|I|1)bs?/i))||(m=T.match(/weight\s*:?\s*([\d,]+)/i))) R.weight=num(m[1]);
+  if((m=T.match(/pieces\s*:?\s*([\d,]+)/i))) R.pieces=num(m[1]);
+  if((m=T.match(/truck\s*types?\s*:?\s*([\s\S]{0,160}?)(?:\n\s*drivers?\b|$)/i))) R.truckTypes=m[1].replace(/\s*\n\s*/g,' ').replace(/\s+,/g,',').replace(/\s{2,}/g,' ').trim();
+  if((m=T.match(/drivers?\s*:?\s*(solo|team)/i))) R.drivers=m[1][0].toUpperCase()+m[1].slice(1).toLowerCase();
+  R.direct=/\bDIRECT\b/i.test(T);
+  // Paradas: "Ciudad, ST, 12345, US" seguidas de su horario y de "PICK UP #n" / "DELIVERY #n"
+  const lines=T.split('\n').map(s=>s.trim()).filter(Boolean);
+  const placeRx=/([A-Za-z][A-Za-z .'\-]{1,40}),\s*([A-Z]{2}),?\s*(\d{5})(?:\s*,?\s*US)?/;
+  let cur=null;
+  lines.forEach(l=>{
+    const p=l.match(placeRx);
+    if(p){ cur={type:'',num:null,city:p[1].replace(/^[^A-Za-z]+/,'').trim(),st:p[2],zip:p[3],when:[]}; R.stops.push(cur); return; }
+    if(!cur) return;
+    const lab=l.match(/(PICK\s*-?\s*UP|DELIVERY)\s*#?\s*(\d+)/i);
+    if(lab){ cur.type=/PICK/i.test(lab[1])?'pickup':'delivery'; cur.num=+lab[2]; cur=null; return; }
+    if(/\d{1,2}\/\d{1,2}|\b\d{1,2}:\d{2}\b|DIRECT|\(today\)|\(tomorrow\)|AM|PM/i.test(l) && !/view route|weight|pieces|truck types|drivers/i.test(l)) cur.when.push(l);
+  });
+  R.stops.forEach((s,i)=>{ if(!s.type) s.type=i===0?'pickup':'delivery'; s.when=s.when.join(' ').replace(/\s+/g,' ').replace(/\s*-\s*/g,' – ').trim(); });
+  return R;
+}
+let _pq=null, _pqImg='';
+function renderPQ(){
+  const box=document.getElementById('pq-body'); if(!box) return;
+  const inp='style="width:100%;box-sizing:border-box;font-size:15px;padding:9px 10px;border:1.5px solid var(--border,#ddd);border-radius:10px;background:var(--bg3,#fff);color:var(--text);"';
+  const f=(id,label,val,type)=>`<div style="min-width:0;"><div style="font-size:11px;font-weight:800;color:var(--text3);text-transform:uppercase;margin:0 0 3px 2px;">${label}</div><input id="${id}" ${type?'type="'+type+'"':''} value="${pqEsc(val==null?'':val)}" oninput="pqSync()" ${inp}/></div>`;
+  const R=_pq;
+  box.innerHTML=`
+  <div class="card" style="background:var(--card,#fff);border:1px solid var(--border,#ddd);border-radius:16px;padding:14px;margin-bottom:12px;">
+    <div style="font-size:17px;font-weight:900;">${pqT('Negociar carga de Premium','Premium load quote')}</div>
+    <div style="font-size:13px;color:var(--text3);margin:2px 0 12px;">${pqT('Toma la captura de la carga en la app de Premium (Auction) y súbela aquí. La app llena los datos sola.','Take a screenshot of the load in the Premium app (Auction) and upload it here. The app fills in the data.')}</div>
+    <button type="button" onclick="document.getElementById('pq-file').click()" style="width:100%;padding:14px;border:none;border-radius:12px;background:#1E3A8A;color:#fff;font-size:16px;font-weight:800;cursor:pointer;font-family:inherit;">📷 ${pqT('Subir captura de Premium','Upload Premium screenshot')}</button>
+    <input type="file" id="pq-file" accept="image/*" style="display:none" onchange="pqPicked(this)"/>
+    <div id="pq-msg" style="font-size:13px;margin-top:8px;color:var(--text3);"></div>
+    ${_pqImg?`<img src="${_pqImg}" alt="" style="display:block;max-height:180px;max-width:100%;margin:10px auto 0;border-radius:10px;border:1px solid var(--border,#ddd);"/>`:''}
+    <details style="margin-top:10px;"><summary style="font-size:12px;color:var(--text3);cursor:pointer;">${pqT('¿No tienes captura? Pega el texto de la carga','No screenshot? Paste the load text')}</summary>
+      <textarea id="pq-text" rows="5" style="width:100%;box-sizing:border-box;margin-top:6px;font-size:13px;padding:8px;border:1.5px solid var(--border,#ddd);border-radius:10px;background:var(--bg3,#fff);color:var(--text);"></textarea>
+      <button type="button" onclick="pqFromText()" style="margin-top:6px;padding:8px 14px;border-radius:10px;border:1px solid var(--border,#ddd);background:var(--bg3,#fff);color:var(--text);font-weight:800;cursor:pointer;">${pqT('Leer texto','Read text')}</button></details>
+  </div>
+  <div id="pq-price">${pqPriceHTML()}</div>
+  ${R?`<div class="card" style="background:var(--card,#fff);border:1px solid var(--border,#ddd);border-radius:16px;padding:14px;margin-bottom:12px;">
+    <div style="font-size:15px;font-weight:900;margin-bottom:2px;">${pqT('Datos de la carga','Load details')}</div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:10px;">${pqT('Revisa que estén bien. Si algo salió mal, corrígelo aquí.','Check them. If something is wrong, fix it here.')}</div>
+    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;">
+      ${f('pq-loaded',pqT('Millas cargado','Loaded mi'),R.loaded,'number')}
+      ${f('pq-empty',pqT('Millas vacío','Empty mi'),R.empty,'number')}
+      <div><div style="font-size:11px;font-weight:800;color:var(--text3);text-transform:uppercase;margin:0 0 3px 2px;">${pqT('Total','Total')}</div><div id="pq-total" style="font-size:20px;font-weight:900;padding:6px 2px;">${((+R.loaded||0)+(+R.empty||0)).toLocaleString('en-US')} mi</div></div>
+    </div>
+    ${R.stops.map((s,i)=>`<div style="margin-top:12px;padding:10px;border-radius:12px;background:var(--bg3,#f6f7f9);">
+      <div style="font-size:12px;font-weight:900;color:${s.type==='pickup'?'#1E3A8A':'#B91C1C'};margin-bottom:6px;">${s.type==='pickup'?'🔵 PICK UP':'📍 DELIVERY'}${s.num?' #'+s.num:''}</div>
+      <div style="display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:8px;">${f('pq-s'+i+'-city',pqT('Ciudad, estado','City, state'),s.city+(s.st?', '+s.st:''))}${f('pq-s'+i+'-zip','ZIP',s.zip)}</div>
+      <div style="margin-top:8px;">${f('pq-s'+i+'-when',s.type==='pickup'?pqT('Ventana de carga','Pickup window'):pqT('Cita de entrega','Delivery appointment'),s.when)}</div></div>`).join('')}
+    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:12px;">
+      ${f('pq-weight',pqT('Peso (lb)','Weight (lbs)'),R.weight,'number')}
+      ${f('pq-pieces',pqT('Piezas','Pieces'),R.pieces,'number')}
+      ${f('pq-drivers',pqT('Drivers','Drivers'),R.drivers)}
+    </div>
+    <div style="margin-top:8px;">${f('pq-types',pqT('Tipos de camión','Truck types'),R.truckTypes)}</div>
+    <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:14px;font-weight:700;"><input id="pq-direct" type="checkbox" ${R.direct?'checked':''} onchange="pqSync()" style="width:20px;height:20px;"/> ${pqT('Entrega DIRECT (sin paradas)','DIRECT delivery (no stops)')}</label>
+    <button type="button" onclick="pqSave()" style="width:100%;margin-top:14px;padding:13px;border:none;border-radius:12px;background:#16A34A;color:#fff;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit;">✓ ${pqT('Guardar carga','Save load')}</button>
+    <div id="pq-saved" style="font-size:12px;color:var(--text3);margin-top:6px;text-align:center;"></div>
+  </div>`:''}`;
+}
+const PQ_RATES=[{r:2.50,c:'#16A34A',bg:'#E6F4EA',es:'Empieza aquí',en:'Start here'},{r:2.25,c:'#B45309',bg:'#FEF3C7',es:'Buen precio',en:'Good'},{r:2.00,c:'#B91C1C',bg:'#FDECEC',es:'Lo más bajo: no bajes de aquí',en:'Lowest: don\'t go below'}];
+function pqDriverPct(){
+  try{ const u=currentUser||{}; const L=(loadTrips()||[]).filter(t=>(u.role==='admin'||t.driverUser===u.username)&&parseFloat(t.payPct)>0);
+    const prem=L.filter(t=>/premium/i.test(t.broker||t.brokerName||'')).sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
+    const any=L.sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
+    const t=(u.role==='admin'?prem.filter(x=>(_pqDrv?x.driverUser===_pqDrv:true)):prem)[0]||any[0]; return t?parseFloat(t.payPct):30; }catch(e){ return 30; } }
+let _pqDrv='';
+function pqPriceHTML(){
+  const R=_pq; if(!R) return '';
+  const lm=+R.loaded||0, em=+R.empty||0, tot=lm+em; if(!(tot>0)) return '';
+  const pct=pqDriverPct(); const money=v=>'$'+Math.round(v).toLocaleString('en-US'); const m2=v=>'$'+v.toFixed(2);
+  const admin=currentUser&&currentUser.role==='admin'; let dpm=null; if(admin){ try{ const b=asstBreakEven(); dpm=b&&b.dpm; }catch(e){} }
+  const rows=PQ_RATES.map(x=>{ const ask=Math.round(tot*x.r/5)*5, per=ask/tot, perL=lm>0?ask/lm:0, earn=ask*pct/100, keep=dpm!=null?ask-earn-tot*dpm:null;
+    return `<div style="border:2px solid ${x.c};background:${x.bg};border-radius:14px;padding:10px 12px;margin-top:8px;">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;"><div style="font-size:12px;font-weight:900;color:${x.c};text-transform:uppercase;">${pqT(x.es,x.en)}</div><div style="font-size:12px;color:#374151;font-weight:700;">${pqT('Pídele al broker','Ask the broker')}</div></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:2px;">
+        <div style="font-size:30px;font-weight:900;color:#111827;line-height:1.1;">${money(ask)}</div>
+        <div style="text-align:right;"><div style="font-size:11px;font-weight:800;color:#374151;">${pqT(admin?'Gana el driver':'Tú ganas','You earn')} (${pct}%)</div><div style="font-size:22px;font-weight:900;color:#16A34A;">${money(earn)}</div></div></div>
+      <div style="display:grid;grid-template-columns:repeat(${keep!=null?3:2},minmax(0,1fr));gap:6px;margin-top:6px;font-size:12px;color:#374151;">
+        <div><b style="font-size:15px;color:#111827;">${m2(per)}</b><br>${pqT('por milla total','per total mile')}</div>
+        <div><b style="font-size:15px;color:#111827;">${m2(perL)}</b><br>${pqT('por milla cargada','per loaded mile')}</div>
+        ${keep!=null?`<div><b style="font-size:15px;color:#111827;">${money(keep)}</b><br>${pqT('te queda (sin diésel ni driver)','left after diesel & driver')}</div>`:''}</div></div>`; }).join('');
+  return `<div class="card" style="background:var(--card,#fff);border:1px solid var(--border,#ddd);border-radius:16px;padding:14px;margin-bottom:12px;">
+    <div style="font-size:16px;font-weight:900;">💵 ${pqT('¿Cuánto pedir?','How much to ask?')}</div>
+    <div style="font-size:13px;color:var(--text3);margin-top:2px;">${pqT('Millas totales','Total miles')}: <b>${tot.toLocaleString('en-US')}</b> (${lm.toLocaleString('en-US')} ${pqT('cargado','loaded')} + ${em.toLocaleString('en-US')} ${pqT('vacío','empty')})</div>
+    ${rows}
+    <div style="font-size:12px;color:var(--text3);margin-top:8px;line-height:1.5;">${pqT('Empieza en el verde, intenta cerrar en el amarillo y nunca bajes del rojo. El precio se calcula sobre las millas totales para cobrar también las millas vacías.','Start at green, try to close at yellow, never go below red. Prices use total miles so the empty miles get paid too.')}${admin&&dpm!=null?' '+pqT('Diésel: $'+dpm.toFixed(2)+'/milla, de tus viajes.','Diesel: $'+dpm.toFixed(2)+'/mile, from your trips.'):''}</div>
+  </div>`;
+}
+function pqSync(){ if(!_pq) return; const g=id=>document.getElementById(id); const n=v=>{ const x=parseFloat(String(v||'').replace(/,/g,'')); return isNaN(x)?null:x; };
+  _pq.loaded=n(g('pq-loaded')?.value); _pq.empty=n(g('pq-empty')?.value); _pq.weight=n(g('pq-weight')?.value); _pq.pieces=n(g('pq-pieces')?.value);
+  _pq.drivers=g('pq-drivers')?.value||''; _pq.truckTypes=g('pq-types')?.value||''; _pq.direct=!!g('pq-direct')?.checked;
+  _pq.stops.forEach((s,i)=>{ const cs=(g('pq-s'+i+'-city')?.value||'').split(','); s.city=(cs[0]||'').trim(); s.st=(cs[1]||'').trim().toUpperCase().slice(0,2); s.zip=(g('pq-s'+i+'-zip')?.value||'').trim(); s.when=g('pq-s'+i+'-when')?.value||''; });
+  const t=document.getElementById('pq-total'); if(t) t.textContent=((+_pq.loaded||0)+(+_pq.empty||0)).toLocaleString('en-US')+' mi';
+  const pb=document.getElementById('pq-price'); if(pb) pb.innerHTML=pqPriceHTML(); }
+async function pqPicked(inp){
+  const file=inp.files&&inp.files[0]; inp.value=''; if(!file) return;
+  const msg=t=>{ const m=document.getElementById('pq-msg'); if(m) m.textContent=t; };
+  const dataUrl=await new Promise((ok,ko)=>{ const r=new FileReader(); r.onload=()=>ok(r.result); r.onerror=ko; r.readAsDataURL(file); });
+  _pqImg=await shrinkDataUrl(dataUrl,900,0.7).catch(()=>dataUrl); _pq=null; renderPQ();
+  msg('⏳ '+pqT('Leyendo la captura…','Reading the screenshot…'));
+  let text=''; try{ text=await driveOcrText(dataUrl); }catch(e){ msg('⚠️ '+pqT('No se pudo leer la captura: ','Could not read the screenshot: ')+(e.message||e)); return; }
+  pqApply(text);
+}
+function pqFromText(){ pqApply(document.getElementById('pq-text')?.value||''); }
+function pqApply(text){
+  const R=pqParse(text); const found=[R.loaded,R.empty,R.weight].filter(v=>v!=null).length+R.stops.length;
+  _pq=R; _pq.raw=String(text||'').slice(0,4000); renderPQ();
+  const m=document.getElementById('pq-msg');
+  if(m) m.innerHTML=found>=3?'<span style="color:#16A34A;font-weight:800;">✓ '+pqT('Datos leídos. Revísalos abajo.','Data read. Check it below.')+'</span>'
+    :'<span style="color:#B45309;font-weight:800;">⚠️ '+pqT('Leí pocos datos. Revisa que la captura sea de la carga en Premium, o llénalos abajo.','I read little data. Make sure it is a Premium load screenshot, or fill it in below.')+'</span>';
+  if(found<3 && !_pq.stops.length){ _pq.stops=[{type:'pickup',num:1,city:'',st:'',zip:'',when:''},{type:'delivery',num:1,city:'',st:'',zip:'',when:''}]; renderPQ(); }
+}
+function pqSave(){
+  pqSync(); if(!_pq) return;
+  const rec=Object.assign({},_pq,{id:'pq_'+Date.now(),at:new Date().toISOString(),by:(currentUser&&currentUser.username)||''}); delete rec.raw;
+  let L=[]; try{ L=JSON.parse(localStorage.getItem('trucklog_pq')||'[]'); }catch(e){}
+  L.unshift(rec); try{ localStorage.setItem('trucklog_pq',JSON.stringify(L.slice(0,50))); }catch(e){}
+  try{ if(typeof fbReady!=='undefined'&&fbReady&&db) db.collection('quotes').doc(rec.id).set(JSON.parse(JSON.stringify(rec))).catch(()=>{}); }catch(e){}
+  const s=document.getElementById('pq-saved'); if(s) s.textContent='✓ '+pqT('Guardada. El siguiente paso será calcular el precio a ofrecer.','Saved. Next step: calculate the price to quote.');
+}
+
 // ===== CARPETA DE DOCUMENTOS POR DRIVER (admin) =====
 // Cada driver tiene su carpeta en Drive (Documentos_<usuario>) y su ficha en Firestore docs/drv_<usuario>.
 // El admin puede subir todo el paquete de una vez (por ejemplo el ZIP de alta con un broker): la app reconoce cada archivo por su nombre.
@@ -18309,6 +18449,7 @@ const ADMIN_SIDEBAR_ITEMS = [
   {id:'new',       icon:'➕', label:'Nuevo viaje', section:'Operaciones'},
   {id:'entransito', icon:'🚚', label:'En Tránsito', section:'Operaciones'},
   {id:'eta',       icon:'⏱️', label:'ETA al pick up', section:'Operaciones'},
+  {id:'pq',        icon:'💵', label:'Negociar carga', section:'Operaciones'},
   {id:'drvdocs',   icon:'📁', label:'Documentos drivers', section:'Operaciones'},
   {id:'log',       icon:'📋', label:'Historial', section:'Operaciones'},
   {id:'ubicacion', icon:'📍', label:'Ubicación', section:'Operaciones'},
@@ -18410,6 +18551,7 @@ function sidebarNav(id){
   if(id==='otrosgastos') renderOtrosGastos();
   if(id==='reporte') renderReporte();
   if(id==='entransito') renderEnTransito();
+  if(id==='pq'){ if(!currentUser||currentUser.role!=='admin') return sidebarNav('home'); renderPQ(); }
   if(id==='drvdocs'){ if(!currentUser||currentUser.role!=='admin') return sidebarNav('home'); renderDrvDocsPage(); }
   if(id==='eta'){ if(!currentUser||currentUser.role!=='admin') return sidebarNav('home'); renderEtaPage(); }
   if(id==='brokerreport') renderBrokerReport();
@@ -18500,6 +18642,7 @@ window.addEventListener('load', function(){
 <script>
 /* ══════════ TEMA CORPORATIVO: íconos y limpieza de emojis ══════════ */
 const PRO_ICONS={
+  pq:'<path d="M12 2v20"/><path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',
   drvdocs:'<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
   eta:'<path d="M12 21s-7-6.5-7-12a7 7 0 0 1 14 0c0 5.5-7 12-7 12z"/><path d="M12 6v3.5l2 1.5"/>',
   home:'<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M10 21v-6h4v6"/>',

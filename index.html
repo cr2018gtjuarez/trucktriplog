@@ -4485,6 +4485,8 @@ const SESSION_KEY='trucklog_session';
 // App aparte "ETA" (eta.html → ?app=eta): todos los usuarios ven solo el ETA
 const ETA_APP=/[?&]app=eta\b/.test(location.search);
 if(ETA_APP){ try{ document.title='ETA'; }catch(e){} }
+const ETA_APP_PAGES=['eta','pq','tql'];
+const ETA_APP_MENU=[{id:'eta',icon:'⏱️',label:'ETA',es:'ETA',en:'ETA',main:1},{id:'pq',icon:'💵',label:'Cotizar carga Premium',es:'Premium',en:'Premium',main:1},{id:'tql',icon:'📞',label:'Cargas TQL',es:'TQL · DAT · CHR',en:'TQL · DAT · CHR',main:1}];
 function etaOnlyMode(){ return ETA_APP||(typeof currentUser!=='undefined'&&currentUser&&currentUser.role==='dispatch'); }
 const ZC={};
 let fuelCount=0;
@@ -18845,7 +18847,7 @@ const DRIVER_SIDEBAR_ITEMS = [
 
 // ===== BARRA DE ABAJO (celular): lo más usado a un toque, y "Menú" abre el menú completo =====
 function bottomNavItems(role){
-  if(role==='dispatch'||ETA_APP) return [{id:'eta',icon:'⏱️',es:'ETA',en:'ETA'}];
+  if(role==='dispatch'||ETA_APP) return ETA_APP_MENU;
   return role==='admin'
     ? [{id:'home',icon:'🏠',es:'Inicio',en:'Home'},{id:'new',icon:'➕',es:'Nuevo',en:'New'},{id:'entransito',icon:'🚚',es:'En Tránsito',en:'In transit'},{id:'log',icon:'📋',es:'Historial',en:'History'}]
     : [{id:'home',icon:'🏠',es:'Inicio',en:'Home'},{id:'miviaje',icon:'🚚',es:'Mi Viaje',en:'My trip'},{id:'misganancias',icon:'💰',es:'Ganancias',en:'Earnings'},{id:'gas',icon:'⛽',es:'Gasolineras',en:'Fuel'}];
@@ -18864,7 +18866,7 @@ function markBottomNav(id){ document.querySelectorAll('#bottom-nav .bn-item[data
 function hideBottomNav(){ const b=document.getElementById('bottom-nav'); if(b) b.classList.remove('on'); document.body.classList.remove('has-bottom-nav'); }
 
 function buildSidebar(role){
-  const items = (role==='dispatch'||ETA_APP) ? [{id:'eta',icon:'⏱️',label:'ETA'}] : role==='admin' ? ADMIN_SIDEBAR_ITEMS : DRIVER_SIDEBAR_ITEMS;
+  const items = (role==='dispatch'||ETA_APP) ? ETA_APP_MENU : role==='admin' ? ADMIN_SIDEBAR_ITEMS : DRIVER_SIDEBAR_ITEMS;
   const nav = document.getElementById('sidebar-nav');
   let lastSection = null;
   nav.innerHTML = items.map(item=>{
@@ -18891,7 +18893,7 @@ function buildSidebar(role){
 }
 
 function sidebarNav(id){
-  if(currentUser&&etaOnlyMode()&&id!=='eta') id='eta';
+  if(currentUser&&etaOnlyMode()&&!ETA_APP_PAGES.includes(id)) id='eta';
   _currentSidebarId = id;
   try{ markBottomNav(id); window.scrollTo(0,0); }catch(e){}
   updateDriverAlertStrip();
@@ -18922,8 +18924,8 @@ function sidebarNav(id){
   if(id==='otrosgastos') renderOtrosGastos();
   if(id==='reporte') renderReporte();
   if(id==='entransito') renderEnTransito();
-  if(id==='pq'){ if(!currentUser||currentUser.role!=='admin') return sidebarNav('home'); pqMount('premium'); }
-  if(id==='tql'){ if(!currentUser||currentUser.role!=='admin') return sidebarNav('home'); pqMount('tql'); }
+  if(id==='pq'){ if(!currentUser||(currentUser.role!=='admin'&&!etaOnlyMode())) return sidebarNav('home'); pqMount('premium'); }
+  if(id==='tql'){ if(!currentUser||(currentUser.role!=='admin'&&!etaOnlyMode())) return sidebarNav('home'); pqMount('tql'); }
   if(id==='drvdocs'){ if(!currentUser||currentUser.role!=='admin') return sidebarNav('home'); renderDrvDocsPage(); }
   if(id==='eta'){ if(!currentUser||(currentUser.role!=='admin'&&currentUser.role!=='dispatch')) return sidebarNav('home'); renderEtaPage(); }
   if(id==='brokerreport') renderBrokerReport();

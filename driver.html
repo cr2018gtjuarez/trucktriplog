@@ -4494,9 +4494,11 @@ async function loadExtrasCloud(){
 }
 
 // SESSION
-function getSession(){try{return JSON.parse(sessionStorage.getItem(SESSION_KEY));}catch(e){return null;}}
-function setSession(u){sessionStorage.setItem(SESSION_KEY,JSON.stringify(u));}
-function clearSession(){sessionStorage.removeItem(SESSION_KEY);}
+// En la app ETA se entra una sola vez: la sesión se queda guardada en el celular hasta que toque Salir
+const ETA_SESSION_KEY='trucklog_eta_session';
+function getSession(){try{ let s=sessionStorage.getItem(SESSION_KEY); if(!s&&ETA_APP){ s=localStorage.getItem(ETA_SESSION_KEY); if(s) sessionStorage.setItem(SESSION_KEY,s); } return JSON.parse(s);}catch(e){return null;}}
+function setSession(u){sessionStorage.setItem(SESSION_KEY,JSON.stringify(u)); if(ETA_APP){ try{ localStorage.setItem(ETA_SESSION_KEY,JSON.stringify(u)); }catch(e){} }}
+function clearSession(){ try{ if(ETA_APP) localStorage.removeItem(ETA_SESSION_KEY); }catch(e){} sessionStorage.removeItem(SESSION_KEY);}
 
 async function doLogin(){
   const uname=document.getElementById('l-user').value.trim();

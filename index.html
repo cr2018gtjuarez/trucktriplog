@@ -6317,7 +6317,7 @@ const DRV_DOCS={
   ssn:{g:'s',es:'Seguro social',kw:/social|ssn|\bss\b/i,exp:false},
   passport:{g:'s',es:'Pasaporte / Green card / permiso de trabajo',kw:/pass?aport|passport|green\s*card|work\s*permit|\bead\b/i,exp:true},
   deposit:{g:'s',es:'Depósito directo / cheque anulado',kw:/deposit|void|cheque|check/i,exp:false},
-  w9:{g:'c',es:'W-9',kw:/\bf?w-?9\b|w9/i,exp:false},
+  w9:{g:'c',es:'W-9',kw:/\bf?w[\s-]?9\b|\bw9\b/i,exp:false},
   ein:{g:'c',es:'EIN',kw:/\bein\b/i,exp:false},
   articles:{g:'c',es:'Articles of Organization',kw:/article|organization|incorporat/i,exp:false},
   authority:{g:'c',es:'Autoridad MC / USDOT',kw:/authority|\bmc\b|usdot|dot\s*no/i,exp:false},
@@ -6337,7 +6337,7 @@ const DRV_DOCS={
   insurance:{g:'t',es:'Seguro del camión (ID card)',kw:/insurance|id\s*card|seguro|coi|certificate/i,exp:true},
   ifta:{g:'t',es:'IFTA',kw:/ifta/i,exp:true},
   permit:{g:'t',es:'Permisos (IRP / UCR / otros)',kw:/permit|permiso|\birp\b|\bucr\b/i,exp:false},
-  t_lease:{g:'t',es:'Lease / contrato de renta del camión',kw:/lease|arrend|rent/i,exp:false},
+  t_lease:{g:'t',es:'Lease / contrato de renta del camión',kw:/\blease\b|arrend|\brent(al)?\b|\brenta\b/i,exp:false},
   t_other:{g:'t',es:'Otros del camión',kw:/$^/,exp:false}
 };
 const DRV_DOC_GROUPS={p:'Del driver',s:'Personales (privados)',c:'Documentos de la compañía',t:'Documentos y fotos del camión'};

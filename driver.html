@@ -7146,7 +7146,24 @@ function homeDeltaHTML(curr, prev){
   return `<span style="color:${color};">${arrow} ${Math.abs(pct).toFixed(0)}% vs periodo anterior</span>`;
 }
 
-function renderHome(){
+// ===== MENÚ DE INICIO (driver): las 4 categorías en cuadros grandes =====
+function homeMenuHTML(){
+  const T=(es,en)=>window.TL_LANG==='en'?en:es;
+  const C=[
+    {ic:'🤝',es:'Negociar cargas',en:'Negotiate loads',c:'#16A34A',bg:'#E6F4EA',items:[['pq','💵','Premium','Premium'],['tql','📞','TQL','TQL'],['eta','⏱️','ETA al pick up','ETA to pick up'],['dmk','📊','Mi mercado','My market']]},
+    {ic:'🚚',es:'Mi viaje',en:'My trip',c:'#1E3A8A',bg:'#EEF2F9',items:[['miviaje','🚚','Mi viaje','My trip'],['new','➕','Nuevo viaje','New trip'],['gas','⛽','Gasolineras','Fuel']]},
+    {ic:'💰',es:'Mi dinero',en:'My money',c:'#B45309',bg:'#FEF3C7',items:[['misganancias','💰','Mis ganancias','My earnings']]},
+    {ic:'📁',es:'Mis papeles',en:'My papers',c:'#6D28D9',bg:'#F3E8FF',items:[['misdocs','📁','Mis documentos','My documents'],['mytruck','🚚','Mi camión','My truck']]}];
+  return `<div data-no-tr="1" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">${C.map((g,i)=>`
+    <div style="background:var(--card,#fff);border:2px solid ${i===0?g.c:'var(--border,#e5e7eb)'};border-radius:16px;padding:12px;${i<2?'grid-column:1 / -1;':''}">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"><span style="width:34px;height:34px;border-radius:10px;background:${g.bg};display:flex;align-items:center;justify-content:center;font-size:18px;">${g.ic}</span><b style="font-size:15px;color:${g.c};">${T(g.es,g.en)}</b></div>
+      <div style="display:grid;grid-template-columns:${i===0?'1fr 1fr':i===1?'1fr 1fr 1fr':'1fr'};gap:6px;">${g.items.map(x=>`<button type="button" onclick="sidebarNav('${x[0]}')" style="display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:${i===0?'12px':'9px'} 10px;border-radius:12px;border:1px solid ${i===0?g.c:'var(--border,#e5e7eb)'};background:${i===0&&x[0]!=='eta'&&x[0]!=='dmk'?g.c:'var(--bg3,#fff)'};color:${i===0&&x[0]!=='eta'&&x[0]!=='dmk'?'#fff':'var(--text)'};font-size:${i===0?'15':'13'}px;font-weight:800;cursor:pointer;font-family:inherit;"><span>${x[1]}</span><span>${T(x[2],x[3])}</span></button>`).join('')}</div>
+    </div>`).join('')}</div>`;
+}
+function renderHomeMenu(){ if(!currentUser||currentUser.role==='admin') return; let m=document.getElementById('home-menu');
+  if(!m){ const hero=document.getElementById('home-hero'); if(!hero) return; m=document.createElement('div'); m.id='home-menu'; hero.after(m); }
+  m.innerHTML=homeMenuHTML(); }
+function renderHome(){ try{ renderHomeMenu(); }catch(e){ console.warn('home menu',e); }
   if(!currentUser) return;
   if(currentUser.role==='admin' && !_brokerBackfillDone){ _brokerBackfillDone=true; backfillBrokerData(); }
   const isAdmin = currentUser.role === 'admin';
@@ -15671,7 +15688,7 @@ function mtTiles(t){
 function renderMyTruck(){
   const box=document.getElementById('mytruck-body'); if(!box) return;
   const tid=docsMyTruckId(); const t=(loadTrucks()||[]).find(x=>String(x.id)===String(tid));
-  if(!t){ box.innerHTML='<div class="card"><div style="font-size:14px;color:var(--text3);">No truck is assigned to you yet. Ask the office to assign your truck.</div></div>'; return; }
+  if(!t){ box.innerHTML='<div class="card"><div style="font-size:14px;color:var(--text3);">'+(window.TL_LANG==='en'?'No truck is assigned to you yet. Ask the office to assign your truck.':'Todavía no tienes camión asignado. Pide a la oficina que te lo asigne.')+'</div></div>'; return; }
   const M=TRUCK_MEDIA[mtPlate(t)]||[], rows=mtSpecs(t);
   box.innerHTML=`<div class="card">
       <div style="font-size:18px;font-weight:900;">${mtEsc(String(t.name||'').replace(/Cami[oó]n/i,'Truck'))} · ${mtEsc(t.plate||'')}</div>

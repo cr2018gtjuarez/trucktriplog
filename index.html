@@ -6381,9 +6381,10 @@ function renderPQ(){
     </div>
     <div style="margin-top:8px;">${f('pq-types',pqT('Tipos de camión','Truck types'),R.truckTypes)}</div>
     <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:14px;font-weight:700;"><input id="pq-direct" type="checkbox" ${R.direct?'checked':''} onchange="pqSync()" style="width:20px;height:20px;"/> ${pqT('Entrega DIRECT (sin paradas)','DIRECT delivery (no stops)')}</label>
+    <div style="margin-top:12px;">${f('pq-myquote',pqT('Precio que le mandé al broker ($)','My quote to the broker ($)'),R.myQuote,'number')}</div>
     <button type="button" onclick="pqSave()" style="width:100%;margin-top:14px;padding:13px;border:none;border-radius:12px;background:#16A34A;color:#fff;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit;">✓ ${pqT('Guardar carga','Save load')}</button>
     <div id="pq-saved" style="font-size:12px;color:var(--text3);margin-top:6px;text-align:center;"></div>
-  </div>`:''}`;
+  </div>`:''}<div id="pq-list"></div>`; pqLoadList();
 }
 const PQ_RATES=[{r:2.50,c:'#16A34A',bg:'#E6F4EA',es:'Empieza aquí',en:'Start here'},{r:2.25,c:'#B45309',bg:'#FEF3C7',es:'Buen precio',en:'Good'},{r:2.00,c:'#B91C1C',bg:'#FDECEC',es:'Lo más bajo: no bajes de aquí',en:'Lowest: don\'t go below'}];
 function pqDriverPct(){
@@ -6483,6 +6484,28 @@ function pqWhyHTML(){
     ${sayHTML}${adminHTML}
   </div>`;
 }
+// ===== COTIZACIONES: el driver guarda la carga + el precio que le mandó al broker → aviso al admin (campanita y Telegram) =====
+function pqAsks(R){ const tot=(+R.loaded||0)+(+R.empty||0); return PQ_RATES.map(x=>Math.round(tot*x.r/5)*5); }
+function pqRoute(r){ const P=(r.stops||[]).find(s=>s.type==='pickup')||(r.stops||[])[0]||{}, D=[...(r.stops||[])].reverse().find(s=>s.type==='delivery')||{}; return {P,D,txt:(P.city||'—')+(P.st?', '+P.st:'')+' → '+(D.city||'—')+(D.st?', '+D.st:'')}; }
+let _pqList=[];
+function pqLoadList(){
+  const box=document.getElementById('pq-list'); if(!box||!(currentUser&&currentUser.role==='admin')) return;
+  if(!(typeof fbReady!=='undefined'&&fbReady&&typeof db!=='undefined'&&db)){ box.innerHTML=''; return; }
+  db.collection('quotes').orderBy('at','desc').limit(20).get().then(snap=>{
+    _pqList=snap.docs.map(d=>d.data());
+    const money=v=>v?'$'+Math.round(v).toLocaleString('en-US'):'—';
+    box.innerHTML=`<div class="card" style="background:var(--card,#fff);border:1px solid var(--border,#ddd);border-radius:16px;padding:14px;margin-bottom:12px;">
+      <div style="font-size:16px;font-weight:900;margin-bottom:6px;">📋 Cotizaciones de los drivers</div>
+      ${_pqList.length?_pqList.map((r,i)=>{ const rt=pqRoute(r), tot=(+r.loaded||0)+(+r.empty||0), d=r.at?new Date(r.at).toLocaleString('es-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'';
+        return `<div onclick="pqOpen(${i})" style="padding:10px 0;border-top:1px solid var(--border,#eee);cursor:pointer;">
+          <div style="display:flex;justify-content:space-between;gap:8px;"><b style="font-size:14px;">${pqEsc(r.byName||r.by||'')}</b><span style="font-size:11px;color:var(--text3);">${pqEsc(d)}</span></div>
+          <div style="font-size:13px;margin-top:2px;">${pqEsc(rt.txt)} · ${tot.toLocaleString('en-US')} mi</div>
+          <div style="font-size:13px;margin-top:2px;">Mandó: <b style="color:#1E3A8A;">${money(r.myQuote)}</b>${r.myQuote&&tot?' ($'+(r.myQuote/tot).toFixed(2)+'/mi)':''} <span style="color:var(--text3);font-size:12px;">· sugerido ${money((r.asks||[])[0])} / ${money((r.asks||[])[2])}</span></div></div>`; }).join('')
+        :'<div style="font-size:13px;color:var(--text3);">Todavía no hay cotizaciones.</div>'}
+    </div>`;
+  }).catch(e=>{ box.innerHTML=''; console.warn('quotes',e); });
+}
+function pqOpen(i){ const r=_pqList[i]; if(!r) return; _pq=JSON.parse(JSON.stringify(r)); renderPQ(); try{ window.scrollTo({top:0,behavior:'smooth'}); }catch(e){} }
 function pqSync(){ if(!_pq) return; const g=id=>document.getElementById(id); const n=v=>{ const x=parseFloat(String(v||'').replace(/,/g,'')); return isNaN(x)?null:x; };
   _pq.loaded=n(g('pq-loaded')?.value); _pq.empty=n(g('pq-empty')?.value); _pq.weight=n(g('pq-weight')?.value); _pq.pieces=n(g('pq-pieces')?.value);
   _pq.drivers=g('pq-drivers')?.value||''; _pq.truckTypes=g('pq-types')?.value||''; _pq.direct=!!g('pq-direct')?.checked;
@@ -6509,11 +6532,16 @@ function pqApply(text){
 }
 function pqSave(){
   pqSync(); if(!_pq) return;
-  const rec=Object.assign({},_pq,{id:'pq_'+Date.now(),at:new Date().toISOString(),by:(currentUser&&currentUser.username)||''}); delete rec.raw;
+  const qv=parseFloat(String(document.getElementById('pq-myquote')?.value||'').replace(/[$,]/g,'')); _pq.myQuote=isNaN(qv)?null:qv;
+  const rec=Object.assign({},_pq,{asks:pqAsks(_pq),byName:(currentUser&&(currentUser.name||currentUser.firstName))||'',id:'pq_'+Date.now(),at:new Date().toISOString(),by:(currentUser&&currentUser.username)||''}); delete rec.raw;
   let L=[]; try{ L=JSON.parse(localStorage.getItem('trucklog_pq')||'[]'); }catch(e){}
   L.unshift(rec); try{ localStorage.setItem('trucklog_pq',JSON.stringify(L.slice(0,50))); }catch(e){}
   try{ if(typeof fbReady!=='undefined'&&fbReady&&db) db.collection('quotes').doc(rec.id).set(JSON.parse(JSON.stringify(rec))).catch(()=>{}); }catch(e){}
-  const s=document.getElementById('pq-saved'); if(s) s.textContent='✓ '+pqT('Guardada. El siguiente paso será calcular el precio a ofrecer.','Saved. Next step: calculate the price to quote.');
+  if(!(currentUser&&currentUser.role==='admin')){ try{ const rt=pqRoute(rec), tot=(+rec.loaded||0)+(+rec.empty||0);
+    const o={type:'quote', driverName:rec.byName||rec.by, city1:rt.P.city||'', state1:rt.P.st||'', city2:rt.D.city||'', state2:rt.D.st||'', miles:tot, myQuote:rec.myQuote||null, quoteId:rec.id, ts:new Date().toISOString(), read:false,
+      msg:'💬 <b>Cotización nueva</b>\n'+(rec.byName||rec.by)+'\n'+rt.txt+' · '+tot+' mi'+(rec.myQuote?'\nMandó: $'+rec.myQuote+' ($'+(rec.myQuote/tot).toFixed(2)+'/mi)':'\nSin precio todavía')};
+    tgAddNotif(typeof sanitizeForFirestore==='function'?sanitizeForFirestore(o):o).catch(()=>{}); }catch(e){} }
+  const s=document.getElementById('pq-saved'); if(s) s.textContent='✓ '+pqT('Guardada. La oficina ya recibió el aviso.','Saved. The office got a notice.'); if(currentUser&&currentUser.role==='admin') pqLoadList();
 }
 
 // ===== CARPETA DE DOCUMENTOS POR DRIVER (admin) =====
@@ -16667,6 +16695,7 @@ function _notifLabel0(n){
   if(n.type==='pod_uploaded') return {icon:'📄', title:'POD para revisar', text: n.driverName+' subió el POD — revisa y dale Ready to Go'};
   if(n.type==='completed') return {icon:'🏁', title:'Viaje finalizado', text: n.driverName+' terminó: '+route};
   if(n.type==='fuel') return {icon:'⛽', title:'Cargó diésel', text: n.driverName+' — '+(n.gal||0)+' gal × $'+(n.price||0)+' = $'+(Number(n.cost)||0).toFixed(2)+(n.station?' · '+n.station:'')};
+  if(n.type==='quote') return {icon:'💬', title:'Cotización nueva', text: (n.driverName||'')+' — '+(n.city1||'—')+(n.state1?', '+n.state1:'')+' → '+(n.city2||'—')+(n.state2?', '+n.state2:'')+' · '+(n.miles||'—')+' mi'+(n.myQuote?' · mandó $'+n.myQuote:'')};
   if(n.type==='pod_sent') return {icon:'📧', title:'POD enviado al broker', text: (n.to||'')+(n.rc?' · RC #'+n.rc:'')};
   return {icon:'📍', title:'Aviso', text: n.driverName+' — '+route};
 }

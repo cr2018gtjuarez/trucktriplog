@@ -4144,6 +4144,7 @@ if(ETA_APP){ try{
     html.eta-skin .leaflet-container{background:#0B1022;}
     html.eta-skin .de-loc{background:#0F2A1E;border-color:#166534;}
     html.eta-skin #de-loc-chg{color:#22C55E;}
+    html.eta-skin .eta-copy{color:#22C55E !important;border-color:#22C55E !important;background:transparent !important;}
     html.eta-skin .de-loc.warn{background:#3A2A0E;border-color:#92400E;}
     html.eta-skin .de-loc.err{background:#3A1418;border-color:#991B1B;}
     html.eta-skin .de-search input, html.eta-skin #de-q, html.eta-skin #eta-q{background:transparent;color:#111827;border:none;}
@@ -15714,6 +15715,35 @@ async function pqPuCheck(force){
   }catch(e){ if(_pq!==R) return; if(!R.pu||R.pu.err) R.pu={key,err:true}; }
   const b=document.getElementById('pq-pu'); if(b) b.innerHTML=pqPuHTML(R);
 }
+// ===== ETA: subir la captura de la carga (Premium, TQL, DAT, C.H. Robinson) y calcular el ETA al pick up =====
+function etaShotMount(){
+  const q=document.getElementById('eta-q')||document.getElementById('de-q'); if(!q) return;
+  if(document.getElementById('eta-shot')) return;
+  const box=document.createElement('div'); box.id='eta-shot'; box.setAttribute('data-no-tr','1');
+  const T=(es,en)=>window.TL_LANG==='en'?en:es;
+  box.innerHTML=`<label style="display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:14px;border-radius:14px;background:#16A34A;color:#fff;font-size:16px;font-weight:900;cursor:pointer;margin-bottom:10px;box-shadow:0 6px 18px rgba(22,163,74,.3);">📷 ${T('Subir captura de la carga','Upload load screenshot')}<input type="file" accept="image/*" onchange="etaShotPicked(this)" style="display:none;"/></label>
+    <div id="eta-shot-msg" style="font-size:13px;font-weight:700;color:var(--text3);margin:-4px 2px 10px;"></div>`;
+  // arriba del mapa / buscador
+  let host=q.closest('.de-map,.eta-map,[id$="-mapwrap"]')||q.parentElement; while(host&&host.parentElement&&!/page-/.test(host.parentElement.id||'')&&host.parentElement!==document.body&&!host.parentElement.classList.contains('page')) host=host.parentElement;
+  if(host&&host.parentElement) host.parentElement.insertBefore(box,host); else q.parentElement.insertBefore(box,q);
+}
+async function etaShotPicked(inp){
+  const file=inp.files&&inp.files[0]; inp.value=''; if(!file) return;
+  const T=(es,en)=>window.TL_LANG==='en'?en:es; const msg=(t,c)=>{ const m=document.getElementById('eta-shot-msg'); if(m){ m.style.color=c||'var(--text3)'; m.textContent=t; } };
+  msg('⏳ '+T('Leyendo la captura…','Reading the screenshot…'));
+  try{
+    const dataUrl=await new Promise((ok,ko)=>{ const r=new FileReader(); r.onload=()=>ok(r.result); r.onerror=ko; r.readAsDataURL(file); });
+    const text=await driveOcrText(dataUrl); const R=pqParse(text);
+    const P=R.stops.find(s=>s.type==='pickup')||R.stops[0];
+    if(!P||!P.city){ msg('⚠️ '+T('No encontré el pick up en la captura. Escríbelo abajo.','Could not find the pick up. Type it below.'),'#B45309'); return; }
+    const D=[...R.stops].reverse().find(s=>s.type==='delivery');
+    const zip=(String(P.zip||'').match(/\d{5}/)||[])[0], label=P.city+', '+P.st+(zip?' '+zip:'');
+    msg('✓ Pick up: '+label+(D?' → '+D.city+', '+D.st:'')+((+R.loaded)?' · '+Math.round(+R.loaded+(+R.empty||0)).toLocaleString('en-US')+' mi':''),'#16A34A');
+    const q=document.getElementById('eta-q')||document.getElementById('de-q'); if(q) q.value=zip||(P.city+', '+P.st);
+    const go=typeof etaGo==='function'&&document.getElementById('eta-q')?etaGo:(typeof deGo==='function'?deGo:null);
+    if(go) await go(zip?{type:'zip',zip}:null);
+  }catch(e){ msg('⚠️ '+T('No se pudo leer la captura: ','Could not read the screenshot: ')+(e.message||e),'#B91C1C'); }
+}
 // ===== COTIZACIONES: el driver guarda la carga + el precio que le mandó al broker → aviso al admin (campanita y Telegram) =====
 function pqAsks(R){ const tot=(+R.loaded||0)+(+R.empty||0), ex=pqExtras(R).total; return PQ_RATES.map(x=>Math.round(tot*x.r/5)*5+ex); }
 function pqRoute(r){ const P=(r.stops||[]).find(s=>s.type==='pickup')||(r.stops||[])[0]||{}, D=[...(r.stops||[])].reverse().find(s=>s.type==='delivery')||{}; return {P,D,txt:(P.city||'—')+(P.st?', '+P.st:'')+' → '+(D.city||'—')+(D.st?', '+D.st:'')}; }
@@ -16341,7 +16371,7 @@ function sidebarNav(id){
   if(id==='pagos') renderPagos();
   if(id==='gas') renderGas();
   if(id==='miviaje') renderMiViaje();
-  if(id==='eta'){ try{ deOpenPage(); }catch(e){ console.warn('eta',e); } }
+  if(id==='eta'){ try{ deOpenPage(); setTimeout(etaShotMount,50); }catch(e){ console.warn('eta',e); } }
   if(id==='misganancias') renderMisGanancias(); if(id==='dmk') renderDmk();
   if(id==='misdocs') renderDocs();
   if(id==='mytruck'){ renderMyTruck(); myTruckExtras(); }

@@ -15,7 +15,7 @@
   <script>
     // Abierta desde el ícono de la pantalla de inicio → entra directo a la app ETA
     (function(){ var standalone=(window.navigator.standalone===true)||(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches)||/[?&]pwa=1\b/.test(location.search);
-      if(standalone) location.replace('index.html?app=eta'); })();
+      location.replace('index.html?app=eta'); })();
   </script>
   <style>
     body{margin:0;min-height:100vh;background:#0B1022;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box;}

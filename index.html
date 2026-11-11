@@ -4484,7 +4484,51 @@ const USERS_KEY='trucklog_users';
 const SESSION_KEY='trucklog_session';
 // App aparte "ETA" (eta.html → ?app=eta): todos los usuarios ven solo el ETA
 const ETA_APP=/[?&]app=eta\b/.test(location.search);
-if(ETA_APP){ try{ document.title='ETA'; }catch(e){} }
+if(ETA_APP){ try{ document.title='ETA';
+  const setL=(sel,attr,val)=>{ let el=document.querySelector(sel); if(el) el.setAttribute(attr,val); };
+  setL('link[rel="manifest"]','href','eta.webmanifest'); setL('meta[name="apple-mobile-web-app-title"]','content','ETA');
+  document.querySelectorAll('link[rel="apple-touch-icon"]').forEach(l=>l.setAttribute('href','eta-apple-touch-icon.png'));
+  document.querySelectorAll('link[rel="icon"]').forEach(l=>l.setAttribute('href','eta-icon-192.png'));
+  setL('meta[name="theme-color"]','content','#0B1022'); }catch(e){} }
+// ===== DISEÑO PROPIO DE LA APP ETA (oscuro, con su logo y nombre; no el de la compañía) =====
+if(ETA_APP){ try{
+  document.documentElement.classList.add('eta-skin');
+  const st=document.createElement('style'); st.textContent=`
+    html.eta-skin{color-scheme:dark;}
+    html.eta-skin :root, html.eta-skin{--bg:#0B1022;--bg2:#141B38;--bg3:#1A2246;--bg4:#202A55;--border:#26305C;--border2:#2F3A6B;--border3:#3A4680;
+      --text:#F1F5F9;--text2:#B8C2E0;--text3:#7C8BC4;--accent:#22C55E;--accent2:#16A34A;--accent-bg:#0F2A1E;
+      --green-bg:#0F2A1E;--red-bg:#3A1418;--orange-bg:#3A2A0E;--card:#141B38;
+      --shadow:0 1px 4px rgba(0,0,0,.4),0 4px 16px rgba(0,0,0,.3);--shadow-lg:0 8px 32px rgba(0,0,0,.5);}
+    html.eta-skin body{background:#0B1022;color:#F1F5F9;}
+    html.eta-skin .login-wrap{background:radial-gradient(circle at 50% 20%,#123524 0%,#0B1022 55%);}
+    html.eta-skin .login-box{background:#141B38;border-color:#26305C;}
+    html.eta-skin .login-logo img, html.eta-skin .pro-logo{content:url(eta-icon-192.png);border-radius:22%;background:#0B1022;}
+    html.eta-skin .login-btn{background:#22C55E;color:#052e16;}
+    html.eta-skin .login-field input{background:#0B1022;color:#fff;border-color:#2F3A6B;}
+    html.eta-skin .app-header{background:#0B1022;border-bottom:1px solid #1F2850;}
+    html.eta-skin .hamburger-btn{background:#141B38;border-color:#26305C;}
+    html.eta-skin .hamburger-btn span{background:#22C55E;}
+    html.eta-skin .pro-company{color:#fff !important;letter-spacing:2px;}
+    html.eta-skin #app-tagline{color:#22C55E !important;}
+    html.eta-skin .sidebar{background:#0B1022;}
+    html.eta-skin #bottom-nav.on{background:#060A18;border-top-color:#1F2850;}
+    html.eta-skin input, html.eta-skin select, html.eta-skin textarea{background:#1A2246;color:#F1F5F9;border-color:#2F3A6B;}
+    html.eta-skin .leaflet-container{background:#0B1022;}
+    html.eta-skin .de-loc{background:#0F2A1E;border-color:#166534;}
+    html.eta-skin #de-loc-chg{color:#22C55E;}
+    html.eta-skin .de-loc.warn{background:#3A2A0E;border-color:#92400E;}
+    html.eta-skin .de-loc.err{background:#3A1418;border-color:#991B1B;}
+    html.eta-skin .de-search input, html.eta-skin #de-q, html.eta-skin #eta-q{background:transparent;color:#111827;border:none;}
+  `; document.head.appendChild(st);
+  ['app-header','login-title-txt','login-sub-txt'].forEach(id=>{ const e=document.getElementById(id); if(e) e.setAttribute('data-no-tr','1'); }); document.querySelectorAll('.sidebar-header').forEach(e=>e.setAttribute('data-no-tr','1'));
+  const T=(sel,txt)=>document.querySelectorAll(sel).forEach(e=>e.textContent=txt);
+  T('.pro-company','ETA'); T('#login-title-txt','ETA'); T('#login-sub-txt','¿Cuándo llega cada camión? En vivo.');
+  T('.sidebar-app-name','ETA'); T('.sidebar-tagline','YENAVI · en vivo');
+  const tg=document.getElementById('app-tagline'); if(tg) tg.textContent='YENAVI · ubicación en vivo';
+  // que nada vuelva a poner el texto de la compañía
+  new MutationObserver(()=>{ document.querySelectorAll('.pro-company').forEach(e=>{ if(e.textContent!=='ETA') e.textContent='ETA'; }); const t=document.getElementById('app-tagline'); if(t&&t.textContent!=='YENAVI · ubicación en vivo') t.textContent='YENAVI · ubicación en vivo'; const lt=document.getElementById('login-title-txt'); if(lt&&lt.textContent!=='ETA') lt.textContent='ETA'; })
+    .observe(document.getElementById('app-header')||document.body,{subtree:true,childList:true,characterData:true});
+}catch(e){ console.warn('eta skin',e); } }
 const ETA_APP_PAGES=['eta','pq','tql'];
 const ETA_APP_MENU=[{id:'eta',icon:'⏱️',label:'ETA',es:'ETA',en:'ETA',main:1},{id:'pq',icon:'💵',label:'Cotizar carga Premium',es:'Premium',en:'Premium',main:1},{id:'tql',icon:'📞',label:'Cargas TQL',es:'TQL · DAT · CHR',en:'TQL · DAT · CHR',main:1}];
 function etaOnlyMode(){ return ETA_APP||(typeof currentUser!=='undefined'&&currentUser&&currentUser.role==='dispatch'); }
@@ -19018,6 +19062,7 @@ window.addEventListener('load', function(){
 <script>
 /* ══════════ TEMA CORPORATIVO: íconos y limpieza de emojis ══════════ */
 const PRO_ICONS={
+  tql:'<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/>',
   pq:'<path d="M12 2v20"/><path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',
   drvdocs:'<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
   eta:'<path d="M12 21s-7-6.5-7-12a7 7 0 0 1 14 0c0 5.5-7 12-7 12z"/><path d="M12 6v3.5l2 1.5"/>',

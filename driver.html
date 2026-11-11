@@ -15210,7 +15210,7 @@ function pqParse(text){
   let cur=null;
   lines.forEach(l=>{
     const p=l.match(placeRx);
-    if(p){ cur={type:'',num:null,city:p[1].replace(/^[^A-Za-z]+/,'').trim(),st:p[2],zip:p[3],when:[]}; R.stops.push(cur); return; }
+    if(p){ cur={type:'',num:null,city:p[1].replace(/^[^A-Za-z]+/,'').replace(/^[OoQ]\s+(?=[A-Z])/,'').trim(),st:p[2],zip:p[3],when:[]}; R.stops.push(cur); return; }
     if(!cur) return;
     const lab=l.match(/(PICK\s*-?\s*UP|DELIVERY)\s*#?\s*(\d+)/i);
     if(lab){ cur.type=/PICK/i.test(lab[1])?'pickup':'delivery'; cur.num=+lab[2]; cur=null; return; }

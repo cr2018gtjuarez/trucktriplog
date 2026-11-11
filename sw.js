@@ -1,9 +1,9 @@
 // YENAVI Truck Trip Log — service worker
 // Abre rápido y funciona con mala señal: la página se pide a internet primero (para tener siempre la versión nueva)
 // y si no hay señal usa la copia guardada. No toca Firebase, Google ni otros servicios: esos van directo a internet.
-const VERSION = 'yenavi-2026-11-11d';
+const VERSION = 'yenavi-2026-11-11e';
 const SHELL = ['./', './index.html', './driver.html', './manifest.webmanifest', './driver.webmanifest',
-  './icon-192.png', './icon-512.png', './apple-touch-icon.png', './driver-icon-192.png', './driver-icon-512.png', './driver-apple-touch-icon.png'];
+  './icon-192.png', './icon-512.png', './apple-touch-icon.png', './driver-icon-192.png', './driver-icon-512.png', './driver-apple-touch-icon.png', './eta.html', './eta.webmanifest', './eta-icon-192.png', './eta-icon-512.png', './eta-apple-touch-icon.png'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(VERSION).then((c) => Promise.all(SHELL.map((u) => c.add(u).catch(() => null)))));

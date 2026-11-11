@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  <title>ETA</title>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-title" content="ETA"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="theme-color" content="#0B1022"/>
+  <link rel="manifest" href="eta.webmanifest"/>
+  <link rel="icon" href="eta-icon-192.png"/>
+  <link rel="apple-touch-icon" href="eta-apple-touch-icon.png"/>
+  <script>
+    // Abierta desde el ícono de la pantalla de inicio → entra directo a la app ETA
+    (function(){ var standalone=(window.navigator.standalone===true)||(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches)||/[?&]pwa=1\b/.test(location.search);
+      if(standalone) location.replace('index.html?app=eta'); })();
+  </script>
+  <style>
+    body{margin:0;min-height:100vh;background:#0B1022;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box;}
+    .w{max-width:380px;width:100%;text-align:center;}
+    img{width:110px;height:110px;border-radius:26px;box-shadow:0 12px 30px rgba(34,197,94,.3);}
+    h1{font-size:30px;margin:18px 0 4px;}
+    p{color:#9AA6D1;font-size:15px;line-height:1.5;margin:6px 0;}
+    .s{background:#141B38;border:1px solid #26305C;border-radius:16px;padding:14px 16px;text-align:left;margin-top:18px;font-size:14px;line-height:1.6;}
+    .s b{color:#22C55E;}
+    a.btn{display:block;margin-top:18px;padding:15px;border-radius:14px;background:#22C55E;color:#052e16;font-weight:900;font-size:17px;text-decoration:none;}
+  </style>
+</head>
+<body>
+  <div class="w">
+    <img src="eta-icon-512.png" alt="ETA"/>
+    <h1>ETA</h1>
+    <p>YENAVI FREIGHT LLC · ¿Cuándo llega cada camión? Con la ubicación en vivo de los drivers.</p>
+    <div class="s" id="ios">
+      <b>Instálala en tu iPhone:</b><br/>
+      1. Toca <b>Compartir</b> (el cuadrito con la flecha ↑).<br/>
+      2. Toca <b>“Agregar a pantalla de inicio”</b>.<br/>
+      3. Toca <b>Agregar</b>. Te queda el ícono <b>ETA</b>.
+    </div>
+    <div class="s" id="and">
+      <b>En Android:</b> menú <b>⋮</b> de Chrome → <b>“Instalar app”</b>.
+    </div>
+    <a class="btn" href="index.html?app=eta">Abrir ETA aquí</a>
+  </div>
+</body>
+</html>

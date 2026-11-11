@@ -4110,6 +4110,10 @@ function initFirebase(){
 const TRIPS_KEY='trucklog_v6';
 const USERS_KEY='trucklog_users';
 const SESSION_KEY='trucklog_session';
+// App aparte "ETA" (eta.html → ?app=eta): todos los usuarios ven solo el ETA
+const ETA_APP=/[?&]app=eta\b/.test(location.search);
+if(ETA_APP){ try{ document.title='ETA'; }catch(e){} }
+function etaOnlyMode(){ return ETA_APP||(typeof currentUser!=='undefined'&&currentUser&&currentUser.role==='dispatch'); }
 const ZC={};
 let fuelCount=0;
 const invoiceImages={};
@@ -4733,8 +4737,9 @@ function startApp(user){
     setTimeout(startDriverTracking, 1500);
   }
 
+  if(ETA_APP){ setTimeout(()=>sidebarNav('eta'),60); }
   // Show tutorial for drivers on first login
-  if(user.role === 'driver' && !localStorage.getItem(TUTORIAL_KEY)){
+  if(!ETA_APP && user.role === 'driver' && !localStorage.getItem(TUTORIAL_KEY)){
     setTimeout(startTutorial, 800);
   }
 }
@@ -16223,6 +16228,7 @@ function proIcon(id){ return '<svg viewBox="0 0 24 24" fill="none" stroke="curre
 
 // ===== BARRA DE ABAJO (celular): lo más usado a un toque, y "Menú" abre el menú completo =====
 function bottomNavItems(role){
+  if(ETA_APP) return [{id:'eta',icon:'⏱️',es:'ETA',en:'ETA'}];
   return role==='admin'
     ? [{id:'home',icon:'🏠',es:'Inicio',en:'Home'},{id:'new',icon:'➕',es:'Nuevo',en:'New'},{id:'entransito',icon:'🚚',es:'En Tránsito',en:'In transit'},{id:'log',icon:'📋',es:'Historial',en:'History'}]
     : [{id:'pq',icon:'💵',es:'Premium',en:'Premium',main:1},{id:'tql',icon:'📞',es:'TQL',en:'TQL',main:1},{id:'eta',icon:'⏱️',es:'ETA',en:'ETA'},{id:'miviaje',icon:'🚚',es:'Mi Viaje',en:'My trip'},{id:'home',icon:'🏠',es:'Inicio',en:'Home'}];
@@ -16241,7 +16247,7 @@ function markBottomNav(id){ document.querySelectorAll('#bottom-nav .bn-item[data
 function hideBottomNav(){ const b=document.getElementById('bottom-nav'); if(b) b.classList.remove('on'); document.body.classList.remove('has-bottom-nav'); }
 
 function buildSidebar(role){
-  const items = role==='admin' ? ADMIN_SIDEBAR_ITEMS : DRIVER_SIDEBAR_ITEMS;
+  const items = ETA_APP ? [{id:'eta',icon:'⏱️',label:'ETA'}] : role==='admin' ? ADMIN_SIDEBAR_ITEMS : DRIVER_SIDEBAR_ITEMS;
   const nav = document.getElementById('sidebar-nav');
   let lastSection = null;
   nav.innerHTML = items.map(item=>{
@@ -16268,6 +16274,7 @@ function buildSidebar(role){
 }
 
 function sidebarNav(id){
+  if(ETA_APP&&id!=='eta') id='eta';
   _currentSidebarId = id;
   try{ markBottomNav(id); window.scrollTo(0,0); }catch(e){}
   updateDriverAlertStrip();

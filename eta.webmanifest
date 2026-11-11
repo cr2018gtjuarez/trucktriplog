@@ -1,0 +1,18 @@
+{
+ "id": "./eta.html",
+ "name": "ETA — YENAVI",
+ "short_name": "ETA",
+ "description": "YENAVI FREIGHT LLC — ETA de los camiones con la ubicación en vivo de los drivers.",
+ "lang": "es-US",
+ "start_url": "./eta.html?pwa=1",
+ "scope": "./",
+ "display": "standalone",
+ "orientation": "portrait-primary",
+ "background_color": "#0B1022",
+ "theme_color": "#0B1022",
+ "icons": [
+  {"src": "eta-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+  {"src": "eta-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+  {"src": "eta-icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+ ]
+}

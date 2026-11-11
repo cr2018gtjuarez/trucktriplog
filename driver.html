@@ -2794,6 +2794,8 @@
 
   <!-- INSPECCIÓN SEMANAL (driver) -->
   <!-- MIS DOCUMENTOS (driver): CDL, tarjeta médica, registro, seguro… con vencimiento y modo inspección -->
+  <div class="page" id="page-mytruck"><div id="mytruck-body" data-no-tr="1"></div></div>
+
   <div class="page" id="page-misdocs">
     <button type="button" onclick="docsInspect()" style="width:100%;padding:14px;border:none;border-radius:14px;background:#B91C1C;color:#fff;font-size:16px;font-weight:800;margin-bottom:12px;">🚨 Modo inspección: enseñar documentos</button>
     <div id="docs-summary"></div>
@@ -4350,6 +4352,7 @@ function startRealtimeSync(){
       if(id==='miviaje') renderMiViaje();
       if(id==='misganancias') renderMisGanancias(); if(id==='dmk') renderDmk();
       if(id==='misdocs') renderDocs();
+      if(id==='mytruck') renderMyTruck();
       if(id==='reporte') renderReporte();
       if(id==='brokerreport') renderBrokerReport();
       if(id==='brokernamereport') renderBrokerNameReport();
@@ -15170,11 +15173,68 @@ const DRIVER_SIDEBAR_ITEMS = [
   {id:'misganancias', icon:'💰', label:'Mis Ganancias'},
   {id:'dmk', icon:'📊', label:'Mi Mercado'},
   {id:'misdocs', icon:'📁', label:'Mis Documentos'},
+  {id:'mytruck', icon:'🚚', label:'My Truck'},
   {id:'gas',     icon:'⛽', label:'Gasolineras'},
 ];
 
 
 
+
+
+// ===== MY TRUCK (driver): fotos identificadas + ficha del camión con los términos que usan los brokers =====
+const TRUCK_MEDIA={'WTN2143':[{"f": "trucks/truck1/01-front-plate-WTN2143.jpg", "t": "trucks/truck1/01-front-plate-WTN2143.thumb.jpg", "en": "Front view · plate TX WTN2143", "es": "Frente · placa WTN2143"}, {"f": "trucks/truck1/02-left-side-driver-side.jpg", "t": "trucks/truck1/02-left-side-driver-side.thumb.jpg", "en": "Left side (driver side) · company markings USDOT 6498343 / MC 92117262", "es": "Lado izquierdo (chofer) · letreros"}, {"f": "trucks/truck1/03-right-side-with-side-door.jpg", "t": "trucks/truck1/03-right-side-with-side-door.thumb.jpg", "en": "Right side (passenger side) · side door + lift gate", "es": "Lado derecho · puerta lateral + lift gate"}, {"f": "trucks/truck1/04-cargo-area-e-track.jpg", "t": "trucks/truck1/04-cargo-area-e-track.thumb.jpg", "en": "Cargo area · E-track 2 rows each side, translucent roof", "es": "Adentro de la caja · E-track, techo translúcido"}, {"f": "trucks/truck1/05-box-inside-width-97.5in.jpg", "t": "trucks/truck1/05-box-inside-width-97.5in.thumb.jpg", "en": "Box inside width: 97.5\"", "es": "Ancho por dentro: 97½ pulg"}, {"f": "trucks/truck1/06-box-inside-height-103in.jpg", "t": "trucks/truck1/06-box-inside-height-103in.thumb.jpg", "en": "Box inside height: 103\"", "es": "Alto por dentro: 103 pulg"}, {"f": "trucks/truck1/07-rear-door-width-94.5in.jpg", "t": "trucks/truck1/07-rear-door-width-94.5in.thumb.jpg", "en": "Rear door opening width: 94.5\"", "es": "Ancho de la puerta: 94½ pulg"}, {"f": "trucks/truck1/08-rear-door-height-94in.jpg", "t": "trucks/truck1/08-rear-door-height-94in.thumb.jpg", "en": "Rear door opening height: 94\"", "es": "Alto de la puerta: 94 pulg"}, {"f": "trucks/truck1/09-manufacturer-label-gvwr-26000lbs.jpg", "t": "trucks/truck1/09-manufacturer-label-gvwr-26000lbs.thumb.jpg", "en": "Manufacturer label · VIN 3ALACWDTXFDGE0853 · GVWR 26,000 lbs", "es": "Etiqueta del fabricante · GVWR 26,000 lb"}, {"f": "trucks/truck1/10-cat-scale-empty-17100lbs.jpg", "t": "trucks/truck1/10-cat-scale-empty-17100lbs.thumb.jpg", "en": "CAT scale ticket (empty): 17,100 lbs", "es": "Ticket CAT vacío: 17,100 lb"}, {"f": "trucks/truck1/11-annual-dot-inspection-exp-2027-03.jpg", "t": "trucks/truck1/11-annual-dot-inspection-exp-2027-03.thumb.jpg", "en": "Annual DOT inspection · passed 03/18/2026 · expires 03/31/2027", "es": "Inspección anual · vence 31/03/2027"}],'XZW3301':[{"f": "trucks/truck2/01-front.jpg", "t": "trucks/truck2/01-front.thumb.jpg", "en": "Front view", "es": "Frente"}, {"f": "trucks/truck2/02-front-left.jpg", "t": "trucks/truck2/02-front-left.thumb.jpg", "en": "Front / left side · company markings USDOT 6498343 / MC 92117262", "es": "Frente y lado izquierdo · letreros"}, {"f": "trucks/truck2/03-left-side-driver-side.jpg", "t": "trucks/truck2/03-left-side-driver-side.thumb.jpg", "en": "Left side (driver side) · Morgan box + lift gate", "es": "Lado izquierdo (chofer)"}, {"f": "trucks/truck2/04-left-side-2.jpg", "t": "trucks/truck2/04-left-side-2.thumb.jpg", "en": "Left side", "es": "Lado izquierdo"}, {"f": "trucks/truck2/05-right-side.jpg", "t": "trucks/truck2/05-right-side.thumb.jpg", "en": "Right side (passenger side)", "es": "Lado derecho"}, {"f": "trucks/truck2/06-right-side-cab.jpg", "t": "trucks/truck2/06-right-side-cab.thumb.jpg", "en": "Right side · cab", "es": "Lado derecho · cabina"}, {"f": "trucks/truck2/07-rear.jpg", "t": "trucks/truck2/07-rear.thumb.jpg", "en": "Rear view · roll-up door + lift gate", "es": "Atrás · cortina + lift gate"}, {"f": "trucks/truck2/08-cargo-area.jpg", "t": "trucks/truck2/08-cargo-area.thumb.jpg", "en": "Cargo area", "es": "Adentro de la caja"}, {"f": "trucks/truck2/09-straps-4.jpg", "t": "trucks/truck2/09-straps-4.thumb.jpg", "en": "Equipment: 4 straps", "es": "Equipo: 4 straps"}, {"f": "trucks/truck2/10-license-plate-XZW3301.jpg", "t": "trucks/truck2/10-license-plate-XZW3301.thumb.jpg", "en": "License plate TX XZW3301", "es": "Placa XZW3301"}, {"f": "trucks/truck2/11-box-inside-length-312in.jpg", "t": "trucks/truck2/11-box-inside-length-312in.thumb.jpg", "en": "Box inside length: 312\" (26 ft)", "es": "Largo por dentro: 312 pulg (26 pies)"}, {"f": "trucks/truck2/12-box-inside-length-312in-2.jpg", "t": "trucks/truck2/12-box-inside-length-312in-2.thumb.jpg", "en": "Box inside length: 312\" (26 ft)", "es": "Largo por dentro: 312 pulg"}, {"f": "trucks/truck2/13-box-inside-width-97in.jpg", "t": "trucks/truck2/13-box-inside-width-97in.thumb.jpg", "en": "Box inside width: 97\"", "es": "Ancho por dentro: 97 pulg"}, {"f": "trucks/truck2/14-box-inside-height-85.5in.jpg", "t": "trucks/truck2/14-box-inside-height-85.5in.thumb.jpg", "en": "Box inside height: 85.5\"", "es": "Alto por dentro: 85½ pulg"}, {"f": "trucks/truck2/15-rear-door-width-94in.jpg", "t": "trucks/truck2/15-rear-door-width-94in.thumb.jpg", "en": "Rear door opening width: 94\"", "es": "Ancho de la puerta: 94 pulg"}, {"f": "trucks/truck2/16-rear-door-height-79in.jpg", "t": "trucks/truck2/16-rear-door-height-79in.thumb.jpg", "en": "Rear door opening height: 79\"", "es": "Alto de la puerta: 79 pulg"}, {"f": "trucks/truck2/17-emission-label-vin-JH002203.jpg", "t": "trucks/truck2/17-emission-label-vin-JH002203.thumb.jpg", "en": "Navistar emission label · VIN 1HTMMMMNXJH002203 · 2018", "es": "Etiqueta de emisiones · VIN …JH002203"}, {"f": "trucks/truck2/18-cat-scale-empty-17340lbs.jpg", "t": "trucks/truck2/18-cat-scale-empty-17340lbs.thumb.jpg", "en": "CAT scale ticket (empty): 17,340 lbs", "es": "Ticket CAT vacío: 17,340 lb"}]};
+const TRUCK_PROFILE={
+  'WTN2143':{equip:"26' Straight Truck (Box Truck)",ymm:'2015 Freightliner M2',vin:'3ALACWDTXFDGE0853',door:'Roll-up rear door',side:true,secure:'E-track (2 rows each side)',extra:['Translucent roof']},
+  'XZW3301':{equip:"26' Straight Truck (Box Truck)",ymm:'2018 International MA025 (DuraStar), Morgan box',vin:'1HTMMMMNXJH002203',door:'Roll-up rear door',side:false,secure:'4 straps',extra:[]}
+};
+function mtPlate(t){ return String((t&&t.plate)||'').toUpperCase().replace(/\s/g,''); }
+function mtEsc(x){ return String(x==null?'':x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function mtFt(v){ v=parseFloat(v); if(!(v>0)) return ''; const f=Math.floor(v/12), i=Math.round((v-f*12)*2)/2; return f+"'"+(i?' '+i+'"':''); }
+function mtSpecs(t){
+  const d=(t&&t.dims)||{}, P=TRUCK_PROFILE[mtPlate(t)]||{}, n=v=>parseFloat(v)>0, num=v=>Number(v).toLocaleString('en-US'), rows=[];
+  rows.push(['Equipment type',P.equip||'Straight Truck (Box Truck)']);
+  if(P.ymm) rows.push(['Year / Make / Model',P.ymm]);
+  if(t&&t.plate) rows.push(['Plate','TX '+t.plate]);
+  if(P.vin) rows.push(['VIN',P.vin]);
+  if([d.boxL,d.boxW,d.boxH].every(n)) rows.push(['Interior dimensions (L × W × H)',d.boxL+'" × '+d.boxW+'" × '+d.boxH+'"  ('+mtFt(d.boxL)+' × '+mtFt(d.boxW)+' × '+mtFt(d.boxH)+')']);
+  if([d.doorW,d.doorH].every(n)) rows.push(['Rear door opening (W × H)',d.doorW+'" × '+d.doorH+'"']);
+  if(P.door) rows.push(['Door type',P.door]);
+  rows.push(['Side door',P.side?'Yes (passenger side)':'No']);
+  if(n(d.pallets)) rows.push(['Pallet positions (48" × 40")',d.pallets]);
+  if(n(d.payload)) rows.push(['Payload capacity',num(d.payload)+' lbs']);
+  rows.push(['GVWR','26,000 lbs (Non-CDL)']);
+  if(n(d.liftCap)) rows.push(['Liftgate','Yes – '+num(d.liftCap)+' lbs']); else rows.push(['Liftgate','Yes']);
+  if(n(d.deckH)) rows.push(['Deck height',d.deckH+'"']);
+  rows.push(['Dock high','No – liftgate for ground-level delivery']);
+  if(P.secure) rows.push(['Load securement',P.secure]);
+  (P.extra||[]).forEach(x=>rows.push(['Other',x]));
+  return rows;
+}
+function renderMyTruck(){
+  const box=document.getElementById('mytruck-body'); if(!box) return;
+  const tid=docsMyTruckId(); const t=(loadTrucks()||[]).find(x=>String(x.id)===String(tid));
+  if(!t){ box.innerHTML='<div class="card"><div style="font-size:14px;color:var(--text3);">No truck is assigned to you yet. Ask the office to assign your truck.</div></div>'; return; }
+  const M=TRUCK_MEDIA[mtPlate(t)]||[], rows=mtSpecs(t);
+  box.innerHTML=`<div class="card">
+      <div style="font-size:18px;font-weight:900;">${mtEsc(String(t.name||'').replace(/Cami[oó]n/i,'Truck'))} · ${mtEsc(t.plate||'')}</div>
+      <div style="font-size:13px;color:var(--text3);margin-bottom:10px;">${mtEsc((TRUCK_PROFILE[mtPlate(t)]||{}).ymm||t.makeModel||'')}</div>
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">${rows.map(r=>`<tr><td style="padding:7px 8px 7px 0;color:var(--text3);font-weight:700;border-bottom:1px solid var(--border2);vertical-align:top;width:44%;">${mtEsc(r[0])}</td><td style="padding:7px 0;font-weight:800;border-bottom:1px solid var(--border2);">${mtEsc(r[1])}</td></tr>`).join('')}</table>
+      <button type="button" onclick="myTruckCopy(this)" style="width:100%;margin-top:12px;padding:13px;border:none;border-radius:12px;background:#1E3A8A;color:#fff;font-size:15px;font-weight:800;cursor:pointer;">📋 Copy truck info for broker</button>
+    </div>
+    <div class="card"><div class="card-title">📷 Truck photos (${M.length})</div>
+      ${M.length?`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;">${M.map(x=>`<a href="${mtEsc(x.f)}" target="_blank" style="text-decoration:none;color:var(--text);border:1px solid var(--border2);border-radius:12px;overflow:hidden;display:block;background:var(--bg2);">
+        <img src="${mtEsc(x.t)}" loading="lazy" alt="${mtEsc(x.en)}" style="width:100%;height:115px;object-fit:cover;display:block;background:#E5E7EB;"/>
+        <div style="padding:6px 8px;font-size:12px;font-weight:800;line-height:1.3;">${mtEsc(x.en)}</div></a>`).join('')}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:8px;">Tap a photo to open it full size and share it with the broker.</div>`
+      :'<div style="font-size:13px;color:var(--text3);">No photos yet for this truck.</div>'}
+    </div>`;
+}
+function myTruckCopy(btn){
+  const tid=docsMyTruckId(); const t=(loadTrucks()||[]).find(x=>String(x.id)===String(tid)); if(!t) return;
+  const msg='YENAVI FREIGHT LLC · USDOT 6498343 · MC 92117262\n'+mtSpecs(t).map(r=>r[0]+': '+r[1]).join('\n');
+  const done=()=>{ if(btn){ btn.textContent='✓ Copied'; setTimeout(()=>{ btn.textContent='📋 Copy truck info for broker'; },2000); } };
+  if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(msg).then(done,()=>prompt('Copy:',msg)); else prompt('Copy:',msg);
+}
 
 // ===== ETA DEL CHOFER: "¿en cuánto llegas?" (ubicación del teléfono + ZIP del pick up) =====
 const DL_TZ={CT:'America/New_York',DE:'America/New_York',DC:'America/New_York',GA:'America/New_York',ME:'America/New_York',MD:'America/New_York',MA:'America/New_York',NH:'America/New_York',NJ:'America/New_York',NY:'America/New_York',NC:'America/New_York',OH:'America/New_York',PA:'America/New_York',RI:'America/New_York',SC:'America/New_York',VT:'America/New_York',VA:'America/New_York',WV:'America/New_York',MI:'America/New_York',
@@ -15531,6 +15591,7 @@ const PRO_ICONS={
   mercado:'<path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2z"/><path d="M9 4v14M15 6v14"/>',
   reportes:'<path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6"/>',
   users:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7"/><path d="M18 14a6 6 0 0 1 3.5 6"/>',
+  mytruck:'<path d="M1.5 6h12.5v10H1.5z"/><path d="M14 9h4l3 3.5V16h-7"/><circle cx="5.5" cy="17.5" r="1.8"/><circle cx="17" cy="17.5" r="1.8"/>',
   misdocs:'<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
   misganancias:'<path d="M12 2v20"/><path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',
   inspeccion:'<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1"/><path d="M9 13l2 2 4-4"/>'
@@ -15650,6 +15711,7 @@ function sidebarNav(id){
   if(id==='eta'){ try{ deOpenPage(); }catch(e){ console.warn('eta',e); } }
   if(id==='misganancias') renderMisGanancias(); if(id==='dmk') renderDmk();
   if(id==='misdocs') renderDocs();
+  if(id==='mytruck') renderMyTruck();
   if(id==='inspeccion'){ if(currentUser&&currentUser.role==='driver'){ return sidebarNav('home'); } renderInspeccion(); }
   if(id==='ubicacion') renderUbicacion();
   if(id==='business') renderBusiness();

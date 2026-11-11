@@ -15771,7 +15771,12 @@ function etaShotMount(){
   const T=(es,en)=>window.TL_LANG==='en'?en:es;
   let myTk=''; try{ if(document.getElementById('de-q')&&currentUser&&currentUser.truckId!=null){ const t=(loadTrucks()||[]).find(x=>String(x.id)===String(currentUser.truckId)); if(t) myTk=`<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:14px;background:var(--card,#fff);border:1px solid var(--border,#ddd);margin-bottom:10px;"><span style="font-size:22px;">🚚</span><div><div style="font-size:11px;font-weight:900;letter-spacing:1px;text-transform:uppercase;color:var(--text3);">${T('Tu camión','Your truck')}</div><div style="font-size:15px;font-weight:900;">${pqEsc(t.name||('#'+t.id))}${t.plate?' · '+pqEsc(t.plate):''}</div></div></div>`; } }catch(e){}
   box.innerHTML=myTk+`<label style="display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:14px;border-radius:14px;background:#16A34A;color:#fff;font-size:16px;font-weight:900;cursor:pointer;margin-bottom:10px;box-shadow:0 6px 18px rgba(22,163,74,.3);">📷 ${T('Subir captura de la carga','Upload load screenshot')}<input type="file" accept="image/*" onchange="etaShotPicked(this)" style="display:none;"/></label>
-    <div id="eta-shot-msg" style="font-size:13px;font-weight:700;color:var(--text3);margin:-4px 2px 10px;"></div><div id="eta-loads"></div>`;
+    <div id="eta-shot-msg" style="font-size:13px;font-weight:700;color:var(--text3);margin:-4px 2px 10px;"></div>
+    <div style="display:flex;gap:8px;margin-bottom:12px;">
+      <input id="eta-q2" type="search" inputmode="text" autocomplete="off" autocapitalize="words" enterkeyhint="search" placeholder="${T('ZIP o ciudad, estado (ej. Dallas, TX)','ZIP or city, state (e.g. Dallas, TX)')}" onkeydown="if(event.key==='Enter'){ event.preventDefault(); etaQ2Go(); }"
+        style="flex:1;min-width:0;font-size:16px;padding:13px 14px;border-radius:14px;border:1.5px solid var(--border2,#ccc);background:var(--bg3,#fff);color:var(--text);font-family:inherit;"/>
+      <button type="button" onclick="etaQ2Go()" style="padding:0 18px;border:none;border-radius:14px;background:#1E3A8A;color:#fff;font-size:15px;font-weight:900;cursor:pointer;font-family:inherit;">${T('Buscar','Search')}</button>
+    </div><div id="eta-loads"></div>`;
   // arriba del mapa / buscador
   let host=q.closest('.de-map,.eta-map,[id$="-mapwrap"]')||q.parentElement; while(host&&host.parentElement&&!/page-/.test(host.parentElement.id||'')&&host.parentElement!==document.body&&!host.parentElement.classList.contains('page')) host=host.parentElement;
   if(host&&host.parentElement) host.parentElement.insertBefore(box,host); else q.parentElement.insertBefore(box,q);
@@ -15780,6 +15785,10 @@ function etaShotMount(){
     if(card&&loads&&!box.contains(card)){ card.style.marginTop='0'; card.style.marginBottom='12px'; box.insertBefore(card,loads); } }
   etaLoadsRender();
 }
+// Buscar por ZIP o "Ciudad, ST" (debajo del botón de captura)
+function etaQ2Go(){ const v=(document.getElementById('eta-q2')?.value||'').trim(); if(!v) return; try{ document.activeElement&&document.activeElement.blur(); }catch(e){}
+  const q=document.getElementById('eta-q')||document.getElementById('de-q'); if(q) q.value=v; const m=v.match(/^\d{5}/);
+  const go=document.getElementById('eta-q')&&typeof etaGo==='function'?etaGo:(typeof deGo==='function'?deGo:null); if(go) go(m?{type:'zip',zip:m[0]}:null); }
 async function etaShotPicked(inp){
   const file=inp.files&&inp.files[0]; inp.value=''; if(!file) return;
   const T=(es,en)=>window.TL_LANG==='en'?en:es; const msg=(t,c)=>{ const m=document.getElementById('eta-shot-msg'); if(m){ m.style.color=c||'var(--text3)'; m.textContent=t; } };

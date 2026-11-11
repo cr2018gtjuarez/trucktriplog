@@ -4889,6 +4889,14 @@ function startRealtimeSync(){
       localStorage.setItem(TRUCKS_KEY, JSON.stringify(data.trucks));
       // Corrección única (nov 2026): la placa real del Camión 2 (International 2018, VIN …2203) es XZW3301 según el registro de TxDMV
       try{ if(currentUser&&currentUser.role==='admin'){ const tk=data.trucks.map(t=>Object.assign({},t)); const c2=tk.find(t=>String(t.plate||'').toUpperCase().replace(/\s/g,'')==='XWD2230'); if(c2){ c2.plate='XZW3301'; saveTrucks(tk); } } }catch(e){}
+      // Medidas tomadas con cinta el 10-nov-2026 (fotos de Leonardo). Se guardan una sola vez; después se editan en Mantenimiento.
+      try{ if(currentUser&&currentUser.role==='admin'){ const SRC='cinta-2026-11-10'; const M={
+          'WTN2143':{boxL:312,boxW:97.5,boxH:103,doorW:94.5,doorH:94,payload:8900,pallets:14,liftCap:5000},
+          'XZW3301':{boxL:312,boxW:97,boxH:85.5,doorW:94,doorH:79,payload:8660,pallets:14,straps:true} };
+        const tk=data.trucks.map(t=>Object.assign({},t)); let ch=false;
+        tk.forEach(t=>{ const pl=String(t.plate||'').toUpperCase().replace(/\s/g,''); const m=M[pl]; if(!m||(t.dims&&t.dims.src===SRC)) return;
+          t.dims=Object.assign({},t.dims||{},m,{src:SRC,updatedAt:new Date().toISOString(),by:'medidas con cinta'}); ch=true; });
+        if(ch) saveTrucks(tk); } }catch(e){}
       if(!window._truckAssignDone){ window._truckAssignDone=true; applyDefaultTruckAssignments().then(()=>applyTruckToPastTrips()).then(()=>{ if(_currentSidebarId==='home') renderHome(); if(_currentSidebarId==='users') renderUsers(); }); }
       if(_currentSidebarId==='mantenimiento') renderMantenimiento();
       if(_currentSidebarId==='inspeccion') renderInspeccion();

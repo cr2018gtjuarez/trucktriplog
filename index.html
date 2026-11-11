@@ -6362,6 +6362,7 @@ function renderPQ(){
   </div>
   <div id="pq-alert">${pqAlertHTML()}</div><div id="pq-price">${pqPriceHTML()}</div>
   <div id="pq-why">${pqWhyHTML()}</div>
+  <div id="pq-wx"></div>
   ${R?`<div class="card" style="background:var(--card,#fff);border:1px solid var(--border,#ddd);border-radius:16px;padding:14px;margin-bottom:12px;">
     <div style="font-size:15px;font-weight:900;margin-bottom:2px;">${pqT('Datos de la carga','Load details')}</div>
     <div style="font-size:12px;color:var(--text3);margin-bottom:10px;">${pqT('Revisa que estén bien. Si algo salió mal, corrígelo aquí.','Check them. If something is wrong, fix it here.')}</div>
@@ -6384,7 +6385,7 @@ function renderPQ(){
     <div style="margin-top:12px;">${f('pq-myquote',pqT('Precio que le mandé al broker ($)','My quote to the broker ($)'),R.myQuote,'number')}</div>
     <button type="button" onclick="pqSave()" style="width:100%;margin-top:14px;padding:13px;border:none;border-radius:12px;background:#16A34A;color:#fff;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit;">✓ ${pqT('Guardar carga','Save load')}</button>
     <div id="pq-saved" style="font-size:12px;color:var(--text3);margin-top:6px;text-align:center;"></div>
-  </div>`:''}<div id="pq-list"></div>`; pqLoadList();
+  </div>`:''}<div id="pq-list"></div>`; pqLoadList(); pqWxCheck();
 }
 const PQ_RATES=[{r:2.50,c:'#16A34A',bg:'#E6F4EA',es:'Empieza aquí',en:'Start here'},{r:2.25,c:'#B45309',bg:'#FEF3C7',es:'Buen precio',en:'Good'},{r:2.00,c:'#B91C1C',bg:'#FDECEC',es:'Lo más bajo: no bajes de aquí',en:'Lowest: don\'t go below'}];
 function pqDriverPct(){
@@ -6419,13 +6420,25 @@ function pqPriceHTML(){
 // Diésel EIA (encuesta 26 oct 2026, $/gal). Mercado: DAT dry van, tarifa de SALIDA por región (semana al 31 oct 2026; Lower Mountain: julio 2026). Actualizar aquí.
 const PQ_DATA={dieselDate:'EIA 10/26/2026',US:6.352,ROCKY:6.521,WCX:6.614,CA:8.155,datDate:'DAT 10/31/2026',national:2.24};
 const PQ_ROCKY=['MT','ID','WY','UT','CO'], PQ_WCX=['WA','OR','NV','AZ','AK','HI'];
+const PQ_STN={AL:'Alabama',AK:'Alaska',AZ:'Arizona',AR:'Arkansas',CA:'California',CO:'Colorado',CT:'Connecticut',DE:'Delaware',DC:'DC',FL:'Florida',GA:'Georgia',HI:'Hawaii',ID:'Idaho',IL:'Illinois',IN:'Indiana',IA:'Iowa',KS:'Kansas',KY:'Kentucky',LA:'Louisiana',ME:'Maine',MD:'Maryland',MA:'Massachusetts',MI:'Michigan',MN:'Minnesota',MS:'Mississippi',MO:'Missouri',MT:'Montana',NE:'Nebraska',NV:'Nevada',NH:'New Hampshire',NJ:'New Jersey',NM:'New Mexico',NY:'New York',NC:'North Carolina',ND:'North Dakota',OH:'Ohio',OK:'Oklahoma',OR:'Oregon',PA:'Pennsylvania',RI:'Rhode Island',SC:'South Carolina',SD:'South Dakota',TN:'Tennessee',TX:'Texas',UT:'Utah',VT:'Vermont',VA:'Virginia',WA:'Washington',WV:'West Virginia',WI:'Wisconsin',WY:'Wyoming'};
 const PQ_REG=[
   ['California',2.62,['CA']], ['Great Lakes',2.51,['IL','IN','MI','OH','WI']], ['Ohio River',2.49,['KY','WV']],
   ['Upper Atlantic',2.20,['NY','NJ','PA','CT','MA','RI','VT','NH','ME']], ['Lower Midwest',2.17,['MO','KS','NE','IA']],
   ['Lower Atlantic',2.15,['VA','MD','DE','DC']], ['Southeast',2.01,['TN','AL','MS','GA']], ['Carolinas',1.98,['NC','SC']],
   ['Lower Mountain',1.95,['AZ','NM','NV']], ['South Central',1.84,['TX','OK','AR','LA']], ['Florida',1.34,['FL']]];
-const PQ_THIN=['ND','SD','MT','WY','ID','UT','CO','MN','WA','OR']; // sin dato DAT: zonas con menos carga para box truck
-function pqMarket(st){ st=String(st||'').toUpperCase(); const r=PQ_REG.find(x=>x[2].includes(st)); if(r) return {name:r[0],rate:r[1],lvl:r[1]>=2.15?'g':r[1]>=1.90?'y':'r'}; if(PQ_THIN.includes(st)) return {name:st,rate:null,lvl:'y'}; return null; }
+// Truckstop (vía ATBS), van, 10/25–10/31/2026: los 10 estados con MENOS cargas de salida (cargas en la semana)
+const PQ_LOWVOL={WV:2160,CT:1541,ND:1099,SD:869,NM:810,DE:556,ME:515,VT:446,NH:440,RI:312};
+const PQ_REMOTE=['ND','SD','NM','ME','VT','NH'];        // pocas cargas y lejos de mercados grandes → rojo
+const PQ_THIN=['MT','WY','ID','CO'];                     // zonas de montaña: poca carga de salida para box truck → amarillo
+// lvl: g bien · y cuidado · r alerta. why: rate (pagan poco) · vol (pocas cargas) · tx (muchas cargas pero baratas) · thin · near (estado chico junto a mercados grandes)
+function pqMarket(st){ st=String(st||'').toUpperCase(); if(!st) return null;
+  const r=PQ_REG.find(x=>x[2].includes(st)), rate=r?r[1]:null, name=r?r[0]:st, loads=PQ_LOWVOL[st]||null;
+  if(PQ_REMOTE.includes(st)) return {st,name,rate,loads,lvl:'r',why:'vol'};
+  if(loads) return {st,name,rate,loads,lvl:'y',why:'near'};
+  if(st==='TX') return {st,name,rate,loads,lvl:'y',why:'tx'};
+  if(PQ_THIN.includes(st)) return {st,name,rate,loads,lvl:'y',why:'thin'};
+  if(rate==null) return null;
+  return {st,name,rate,loads,lvl:rate>=2.15?'g':rate>=1.90?'y':'r',why:'rate'}; }
 function pqDieselPrice(st){ st=String(st||'').toUpperCase(); if(st==='CA') return PQ_DATA.CA; if(PQ_WCX.includes(st)) return PQ_DATA.WCX; if(PQ_ROCKY.includes(st)) return PQ_DATA.ROCKY; return PQ_DATA.US; }
 function pqMpg(){ try{ const v=parseFloat(JSON.parse(localStorage.getItem('trucklog_pq_cfg')||'{}').mpg); return v>3&&v<30?v:10; }catch(e){ return 10; } }
 function pqSetMpg(v){ try{ const c=JSON.parse(localStorage.getItem('trucklog_pq_cfg')||'{}'); c.mpg=parseFloat(v)||10; localStorage.setItem('trucklog_pq_cfg',JSON.stringify(c)); }catch(e){} const w=document.getElementById('pq-why'); if(w) w.innerHTML=pqWhyHTML(); }
@@ -6465,10 +6478,7 @@ function pqWhyHTML(){
   if(W.wLvl) it.push([W.wLvl==='heavy'?'y':'g','⚖️',pqT('Peso','Weight'),`${n(W.w)} lb`,W.wLvl==='light'?pqT('Ligera. Gasta menos diésel.','Light. Uses less diesel.'):W.wLvl==='mid'?pqT('Peso normal para box truck.','Normal weight for a box truck.'):pqT('Pesada: pide +$0.10 por milla.','Heavy: ask +$0.10 per mile.')]);
   if(W.pickupGone) it.push(['r','⏱️',pqT('Tiempo','Timing'),pqT('Ya pasó','Passed'),pqT('La ventana para cargar ya cerró. Pide fechas nuevas.','The pickup window already closed. Ask for new dates.')]);
   else if(W.hrsHave!=null) it.push([late?'r':'g','⏱️',pqT('Tiempo','Timing'),late?pqT('No llegas','Can\'t make it'):pqT('Sí llegas','On time'),late?pqT(`Necesitas ~${n(W.hrsNeed)} h con descanso y hay ${n(W.hrsHave)} h. Pide otra cita.`,`You need ~${n(W.hrsNeed)} h with rest and there are ${n(W.hrsHave)} h. Ask for another appointment.`):pqT(`~${n(W.hrsNeed)} h de ${n(W.hrsHave)} h disponibles.`,`~${n(W.hrsNeed)} h of ${n(W.hrsHave)} h available.`)]);
-  if(mk) it.push([mk.lvl,'📍',pqT('Donde entregas','Where you deliver'),mk.rate?m2(mk.rate)+'/mi':pqT('pocas cargas','few loads'),
-    mk.lvl==='g'?pqT(`${place}: buen mercado, fácil conseguir la siguiente carga.`,`${place}: good market, easy to find the next load.`)
-    :mk.lvl==='y'?(mk.rate?pqT(`${place}: mercado regular. Puede tardar la siguiente carga.`,`${place}: average market. The next load may take time.`):pqT(`${place}: zona con pocas cargas para box truck.`,`${place}: few loads for box trucks.`))
-    :pqT(`${place}: pagan muy poco para salir. Ver alerta.`,`${place}: outbound pays very little. See alert.`)]);
+  if(mk) it.push([mk.lvl,'📍',pqT('Donde entregas','Where you deliver'),mk.why==='vol'?pqT('pocas cargas','few loads'):mk.why==='thin'?pqT('poca carga','few loads'):mk.rate?'$'+mk.rate.toFixed(2)+'/mi':'—',pqMkText(mk,place)[1]]);
   if(W.direct) it.push(['g','🚚','DIRECT',pqT('Sí','Yes'),pqT('Tu camión va solo con esta carga: se cobra más.','Your truck carries only this load: charge more.')]);
   const rows=it.map(x=>`<div style="display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-top:1px solid var(--border,#eee);">
       <div style="width:12px;height:12px;border-radius:50%;background:${C[x[0]][0]};margin-top:5px;flex:none;"></div>
@@ -6479,7 +6489,8 @@ function pqWhyHTML(){
   if(W.direct) say.push(['It\'s DIRECT: my truck is dedicated to your load only.','Va DIRECT: el camión va solo con su carga.']);
   if(W.em>=50) say.push([`I'm ${n(W.em)} empty miles away. Total is ${n(W.tot)} miles, not ${n(W.lm)}.`,`Estoy a ${n(W.em)} millas vacías. Son ${n(W.tot)} en total, no ${n(W.lm)}.`]);
   if(W.pD>=7) say.push([`Diesel in ${W.dS} is over $${Math.floor(W.pD)} a gallon.`,`El diésel en ${W.dS} pasa de $${Math.floor(W.pD)} el galón.`]);
-  if(redMkt||(mk&&mk.lvl==='y')) say.push([`${mk.rate?mk.name:W.dS} has very few loads out. I'll probably come back empty, so I need a better rate.`,`Allá hay pocas cargas de salida. Voy a regresar vacío, necesito mejor precio.`]);
+  if(mk&&mk.why==='tx') say.push([`Outbound rates from Texas are low, so I need a fair rate on this load.`,`Las cargas que salen de Texas pagan poco; necesito buen precio en esta.`]);
+  else if(redMkt||(mk&&(mk.why==='thin'||(mk.why==='rate'&&mk.lvl==='y')))) say.push([`${PQ_STN[W.dS]||W.dS} has very few loads out. I'll probably come back empty, so I need a better rate.`,`Allá hay pocas cargas de salida. Voy a regresar vacío, necesito mejor precio.`]);
   else if(mk&&mk.lvl==='g') say.push([`Market rate out of ${mk.name} is $${mk.rate.toFixed(2)} a mile. My rate is fair.`,`El mercado allá paga $${mk.rate.toFixed(2)} la milla. Mi precio es justo.`]);
   if(W.wLvl==='heavy') say.push([`${n(W.w)} lbs is heavy for a box truck.`,`${n(W.w)} libras es pesado para un box truck.`]);
   const sayHTML=say.map(x=>`<div style="padding:8px 10px;border-radius:10px;background:var(--bg2,#F3F4F6);margin-top:6px;"><div style="font-size:14px;font-weight:800;color:var(--text);">“${pqEsc(x[0])}”</div><div style="font-size:12px;color:var(--text3);margin-top:2px;">${pqEsc(x[1])}</div></div>`).join('');
@@ -6495,11 +6506,70 @@ function pqWhyHTML(){
     <div style="font-size:16px;font-weight:900;">💬 ${pqT('Dile esto al broker','Tell the broker')}</div>${sayHTML}
   </div>`;
 }
-function pqAlertHTML(){ const W=pqWhy(); const mk=W&&W.mk; if(!mk||mk.lvl!=='r') return ''; const m2=v=>'$'+v.toFixed(2);
+function pqMkText(mk,place){ const m2=v=>'$'+v.toFixed(2), N=PQ_STN[mk.st]||mk.st;
+  if(mk.why==='vol') return [pqT(`${N} es de los estados con MENOS cargas de salida del país (${mk.loads.toLocaleString('en-US')} cargas en una semana; California tuvo 49,632). Después de entregar puedes tardar días en conseguir carga o regresar vacío.`,`${N} is one of the states with the FEWEST outbound loads (${mk.loads.toLocaleString('en-US')} loads in a week; California had 49,632). After delivery it may take days to find a load or you may come back empty.`),
+      pqT(`${place}: muy pocas cargas para salir.`,`${place}: very few loads out.`)];
+  if(mk.why==='near') return [pqT(`${N} tiene pocas cargas de salida, pero está cerca de mercados grandes. Puedes buscar la siguiente carga en un estado vecino.`,`${N} has few outbound loads, but it is close to big markets. Look for the next load in a nearby state.`),
+      pqT(`${place}: pocas cargas; busca en el estado vecino.`,`${place}: few loads; look in a nearby state.`)];
+  if(mk.why==='tx') return ['',pqT(`${place}: hay muchas cargas, pero pagan poco (${m2(mk.rate)}/mi).`,`${place}: lots of loads, but low pay (${m2(mk.rate)}/mi).`)];
+  if(mk.why==='thin') return ['',pqT(`${place}: zona de montaña, poca carga de salida para box truck.`,`${place}: mountain area, few outbound loads for box trucks.`)];
+  if(mk.lvl==='r') return [pqT(`Las cargas que salen de <b>${pqEsc(mk.name)}</b> pagan <b>${m2(mk.rate)}/milla</b> (promedio del país ${m2(PQ_DATA.national)}). Después de entregar te puede costar salir de ahí o regresar vacío.`,`Loads out of <b>${pqEsc(mk.name)}</b> pay <b>${m2(mk.rate)}/mile</b> (national average ${m2(PQ_DATA.national)}). After delivery it may be hard to get out or you may come back empty.`),
+      pqT(`${place}: pagan muy poco para salir. Ver alerta.`,`${place}: outbound pays very little. See alert.`)];
+  return ['',mk.lvl==='g'?pqT(`${place}: buen mercado, fácil conseguir la siguiente carga.`,`${place}: good market, easy to find the next load.`):pqT(`${place}: mercado regular. Puede tardar la siguiente carga.`,`${place}: average market. The next load may take time.`)]; }
+function pqAlertHTML(){ const W=pqWhy(); const mk=W&&W.mk; if(!mk||mk.lvl!=='r') return '';
+  const place=(W.dCity?W.dCity+', ':'')+W.dS;
   return `<div style="border:2px solid #B91C1C;background:#FDECEC;border-radius:14px;padding:12px;margin-bottom:12px;">
       <div style="font-size:16px;font-weight:900;color:#B91C1C;">🚨 ${pqT('ALERTA: zona con pocas cargas','ALERT: low-freight area')}</div>
-      <div style="font-size:14px;color:#7F1D1D;margin-top:4px;line-height:1.45;">${pqT(`Las cargas que salen de <b>${pqEsc(mk.name)}</b> pagan <b>${m2(mk.rate)}/milla</b> (promedio del país ${m2(PQ_DATA.national)}). Después de entregar te puede costar salir de ahí o regresar vacío.`,`Loads out of <b>${pqEsc(mk.name)}</b> pay <b>${m2(mk.rate)}/mile</b> (national average ${m2(PQ_DATA.national)}). After delivery it may be hard to get out or you may come back empty.`)}</div>
+      <div style="font-size:14px;color:#7F1D1D;margin-top:4px;line-height:1.45;">${pqMkText(mk,place)[0]}</div>
       <div style="font-size:14px;font-weight:900;color:#B91C1C;margin-top:6px;">${pqT('En esta carga no bajes del amarillo. Avisa a la oficina antes de aceptar.','On this load do not go below yellow. Tell the office before accepting.')}</div></div>`; }
+// ===== CLIMA Y TRÁFICO EN LA RUTA: alertas del Servicio Meteorológico (NWS, gratis) en puntos a lo largo de la ruta + botón de tráfico en vivo (Google Maps) =====
+let _pqWxKey='', _pqWx=null;
+const PQ_WX_RX=/winter|blizzard|ice|snow|freez|wind|fog|flood|tornado|hurricane|tropical|storm|dust|smoke|heat|avalanche/i;
+const PQ_WX_ES={'Winter Storm Warning':'Tormenta de invierno','Winter Storm Watch':'Posible tormenta de invierno','Winter Weather Advisory':'Nieve / hielo en el camino','Blizzard Warning':'Ventisca (blizzard)','Ice Storm Warning':'Tormenta de hielo','High Wind Warning':'Vientos muy fuertes','Wind Advisory':'Viento fuerte','High Wind Watch':'Posibles vientos muy fuertes','Dense Fog Advisory':'Neblina densa','Flood Warning':'Inundación','Flash Flood Warning':'Inundación repentina','Flood Watch':'Posible inundación','Tornado Warning':'Tornado','Tornado Watch':'Posible tornado','Severe Thunderstorm Warning':'Tormenta fuerte','Severe Thunderstorm Watch':'Posible tormenta fuerte','Freeze Warning':'Helada','Extreme Cold Warning':'Frío extremo','Cold Weather Advisory':'Mucho frío','Dust Storm Warning':'Tormenta de polvo','Blowing Dust Advisory':'Polvo en el aire','Lake Effect Snow Warning':'Nieve fuerte (lago)','Heat Advisory':'Mucho calor','Excessive Heat Warning':'Calor extremo','Extreme Heat Warning':'Calor extremo','Red Flag Warning':'Riesgo de incendio','Air Quality Alert':'Mala calidad del aire'};
+function pqZips(){ const R=_pq; if(!R) return null; const P=R.stops.find(s=>s.type==='pickup')||R.stops[0]||{}, D=[...R.stops].reverse().find(s=>s.type==='delivery')||{};
+  const a=String(P.zip||'').match(/\d{5}/), b=String(D.zip||'').match(/\d{5}/); return a&&b?[a[0],b[0]]:null; }
+function pqWxCheck(force){
+  const z=pqZips(); const box=document.getElementById('pq-wx'); if(!box) return;
+  if(!z){ box.innerHTML=''; return; }
+  const key=z.join('-'); if(!force&&key===_pqWxKey&&_pqWx){ box.innerHTML=pqWxHTML(); return; }
+  _pqWxKey=key; _pqWx={loading:true,z}; box.innerHTML=pqWxHTML();
+  (async()=>{
+    try{
+      const [A,B]=await Promise.all([fetchZip(z[0]),fetchZip(z[1])]); if(!A||!B) throw new Error('ZIP');
+      let pts=[[A.lat,A.lon],[B.lat,B.lon]];
+      try{ const r=await fetch('https://router.project-osrm.org/route/v1/driving/'+A.lon+','+A.lat+';'+B.lon+','+B.lat+'?overview=simplified&geometries=geojson');
+        const d=await r.json(); const c=d.routes&&d.routes[0]&&d.routes[0].geometry.coordinates; if(c&&c.length>1){ const n=Math.min(14,c.length); pts=[]; for(let i=0;i<n;i++){ const p=c[Math.round(i*(c.length-1)/(n-1))]; pts.push([p[1],p[0]]); } } }catch(e){}
+      const res=await Promise.all(pts.map(p=>fetch('https://api.weather.gov/alerts/active?point='+p[0].toFixed(3)+','+p[1].toFixed(3),{headers:{Accept:'application/geo+json'}}).then(r=>r.ok?r.json():null).catch(()=>null)));
+      const seen={}, list=[];
+      res.forEach(j=>{ ((j&&j.features)||[]).forEach(f=>{ const p=f.properties||{}; if(!p.event||!PQ_WX_RX.test(p.event)) return; const k=p.event+'|'+(p.areaDesc||'').split(';')[0]; if(seen[k]) return; seen[k]=1;
+        list.push({ev:p.event,area:(p.areaDesc||'').split(';').slice(0,2).join(',').trim(),end:p.ends||p.expires||'',sev:/Warning/i.test(p.event)||/Extreme|Severe/.test(p.severity||'')?'r':'y'}); }); });
+      list.sort((a,b)=>(a.sev==='r'?0:1)-(b.sev==='r'?0:1));
+      if(_pqWxKey!==key) return; _pqWx={z,list,ok:res.some(x=>x),at:new Date()};
+    }catch(e){ if(_pqWxKey!==key) return; _pqWx={z,err:true}; }
+    const b=document.getElementById('pq-wx'); if(b) b.innerHTML=pqWxHTML();
+  })();
+}
+function pqWxHTML(){
+  const W=_pqWx; if(!W) return ''; const z=W.z;
+  const gm='https://www.google.com/maps/dir/?api=1&origin='+z[0]+'&destination='+z[1]+'&travelmode=driving';
+  let body='';
+  if(W.loading) body=`<div style="font-size:13px;color:var(--text3);margin-top:6px;">⏳ ${pqT('Revisando el clima en la ruta…','Checking weather on the route…')}</div>`;
+  else if(W.err||!W.ok) body=`<div style="font-size:13px;color:var(--text3);margin-top:6px;">${pqT('No se pudo revisar el clima ahora.','Could not check the weather now.')} <a href="#" onclick="pqWxCheck(true);return false;">${pqT('Reintentar','Retry')}</a></div>`;
+  else if(!W.list.length) body=`<div style="display:flex;gap:10px;align-items:center;padding:8px 0;"><div style="width:12px;height:12px;border-radius:50%;background:#16A34A;flex:none;"></div><div style="font-size:14px;font-weight:800;">${pqT('Sin alertas de clima en la ruta','No weather alerts on the route')}</div></div>`;
+  else body=W.list.slice(0,6).map(a=>{ const c=a.sev==='r'?'#B91C1C':'#B45309'; const end=a.end?new Date(a.end).toLocaleString(window.TL_LANG==='en'?'en-US':'es-US',{weekday:'short',hour:'numeric',minute:'2-digit'}):'';
+      return `<div style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid var(--border,#eee);">
+        <div style="width:12px;height:12px;border-radius:50%;background:${c};margin-top:5px;flex:none;"></div>
+        <div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:800;color:${c};">${pqEsc(pqT(PQ_WX_ES[a.ev]||a.ev,a.ev))}</div>
+        <div style="font-size:12px;color:var(--text3);line-height:1.4;">${pqEsc(a.area)}${end?' · '+pqT('hasta ','until ')+pqEsc(end):''}</div></div></div>`; }).join('');
+  const red=W.list&&W.list.some(a=>a.sev==='r');
+  return `<div class="card" style="background:var(--card,#fff);border:${red?'2px solid #B91C1C':'1px solid var(--border,#ddd)'};border-radius:16px;padding:14px;margin-bottom:12px;">
+    <div style="font-size:16px;font-weight:900;${red?'color:#B91C1C;':''}">🌦️ ${pqT('Clima y tráfico en la ruta','Weather & traffic on the route')}</div>
+    ${red?`<div style="font-size:13px;font-weight:800;color:#B91C1C;margin-top:4px;">${pqT('Hay alertas fuertes en la ruta: el viaje puede tardar más. Tómalo en cuenta en el precio y la cita.','Strong alerts on the route: the trip may take longer. Factor it into the price and appointment.')}</div>`:''}
+    ${body}
+    <a href="${gm}" target="_blank" rel="noopener" style="display:block;text-align:center;margin-top:10px;padding:11px;border-radius:12px;background:#1E3A8A;color:#fff;font-weight:800;text-decoration:none;">🚦 ${pqT('Ver tráfico en vivo (Google Maps)','Live traffic (Google Maps)')}</a>
+    <div style="font-size:11px;color:var(--text3);margin-top:6px;">${pqT('Clima: Servicio Meteorológico de EE.UU. (NWS), en vivo.','Weather: US National Weather Service, live.')}</div>
+  </div>`;
+}
 // ===== COTIZACIONES: el driver guarda la carga + el precio que le mandó al broker → aviso al admin (campanita y Telegram) =====
 function pqAsks(R){ const tot=(+R.loaded||0)+(+R.empty||0); return PQ_RATES.map(x=>Math.round(tot*x.r/5)*5); }
 function pqRoute(r){ const P=(r.stops||[]).find(s=>s.type==='pickup')||(r.stops||[])[0]||{}, D=[...(r.stops||[])].reverse().find(s=>s.type==='delivery')||{}; return {P,D,txt:(P.city||'—')+(P.st?', '+P.st:'')+' → '+(D.city||'—')+(D.st?', '+D.st:'')}; }
@@ -6527,7 +6597,7 @@ function pqSync(){ if(!_pq) return; const g=id=>document.getElementById(id); con
   _pq.drivers=g('pq-drivers')?.value||''; _pq.truckTypes=g('pq-types')?.value||''; _pq.direct=!!g('pq-direct')?.checked;
   _pq.stops.forEach((s,i)=>{ const cs=(g('pq-s'+i+'-city')?.value||'').split(','); s.city=(cs[0]||'').trim(); s.st=(cs[1]||'').trim().toUpperCase().slice(0,2); s.zip=(g('pq-s'+i+'-zip')?.value||'').trim(); s.when=g('pq-s'+i+'-when')?.value||''; });
   const t=document.getElementById('pq-total'); if(t) t.textContent=((+_pq.loaded||0)+(+_pq.empty||0)).toLocaleString('en-US')+' mi';
-  const pb=document.getElementById('pq-price'); if(pb) pb.innerHTML=pqPriceHTML(); const pw=document.getElementById('pq-why'); if(pw) pw.innerHTML=pqWhyHTML(); const pa=document.getElementById('pq-alert'); if(pa) pa.innerHTML=pqAlertHTML(); }
+  const pb=document.getElementById('pq-price'); if(pb) pb.innerHTML=pqPriceHTML(); const pw=document.getElementById('pq-why'); if(pw) pw.innerHTML=pqWhyHTML(); const pa=document.getElementById('pq-alert'); if(pa) pa.innerHTML=pqAlertHTML(); pqWxCheck(); }
 async function pqPicked(inp){
   const file=inp.files&&inp.files[0]; inp.value=''; if(!file) return;
   const msg=t=>{ const m=document.getElementById('pq-msg'); if(m) m.textContent=t; };

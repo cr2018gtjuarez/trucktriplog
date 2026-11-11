@@ -4887,6 +4887,8 @@ function startRealtimeSync(){
     const data = snap.data();
     if(data && data.trucks){
       localStorage.setItem(TRUCKS_KEY, JSON.stringify(data.trucks));
+      // Corrección única (nov 2026): la placa real del Camión 2 (International 2018, VIN …2203) es XZW3301 según el registro de TxDMV
+      try{ if(currentUser&&currentUser.role==='admin'){ const tk=data.trucks.map(t=>Object.assign({},t)); const c2=tk.find(t=>String(t.plate||'').toUpperCase().replace(/\s/g,'')==='XWD2230'); if(c2){ c2.plate='XZW3301'; saveTrucks(tk); } } }catch(e){}
       if(!window._truckAssignDone){ window._truckAssignDone=true; applyDefaultTruckAssignments().then(()=>applyTruckToPastTrips()).then(()=>{ if(_currentSidebarId==='home') renderHome(); if(_currentSidebarId==='users') renderUsers(); }); }
       if(_currentSidebarId==='mantenimiento') renderMantenimiento();
       if(_currentSidebarId==='inspeccion') renderInspeccion();
@@ -8543,7 +8545,7 @@ async function applyDefaultTruckAssignments(){
     // Leer usuarios frescos de la nube antes de guardar, para no pisar cambios
     if(typeof fbReady!=='undefined' && fbReady && db){ try{ const snap=await db.collection('data').doc('users').get(); if(snap.exists&&snap.data().users&&snap.data().users.length){ _cachedUsers=snap.data().users; } }catch(e){ return; } }
     const findTruck=(num,plate)=>trucks.find(t=>(t.plate||'').toUpperCase()===plate)||trucks.find(t=>new RegExp('cami[oó]n\\s*'+num+'\\b','i').test(t.name||''));
-    const map=[{re:/^walter/i,tr:findTruck(1,'WTN2143')},{re:/^jairo/i,tr:findTruck(2,'XWD2230')}];
+    const map=[{re:/^walter/i,tr:findTruck(1,'WTN2143')},{re:/^jairo/i,tr:findTruck(2,'XZW3301')}];
     const users=getUsers(); let changed=false;
     users.forEach(u=>{ if(u.role==='admin'||u.truckId!=null) return; const nm=(u.firstName||u.name||u.username||'').trim();
       const m=map.find(x=>x.re.test(nm)||x.re.test(u.name||'')); if(m&&m.tr){ u.truckId=m.tr.id; changed=true; } });
@@ -8559,7 +8561,7 @@ async function applyTruckToPastTrips(tries){
     if(_cachedTrips===null && typeof fbReady!=='undefined' && fbReady){ if(tries<15) setTimeout(()=>applyTruckToPastTrips(tries+1),2000); return; }
     const trucks=loadTrucks(); if(!trucks.length) return;
     const findTruck=(num,plate)=>trucks.find(t=>(t.plate||'').toUpperCase()===plate)||trucks.find(t=>new RegExp('cami[oó]n\\s*'+num+'\\b','i').test(t.name||''));
-    const t1=findTruck(1,'WTN2143'), t2=findTruck(2,'XWD2230');
+    const t1=findTruck(1,'WTN2143'), t2=findTruck(2,'XZW3301');
     const users=getUsers();
     const userOf=t=>users.find(u=>(t.driverUser&&u.username===t.driverUser));
     const isW=t=>/^walter/i.test((t.driverName||'').trim())||/^walter/i.test((userOf(t)||{}).name||'')||/^walter/i.test((userOf(t)||{}).firstName||'');
@@ -13103,7 +13105,7 @@ function seedDefaultTrucks(){
   if(trucks.length)return;
   const defaults=[
     {id:Date.now()+1,name:'Camión 1',plate:'WTN2143',year:'',makeModel:'2015 Freightliner',mileage:245000},
-    {id:Date.now()+2,name:'Camión 2',plate:'XWD2230',year:'',makeModel:'2019 International',mileage:0},
+    {id:Date.now()+2,name:'Camión 2',plate:'XZW3301',year:'',makeModel:'2019 International',mileage:0},
     {id:Date.now()+3,name:'Camión 3',plate:'',year:'',makeModel:'',mileage:0}
   ];
   saveTrucks(defaults);
@@ -17181,7 +17183,7 @@ async function mergeTripsIn(incoming){
   const ids=new Set(cur.map(t=>String(t.id))), sigs=new Set(cur.map(sig));
   const trucks=loadTrucks();
   const findTruck=(num,plate)=>trucks.find(t=>(t.plate||'').toUpperCase()===plate)||trucks.find(t=>new RegExp('cami[oó]n\\s*'+num+'\\b','i').test(t.name||''));
-  const t1=findTruck(1,'WTN2143'), t2=findTruck(2,'XWD2230');
+  const t1=findTruck(1,'WTN2143'), t2=findTruck(2,'XZW3301');
   let added=0;
   (incoming||[]).forEach(src=>{
     if(!src) return;

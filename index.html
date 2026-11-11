@@ -1603,6 +1603,7 @@ label.dead-lock-lbl{color:#B91C1C!important;font-weight:800;}
   </div>
 
   <!-- EN TRÁNSITO -->
+  <div class="page" id="page-tql" data-no-tr></div>
   <div class="page" id="page-pq">
     <div id="pq-body" data-no-tr></div>
   </div>
@@ -6334,7 +6335,9 @@ function pqParse(text){
   if((m=T.match(/(\d+)\s*pick(?:s|ups?)?\W{0,3}(\d+)\s*drop/i))){ R.picks=+m[1]; R.drops=+m[2]; }
   if((m=T.match(/\$\s?(\d{1,2},?\d{3})(?![\d.])/))) R.posted=num(m[1]);
   if((m=T.match(/call\s+([A-Z][A-Za-z&]{1,24})\b/))) R.broker=m[1];
-  if((m=T.match(/notes?\s*:?\s*\n?\s*([^\n]{3,200})/i))) R.notes=m[1].trim();
+  if((m=T.match(/post\s*id\s*:?\s*#?\s*(\d{4,12})/i))) R.postId=m[1];
+  { const L=T.split('\n').map(x=>x.trim()); const i=L.findIndex(x=>/^notes?\b/i.test(x)); if(i>=0){ const out=[]; const first=L[i].replace(/^notes?\s*:?\s*/i,''); if(first) out.push(first);
+      for(let j=i+1;j<L.length&&out.length<4;j++){ const x=L[j]; if(!x) { if(out.length) break; else continue; } if(/post\s*id|^\$|quote it|call\s|^[A-Z][a-z]+ [A-Z]\.?$/i.test(x)) break; out.push(x); } if(out.length) R.notes=out.join(' ').replace(/\s+/g,' ').trim(); } }
   // Paradas: "Ciudad, ST, 12345, US" seguidas de su horario y de "PICK UP #n" / "DELIVERY #n"
   const lines=T.split('\n').map(s=>s.trim()).filter(Boolean);
   const placeRx=/([A-Za-z][A-Za-z .'\-]{1,40}),\s*([A-Z]{2}),?\s*(\d{5})(?:\s*,?\s*US)?/;
@@ -6358,9 +6361,9 @@ function renderPQ(){
   const R=_pq;
   box.innerHTML=`
   <div class="card" style="background:var(--card,#fff);border:1px solid var(--border,#ddd);border-radius:16px;padding:14px;margin-bottom:12px;">
-    <div style="font-size:17px;font-weight:900;">${pqT('Negociar carga de Premium','Premium load quote')}</div>
-    <div style="font-size:13px;color:var(--text3);margin:2px 0 12px;">${pqT('Toma la captura de la carga en la app de Premium (Auction) y súbela aquí. La app llena los datos sola.','Take a screenshot of the load in the Premium app (Auction) and upload it here. The app fills in the data.')}</div>
-    <button type="button" onclick="document.getElementById('pq-file').click()" style="width:100%;padding:14px;border:none;border-radius:12px;background:#1E3A8A;color:#fff;font-size:16px;font-weight:800;cursor:pointer;font-family:inherit;">📷 ${pqT('Subir captura de Premium','Upload Premium screenshot')}</button>
+    <div style="font-size:17px;font-weight:900;">${_pqMode==='tql'?pqT('Carga de TQL','TQL load'):pqT('Negociar carga de Premium','Premium load quote')}</div>
+    <div style="font-size:13px;color:var(--text3);margin:2px 0 12px;">${_pqMode==='tql'?pqT('Toma la captura de la carga de TQL y súbela. La app la lee, te dice cuánto tardas al pick up y el precio, y se la mandas a la oficina.','Take a screenshot of the TQL load and upload it. The app reads it, shows the time to pick up and the price, and you send it to the office.'):pqT('Toma la captura de la carga en la app de Premium (Auction) y súbela aquí. La app llena los datos sola.','Take a screenshot of the load in the Premium app (Auction) and upload it here. The app fills in the data.')}</div>
+    <button type="button" onclick="document.getElementById('pq-file').click()" style="width:100%;padding:14px;border:none;border-radius:12px;background:#1E3A8A;color:#fff;font-size:16px;font-weight:800;cursor:pointer;font-family:inherit;">📷 ${_pqMode==='tql'?pqT('Subir captura de TQL','Upload TQL screenshot'):pqT('Subir captura de Premium','Upload Premium screenshot')}</button>
     <input type="file" id="pq-file" accept="image/*" style="display:none" onchange="pqPicked(this)"/>
     <div id="pq-msg" style="font-size:13px;margin-top:8px;color:var(--text3);"></div>
     ${_pqImg?`<img src="${_pqImg}" alt="" style="display:block;max-height:180px;max-width:100%;margin:10px auto 0;border-radius:10px;border:1px solid var(--border,#ddd);"/>`:''}
@@ -6371,7 +6374,7 @@ function renderPQ(){
   <div id="pq-alert">${pqAlertHTML()}</div><div id="pq-price">${pqPriceHTML()}</div>
   <div id="pq-why">${pqWhyHTML()}</div>
   <div id="pq-wx"></div>
-  ${R?`<div class="card" style="background:var(--card,#fff);border:1px solid var(--border,#ddd);border-radius:16px;padding:14px;margin-bottom:12px;">
+  ${R?`<div id="pq-datos" class="card" style="background:var(--card,#fff);border:1px solid var(--border,#ddd);border-radius:16px;padding:14px;margin-bottom:12px;">
     <div style="font-size:15px;font-weight:900;margin-bottom:2px;">${pqT('Datos de la carga','Load details')}</div>
     <div style="font-size:12px;color:var(--text3);margin-bottom:10px;">${pqT('Revisa que estén bien. Si algo salió mal, corrígelo aquí.','Check them. If something is wrong, fix it here.')}</div>
     <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;">
@@ -6389,11 +6392,12 @@ function renderPQ(){
       ${f('pq-drivers',pqT('Drivers','Drivers'),R.drivers)}
     </div>
     <div style="margin-top:8px;">${f('pq-types',pqT('Tipos de camión','Truck types'),R.truckTypes)}</div>
+    ${_pqMode==='tql'?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">${f('pq-posted',pqT('TQL publicó ($)','TQL posted ($)'),R.posted,'number')}${f('pq-postid','Post ID',R.postId)}</div>${R.notes?`<div style="margin-top:8px;padding:8px 10px;border-radius:10px;background:#FEF3C7;color:#78350F;font-size:13px;font-weight:700;">📝 ${pqEsc(R.notes)}</div>`:''}`:''}
     <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:14px;font-weight:700;"><input id="pq-direct" type="checkbox" ${R.direct?'checked':''} onchange="pqSync()" style="width:20px;height:20px;"/> ${pqT('Entrega DIRECT (sin paradas)','DIRECT delivery (no stops)')}</label>
-    <div style="margin-top:12px;">${f('pq-myquote',pqT('Precio que le mandé al broker ($)','My quote to the broker ($)'),R.myQuote,'number')}</div>
-    <button type="button" onclick="pqSave()" style="width:100%;margin-top:14px;padding:13px;border:none;border-radius:12px;background:#16A34A;color:#fff;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit;">✓ ${pqT('Guardar carga','Save load')}</button>
-    <div id="pq-saved" style="font-size:12px;color:var(--text3);margin-top:6px;text-align:center;"></div>
-  </div>`:''}<div id="pq-list"></div>`; pqLoadList(); pqWxCheck();
+    <div id="pq-savebox"><div style="margin-top:12px;">${f('pq-myquote',_pqMode==='tql'?pqT('Lo que ofrezco ($)','My offer ($)'):pqT('Precio que le mandé al broker ($)','My quote to the broker ($)'),R.myQuote,'number')}</div>
+    <button type="button" onclick="pqSave()" style="width:100%;margin-top:14px;padding:13px;border:none;border-radius:12px;background:${_pqMode==='tql'?'#1E3A8A':'#16A34A'};color:#fff;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit;">${_pqMode==='tql'?'📤 '+pqT('Enviar a la oficina','Send to office'):'✓ '+pqT('Guardar carga','Save load')}</button>
+    <div id="pq-saved" style="font-size:12px;color:var(--text3);margin-top:6px;text-align:center;"></div></div>
+  </div>`:''}<div id="pq-list"></div>`; pqArrange(); pqLoadList(); pqWxCheck();
 }
 const PQ_RATES=[{r:2.50,c:'#16A34A',bg:'#E6F4EA',es:'Empieza aquí',en:'Start here'},{r:2.25,c:'#B45309',bg:'#FEF3C7',es:'Buen precio',en:'Good'},{r:2.00,c:'#B91C1C',bg:'#FDECEC',es:'Lo más bajo: no bajes de aquí',en:'Lowest: don\'t go below'}];
 function pqDriverPct(){
@@ -6593,6 +6597,78 @@ function pqWxHTML(){
     <div style="font-size:11px;color:var(--text3);margin-top:6px;">${pqT('Clima: Servicio Meteorológico de EE.UU. (NWS), en vivo.','Weather: US National Weather Service, live.')}</div>
   </div>`;
 }
+// ===== CARGAS TQL: el driver sube la captura del load board, ve cuánto tarda al pick up y la negociación, y la manda a la oficina con lo que ofrece. El admin decide Sí / No =====
+let _pqMode='premium', _pqStore={premium:{pq:null,img:''},tql:{pq:null,img:''}}, _pqUnsub=null, _pqSeen=null;
+function pqSetMode(m){ if(m===_pqMode) return; _pqStore[_pqMode]={pq:_pq,img:_pqImg}; _pqMode=m; _pq=_pqStore[m].pq; _pqImg=_pqStore[m].img; _pqWxKey=''; _pqWx=null; _pqSeen=null; }
+function pqMount(m){ pqSetMode(m); const body=document.getElementById('pq-body'), host=document.getElementById(m==='tql'?'page-tql':'page-pq'); if(body&&host&&body.parentNode!==host) host.appendChild(body); renderPQ(); }
+// En TQL el orden es: captura → datos → cuánto tarda al pick up → negociación → lo que ofrezco + enviar
+function pqArrange(){
+  if(_pqMode!=='tql') return; const box=document.getElementById('pq-body'), d=document.getElementById('pq-datos'), a=document.getElementById('pq-alert'); if(!box||!d||!a) return;
+  box.insertBefore(d,a);
+  const pu=document.createElement('div'); pu.id='pq-pu'; box.insertBefore(pu,a);
+  const sb=document.getElementById('pq-savebox'), wx=document.getElementById('pq-wx'), admin=currentUser&&currentUser.role==='admin';
+  if(sb&&wx){ const c=document.createElement('div'); c.className='card'; c.style.cssText='background:var(--card,#fff);border:2px solid #1E3A8A;border-radius:16px;padding:14px;margin-bottom:12px;';
+    if(admin){ sb.remove(); c.innerHTML=pqDecideHTML(); if(!c.innerHTML) c.remove(); else wx.after(c); }
+    else { c.innerHTML=`<div style="font-size:16px;font-weight:900;">📤 ${pqT('Mándala a la oficina','Send it to the office')}</div><div style="font-size:12px;color:var(--text3);margin-top:2px;">${pqT('Escribe cuánto ofreces. La oficina llama a TQL y te contesta Sí o No.','Type your offer. The office calls TQL and answers Yes or No.')}</div>`; c.appendChild(sb); wx.after(c); } }
+  pqPuCheck();
+}
+function pqStatusTag(s){ const M={pending:['#B45309','#FEF3C7',pqT('Esperando','Waiting')],yes:['#16A34A','#E6F4EA',pqT('SÍ','YES')],no:['#B91C1C','#FDECEC','NO']}; const x=M[s]||M.pending;
+  return `<span style="display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:900;color:${x[0]};background:${x[1]};">${x[2]}</span>`; }
+// Admin: decisión sobre la carga abierta
+function pqDecideHTML(){ const R=_pq; if(!R||!R.id||R.kind!=='tql') return ''; const tot=(+R.loaded||0)+(+R.empty||0), money=v=>'$'+Math.round(v).toLocaleString('en-US');
+  return `<div style="font-size:16px;font-weight:900;">📞 ${pqEsc(R.byName||R.by||'')} ${pqT('ofrece','offers')} <span style="color:#1E3A8A;">${R.myQuote?money(R.myQuote):'—'}</span>${R.myQuote&&tot?` <span style="font-size:13px;color:var(--text3);">($${(R.myQuote/tot).toFixed(2)}/mi)</span>`:''}</div>
+    <div style="font-size:13px;margin-top:4px;">${R.posted?'TQL '+pqT('publicó','posted')+' '+money(R.posted)+' · ':''}${R.postId?'Post ID <b>'+pqEsc(R.postId)+'</b>':''}</div>
+    <div style="margin-top:6px;">${pqStatusTag(R.status)}</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;">
+      <button type="button" onclick="pqDecide('${R.id}','yes')" style="padding:13px;border:none;border-radius:12px;background:#16A34A;color:#fff;font-size:16px;font-weight:900;cursor:pointer;">✅ ${pqT('Sí','Yes')}</button>
+      <button type="button" onclick="pqDecide('${R.id}','no')" style="padding:13px;border:none;border-radius:12px;background:#B91C1C;color:#fff;font-size:16px;font-weight:900;cursor:pointer;">❌ No</button></div>`; }
+function pqDecide(id,st){
+  const upd={status:st,decidedAt:new Date().toISOString(),decidedBy:(currentUser&&(currentUser.name||currentUser.username))||''};
+  (_pqList||[]).forEach(r=>{ if(r.id===id) Object.assign(r,upd); }); if(_pq&&_pq.id===id) Object.assign(_pq,upd);
+  try{ if(typeof fbReady!=='undefined'&&fbReady&&db) db.collection('quotes').doc(id).set(upd,{merge:true}).catch(e=>console.warn('decide',e)); }catch(e){}
+  if(_pq&&_pq.id===id) renderPQ(); else pqLoadList(); }
+// ¿Cuánto tarda al pick up? (desde donde está el driver; se guarda con la carga para que el admin lo vea)
+function pqPuHTML(R,busy){
+  if(busy) return `<div class="card" style="background:var(--card,#fff);border:1px solid var(--border,#ddd);border-radius:16px;padding:14px;margin-bottom:12px;"><div style="font-size:16px;font-weight:900;">⏱️ ${pqT('¿Cuánto tardas al pick up?','Time to pick up')}</div><div style="font-size:13px;color:var(--text3);margin-top:6px;">⏳ ${pqT('Buscando dónde estás…','Finding your location…')}</div></div>`;
+  const U=R&&R.pu; if(!U) return '';
+  if(U.err) return `<div class="card" style="background:var(--card,#fff);border:1px solid var(--border,#ddd);border-radius:16px;padding:14px;margin-bottom:12px;"><div style="font-size:16px;font-weight:900;">⏱️ ${pqT('¿Cuánto tardas al pick up?','Time to pick up')}</div><div style="font-size:13px;color:#B91C1C;margin-top:6px;">${pqT('No se pudo ver tu ubicación. Activa la ubicación del celular.','Could not get your location. Turn on location.')} <a href="#" onclick="pqPuCheck(true);return false;">${pqT('Reintentar','Retry')}</a></div></div>`;
+  const P=(R.stops||[]).find(s=>s.type==='pickup')||(R.stops||[])[0]||{};
+  const eta=new Date(U.eta), lang=window.TL_LANG==='en'?'en-US':'es-US';
+  const etaTxt=eta.toLocaleString(lang,{weekday:'short',month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'});
+  // fecha del pick up que pone el load board (ej. "Tue 11/10")
+  let lvl='g', note=''; const m=String(P.when||'').match(/(\d{1,2})\/(\d{1,2})/);
+  if(m){ const y=new Date().getFullYear(), pd=new Date(y,+m[1]-1,+m[2],23,59), today=new Date(); today.setHours(0,0,0,0);
+    if(pd<today){ lvl='r'; note=pqT('La fecha del pick up ('+m[0]+') ya pasó.','The pick up date ('+m[0]+') already passed.'); }
+    else if(eta>pd){ lvl='r'; note=pqT('No llegas el día del pick up ('+m[0]+').','You will not make the pick up day ('+m[0]+').'); }
+    else { note=pqT('Llegas a tiempo para el pick up ('+m[0]+').','On time for the pick up ('+m[0]+').'); } }
+  const C={g:'#16A34A',r:'#B91C1C'}[lvl]; const h=U.h, hTxt=h<1?Math.round(h*60)+' min':(Math.floor(h)+' h'+(Math.round((h%1)*60)?' '+Math.round((h%1)*60)+' min':''));
+  const tile=(lab,val)=>`<div style="background:var(--bg2,#F3F4F6);border-radius:12px;padding:10px;text-align:center;"><div style="font-size:24px;font-weight:900;line-height:1.1;">${val}</div><div style="font-size:11px;font-weight:800;color:var(--text3);text-transform:uppercase;margin-top:2px;">${lab}</div></div>`;
+  return `<div class="card" style="background:var(--card,#fff);border:${lvl==='r'?'2px solid #B91C1C':'1px solid var(--border,#ddd)'};border-radius:16px;padding:14px;margin-bottom:12px;">
+    <div style="font-size:16px;font-weight:900;">⏱️ ${pqT('¿Cuánto tardas al pick up?','Time to pick up')}</div>
+    <div style="font-size:13px;color:var(--text3);margin-top:2px;">📍 ${pqT('Estás en','You are in')} <b style="color:var(--text);">${pqEsc(U.from||'—')}</b> → ${pqEsc((P.city||'')+(P.st?', '+P.st:''))}</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;">${tile(pqT('millas vacías','empty miles'),Math.round(U.mi).toLocaleString('en-US'))}${tile(pqT('manejando','driving'),hTxt)}</div>
+    <div style="font-size:15px;font-weight:900;margin-top:10px;">🕐 ${pqT('Llegas','You arrive')}: ${pqEsc(etaTxt)}</div>
+    ${note?`<div style="font-size:14px;font-weight:800;color:${C};margin-top:4px;">${lvl==='r'?'🔴':'🟢'} ${pqEsc(note)}</div>`:''}
+    <div style="font-size:11px;color:var(--text3);margin-top:6px;">${pqT('Calculado a 55 mph con descanso de 30 min cada 8 h, sin el descanso de 10 h.','At 55 mph with a 30-min break every 8 h, without the 10-h rest.')}${U.at?' · '+new Date(U.at).toLocaleTimeString(lang,{hour:'numeric',minute:'2-digit'}):''}${currentUser&&currentUser.role!=='admin'?` · <a href="#" onclick="pqPuCheck(true);return false;">${pqT('Actualizar','Refresh')}</a>`:''}</div>
+  </div>`;
+}
+async function pqPuCheck(force){
+  const box=document.getElementById('pq-pu'); if(!box||_pqMode!=='tql') return; const R=_pq; if(!R){ box.innerHTML=''; return; }
+  const P=R.stops.find(s=>s.type==='pickup')||R.stops[0]||{}, zip=(String(P.zip||'').match(/\d{5}/)||[])[0];
+  const admin=currentUser&&currentUser.role==='admin';
+  if(!zip||admin||typeof deMyPosition!=='function'||(!force&&R.pu&&R.pu.zip===zip&&!R.pu.err)){ box.innerHTML=pqPuHTML(R); return; }
+  box.innerHTML=pqPuHTML(R,true);
+  try{
+    const [me,pu]=await Promise.all([deMyPosition(),fetchZip(zip)]); if(!me||!pu) throw new Error('loc');
+    const g=await deRevGeo(me.lat,me.lon)||{};
+    const r=await fetchRoadRoute(me.lat,me.lon,pu.lat,pu.lon); const mi=r?r.miles:haversineKm(me.lat,me.lon,pu.lat,pu.lon)*0.621371*1.2;
+    const h=deDriveHours(mi/DE_MPH,11);
+    if(_pq!==R) return;
+    R.pu={zip,from:(g.city||'')+(g.st?', '+g.st:''),mi,h,eta:Date.now()+h*3600000,at:Date.now()};
+    if(!(+R.empty)){ R.empty=Math.round(mi); const e=document.getElementById('pq-empty'); if(e){ e.value=R.empty; pqSync(); } }
+  }catch(e){ if(_pq!==R) return; R.pu={zip,err:true}; }
+  const b=document.getElementById('pq-pu'); if(b) b.innerHTML=pqPuHTML(R);
+}
 // ===== COTIZACIONES: el driver guarda la carga + el precio que le mandó al broker → aviso al admin (campanita y Telegram) =====
 function pqAsks(R){ const tot=(+R.loaded||0)+(+R.empty||0), ex=pqExtras(R).total; return PQ_RATES.map(x=>Math.round(tot*x.r/5)*5+ex); }
 function pqRoute(r){ const P=(r.stops||[]).find(s=>s.type==='pickup')||(r.stops||[])[0]||{}, D=[...(r.stops||[])].reverse().find(s=>s.type==='delivery')||{}; return {P,D,txt:(P.city||'—')+(P.st?', '+P.st:'')+' → '+(D.city||'—')+(D.st?', '+D.st:'')}; }
@@ -6602,27 +6678,40 @@ function pqLoadList(){
   const admin=currentUser.role==='admin', me=currentUser.username||'';
   let local=[]; try{ local=JSON.parse(localStorage.getItem('trucklog_pq')||'[]').filter(r=>admin||r.by===me); }catch(e){}
   const fb=typeof fbReady!=='undefined'&&fbReady&&typeof db!=='undefined'&&db;
-  const q=!fb?Promise.resolve([]):(admin?db.collection('quotes').orderBy('at','desc').limit(30):db.collection('quotes').where('by','==',me).limit(60)).get().then(sn=>sn.docs.map(d=>d.data())).catch(e=>{ console.warn('quotes',e); return []; });
-  q.then(remote=>{
+  const tql=_pqMode==='tql', mine=r=>tql?r.kind==='tql':r.kind!=='tql';
+  const draw=remote=>{ if(!document.getElementById('pq-list')) return;
     const m={}; [...local,...remote].forEach(r=>{ if(r&&r.id) m[r.id]=r; });
-    _pqList=Object.values(m).sort((a,b)=>String(b.at||'').localeCompare(String(a.at||''))).slice(0,30);
+    _pqList=Object.values(m).filter(mine).sort((a,b)=>(tql&&admin?((a.status==='pending'?0:1)-(b.status==='pending'?0:1)):0)||String(b.at||'').localeCompare(String(a.at||''))).slice(0,30);
+    // al driver: aviso cuando la oficina contesta
+    if(tql&&!admin){ const now={}; _pqList.forEach(r=>now[r.id]=r.status); if(_pqSeen){ _pqList.forEach(r=>{ if(_pqSeen[r.id]==='pending'&&r.status&&r.status!=='pending') pqToast(r); }); } _pqSeen=now; }
+    if(_pq&&_pq.id){ const cur=_pqList.find(r=>r.id===_pq.id); if(cur&&cur.status!==_pq.status){ _pq.status=cur.status; } }
+    render(); };
+  if(_pqUnsub){ try{ _pqUnsub(); }catch(e){} _pqUnsub=null; }
+  if(fb){ const qq=admin?db.collection('quotes').orderBy('at','desc').limit(40):db.collection('quotes').where('by','==',me).limit(60);
+    try{ _pqUnsub=qq.onSnapshot(sn=>draw(sn.docs.map(d=>d.data())),e=>{ console.warn('quotes',e); draw([]); }); }catch(e){ qq.get().then(sn=>draw(sn.docs.map(d=>d.data()))).catch(()=>draw([])); } }
+  else draw([]);
+  function render(){
     const money=v=>v?'$'+Math.round(v).toLocaleString('en-US'):'—';
     box.innerHTML=`<div class="card" style="background:var(--card,#fff);border:1px solid var(--border,#ddd);border-radius:16px;padding:14px;margin-bottom:12px;">
-      <div style="font-size:16px;font-weight:900;margin-bottom:2px;">📋 ${admin?'Cotizaciones de los drivers':pqT('Mis cotizaciones','My quotes')}</div>
+      <div style="font-size:16px;font-weight:900;margin-bottom:2px;">📋 ${tql?(admin?'Cargas TQL de los drivers':pqT('Mis cargas TQL','My TQL loads')):(admin?'Cotizaciones de los drivers':pqT('Mis cotizaciones','My quotes'))}</div>
       ${admin?'':`<div style="font-size:12px;color:var(--text3);margin-bottom:6px;">${pqT('Toca una para volver a verla.','Tap one to open it again.')}</div>`}
       ${_pqList.length?_pqList.map((r,i)=>{ const rt=pqRoute(r), tot=(+r.loaded||0)+(+r.empty||0), d=r.at?new Date(r.at).toLocaleString('es-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'';
         return `<div onclick="pqOpen(${i})" style="padding:10px 0;border-top:1px solid var(--border,#eee);cursor:pointer;">
-          <div style="display:flex;justify-content:space-between;gap:8px;"><b style="font-size:14px;">${admin?pqEsc(r.byName||r.by||''):pqEsc(rt.txt)}</b><span style="font-size:11px;color:var(--text3);">${pqEsc(d)}</span></div>
+          <div style="display:flex;justify-content:space-between;gap:8px;"><b style="font-size:14px;">${admin?pqEsc(r.byName||r.by||''):pqEsc(rt.txt)}</b><span style="font-size:11px;color:var(--text3);">${tql?pqStatusTag(r.status)+' ':''}${pqEsc(d)}</span></div>
           <div style="font-size:13px;margin-top:2px;">${admin?pqEsc(rt.txt)+' · ':''}${tot.toLocaleString('en-US')} mi</div>
-          <div style="font-size:13px;margin-top:2px;">${admin?'Mandó':pqT('Mandé','I quoted')}: <b style="color:#1E3A8A;">${money(r.myQuote)}</b>${r.myQuote&&tot?' ($'+(r.myQuote/tot).toFixed(2)+'/mi)':''} <span style="color:var(--text3);font-size:12px;">· ${pqT('sugerido','suggested')} ${money((r.asks||[])[0])} / ${money((r.asks||[])[2])}</span></div></div>`; }).join('')
+          <div style="font-size:13px;margin-top:2px;">${tql?(admin?'Ofrece':pqT('Ofrecí','I offered')):(admin?'Mandó':pqT('Mandé','I quoted'))}: <b style="color:#1E3A8A;">${money(r.myQuote)}</b>${r.myQuote&&tot?' ($'+(r.myQuote/tot).toFixed(2)+'/mi)':''} <span style="color:var(--text3);font-size:12px;">· ${tql&&r.posted?'TQL '+money(r.posted):pqT('sugerido','suggested')+' '+money((r.asks||[])[0])+' / '+money((r.asks||[])[2])}</span></div>${tql&&admin&&r.status==='pending'?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;" onclick="event.stopPropagation()"><button type="button" onclick="pqDecide('${r.id}','yes')" style="padding:9px;border:none;border-radius:10px;background:#16A34A;color:#fff;font-weight:900;cursor:pointer;">✅ Sí</button><button type="button" onclick="pqDecide('${r.id}','no')" style="padding:9px;border:none;border-radius:10px;background:#B91C1C;color:#fff;font-weight:900;cursor:pointer;">❌ No</button></div>`:''}</div>`; }).join('')
         :`<div style="font-size:13px;color:var(--text3);">${pqT('Todavía no hay cotizaciones.','No quotes yet.')}</div>`}
-    </div>`;
-  }).catch(e=>{ box.innerHTML=''; console.warn('quotes',e); });
+    </div>`; }
 }
+function pqToast(r){ const yes=r.status==='yes', rt=pqRoute(r); const d=document.createElement('div');
+  d.style.cssText='position:fixed;left:12px;right:12px;top:12px;z-index:9999;padding:14px;border-radius:14px;color:#fff;font-weight:900;font-size:15px;box-shadow:0 8px 24px rgba(0,0,0,.3);background:'+(yes?'#16A34A':'#B91C1C');
+  d.textContent=(yes?'✅ ':'❌ ')+pqT('La oficina dijo ','The office said ')+(yes?pqT('SÍ','YES'):'NO')+' — '+rt.txt; d.onclick=()=>d.remove(); document.body.appendChild(d); setTimeout(()=>d.remove(),9000);
+  try{ if(navigator.vibrate) navigator.vibrate(300); }catch(e){} }
 function pqOpen(i){ const r=_pqList[i]; if(!r) return; _pq=JSON.parse(JSON.stringify(r)); renderPQ(); try{ window.scrollTo({top:0,behavior:'smooth'}); }catch(e){} }
 function pqSync(){ if(!_pq) return; const g=id=>document.getElementById(id); const n=v=>{ const x=parseFloat(String(v||'').replace(/,/g,'')); return isNaN(x)?null:x; };
   _pq.loaded=n(g('pq-loaded')?.value); _pq.empty=n(g('pq-empty')?.value); _pq.weight=n(g('pq-weight')?.value); _pq.pieces=n(g('pq-pieces')?.value);
   _pq.drivers=g('pq-drivers')?.value||''; _pq.truckTypes=g('pq-types')?.value||''; _pq.direct=!!g('pq-direct')?.checked;
+  if(g('pq-posted')) _pq.posted=n(g('pq-posted').value); if(g('pq-postid')) _pq.postId=g('pq-postid').value.trim();
   _pq.stops.forEach((s,i)=>{ const cs=(g('pq-s'+i+'-city')?.value||'').split(','); s.city=(cs[0]||'').trim(); s.st=(cs[1]||'').trim().toUpperCase().slice(0,2); s.zip=(g('pq-s'+i+'-zip')?.value||'').trim(); s.when=g('pq-s'+i+'-when')?.value||''; });
   const t=document.getElementById('pq-total'); if(t) t.textContent=((+_pq.loaded||0)+(+_pq.empty||0)).toLocaleString('en-US')+' mi';
   const pb=document.getElementById('pq-price'); if(pb) pb.innerHTML=pqPriceHTML(); const pw=document.getElementById('pq-why'); if(pw) pw.innerHTML=pqWhyHTML(); const pa=document.getElementById('pq-alert'); if(pa) pa.innerHTML=pqAlertHTML(); pqWxCheck(); }
@@ -6647,15 +6736,19 @@ function pqApply(text){
 function pqSave(){
   pqSync(); if(!_pq) return;
   const qv=parseFloat(String(document.getElementById('pq-myquote')?.value||'').replace(/[$,]/g,'')); _pq.myQuote=isNaN(qv)?null:qv;
+  const tql=_pqMode==='tql'; if(tql&&!(_pq.myQuote>0)){ const s=document.getElementById('pq-saved'); if(s){ s.style.color='#B91C1C'; s.textContent=pqT('Escribe cuánto ofreces antes de enviar.','Type your offer before sending.'); } document.getElementById('pq-myquote')?.focus(); return; }
+  _pq.kind=tql?'tql':(_pq.kind||'premium'); if(tql&&!(currentUser&&currentUser.role==='admin')) _pq.status='pending';
   const rec=Object.assign({},_pq,{asks:pqAsks(_pq),byName:(currentUser&&(currentUser.name||currentUser.firstName))||'',id:_pq.id||('pq_'+Date.now()),at:new Date().toISOString(),by:(currentUser&&currentUser.username)||''}); delete rec.raw;
   let L=[]; try{ L=JSON.parse(localStorage.getItem('trucklog_pq')||'[]'); }catch(e){}
   L=L.filter(x=>x.id!==rec.id); L.unshift(rec); _pq.id=rec.id; try{ localStorage.setItem('trucklog_pq',JSON.stringify(L.slice(0,50))); }catch(e){}
   try{ if(typeof fbReady!=='undefined'&&fbReady&&db) db.collection('quotes').doc(rec.id).set(JSON.parse(JSON.stringify(rec))).catch(()=>{}); }catch(e){}
   if(!(currentUser&&currentUser.role==='admin')){ try{ const rt=pqRoute(rec), tot=(+rec.loaded||0)+(+rec.empty||0);
-    const o={type:'quote', driverName:rec.byName||rec.by, city1:rt.P.city||'', state1:rt.P.st||'', city2:rt.D.city||'', state2:rt.D.st||'', miles:tot, myQuote:rec.myQuote||null, quoteId:rec.id, ts:new Date().toISOString(), read:false,
+    const o=tql?{type:'tql', driverName:rec.byName||rec.by, city1:rt.P.city||'', state1:rt.P.st||'', city2:rt.D.city||'', state2:rt.D.st||'', miles:tot, myQuote:rec.myQuote, posted:rec.posted||null, postId:rec.postId||'', quoteId:rec.id, ts:new Date().toISOString(), read:false,
+      msg:'📞 <b>Carga TQL para llamar</b>\n'+(rec.byName||rec.by)+' ofrece: <b>$'+rec.myQuote+'</b> ($'+(rec.myQuote/tot).toFixed(2)+'/mi)\n'+rt.txt+' · '+tot+' mi'+(rec.posted?'\nTQL publicó: $'+rec.posted:'')+(rec.postId?' · Post ID '+rec.postId:'')+(rec.pu&&rec.pu.mi!=null?'\nAl pick up: '+Math.round(rec.pu.mi)+' mi · '+rec.pu.h.toFixed(1)+' h':'')+(rec.notes?'\nNotas: '+rec.notes:'')+'\n¿Sí o No? Contesta en la app.'}
+      :{type:'quote', driverName:rec.byName||rec.by, city1:rt.P.city||'', state1:rt.P.st||'', city2:rt.D.city||'', state2:rt.D.st||'', miles:tot, myQuote:rec.myQuote||null, quoteId:rec.id, ts:new Date().toISOString(), read:false,
       msg:'💬 <b>Cotización nueva</b>\n'+(rec.byName||rec.by)+'\n'+rt.txt+' · '+tot+' mi'+(rec.myQuote?'\nMandó: $'+rec.myQuote+' ($'+(rec.myQuote/tot).toFixed(2)+'/mi)':'\nSin precio todavía')};
     tgAddNotif(typeof sanitizeForFirestore==='function'?sanitizeForFirestore(o):o).catch(()=>{}); }catch(e){} }
-  const s=document.getElementById('pq-saved'); if(s) s.textContent='✓ '+pqT('Guardada. La oficina ya recibió el aviso.','Saved. The office got a notice.'); pqLoadList();
+  const s=document.getElementById('pq-saved'); if(s){ s.style.color='#16A34A'; s.textContent='✓ '+(tql?pqT('Enviada. La oficina va a llamar y te contesta aquí abajo.','Sent. The office will call and answer you below.'):pqT('Guardada. La oficina ya recibió el aviso.','Saved. The office got a notice.')); } pqLoadList();
 }
 
 // ===== CARPETA DE DOCUMENTOS POR DRIVER (admin) =====
@@ -16809,6 +16902,7 @@ function _notifLabel0(n){
   if(n.type==='pod_uploaded') return {icon:'📄', title:'POD para revisar', text: n.driverName+' subió el POD — revisa y dale Ready to Go'};
   if(n.type==='completed') return {icon:'🏁', title:'Viaje finalizado', text: n.driverName+' terminó: '+route};
   if(n.type==='fuel') return {icon:'⛽', title:'Cargó diésel', text: n.driverName+' — '+(n.gal||0)+' gal × $'+(n.price||0)+' = $'+(Number(n.cost)||0).toFixed(2)+(n.station?' · '+n.station:'')};
+  if(n.type==='tql') return {icon:'📞', title:'Carga TQL para llamar', text: (n.driverName||'')+' ofrece $'+(n.myQuote||'—')+' — '+(n.city1||'—')+(n.state1?', '+n.state1:'')+' → '+(n.city2||'—')+(n.state2?', '+n.state2:'')+' · '+(n.miles||'—')+' mi'+(n.posted?' · TQL $'+n.posted:'')+(n.postId?' · Post '+n.postId:'')};
   if(n.type==='quote') return {icon:'💬', title:'Cotización nueva', text: (n.driverName||'')+' — '+(n.city1||'—')+(n.state1?', '+n.state1:'')+' → '+(n.city2||'—')+(n.state2?', '+n.state2:'')+' · '+(n.miles||'—')+' mi'+(n.myQuote?' · mandó $'+n.myQuote:'')};
   if(n.type==='pod_sent') return {icon:'📧', title:'POD enviado al broker', text: (n.to||'')+(n.rc?' · RC #'+n.rc:'')};
   return {icon:'📍', title:'Aviso', text: n.driverName+' — '+route};
@@ -18663,6 +18757,7 @@ const ADMIN_SIDEBAR_ITEMS = [
   {id:'entransito', icon:'🚚', label:'En Tránsito', section:'Operaciones'},
   {id:'eta',       icon:'⏱️', label:'ETA al pick up', section:'Operaciones'},
   {id:'pq',        icon:'💵', label:'Negociar carga', section:'Operaciones'},
+  {id:'tql',       icon:'📞', label:'Cargas TQL', section:'Operaciones'},
   {id:'drvdocs',   icon:'📁', label:'Documentos drivers', section:'Operaciones'},
   {id:'log',       icon:'📋', label:'Historial', section:'Operaciones'},
   {id:'ubicacion', icon:'📍', label:'Ubicación', section:'Operaciones'},
@@ -18764,7 +18859,8 @@ function sidebarNav(id){
   if(id==='otrosgastos') renderOtrosGastos();
   if(id==='reporte') renderReporte();
   if(id==='entransito') renderEnTransito();
-  if(id==='pq'){ if(!currentUser||currentUser.role!=='admin') return sidebarNav('home'); renderPQ(); }
+  if(id==='pq'){ if(!currentUser||currentUser.role!=='admin') return sidebarNav('home'); pqMount('premium'); }
+  if(id==='tql'){ if(!currentUser||currentUser.role!=='admin') return sidebarNav('home'); pqMount('tql'); }
   if(id==='drvdocs'){ if(!currentUser||currentUser.role!=='admin') return sidebarNav('home'); renderDrvDocsPage(); }
   if(id==='eta'){ if(!currentUser||currentUser.role!=='admin') return sidebarNav('home'); renderEtaPage(); }
   if(id==='brokerreport') renderBrokerReport();

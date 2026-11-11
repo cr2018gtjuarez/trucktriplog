@@ -3044,7 +3044,7 @@ label.dead-lock-lbl{color:#B91C1C!important;font-weight:800;}
       </div>
       <div class="g2" style="margin-bottom:10px;">
         <div class="field"><label>Teléfono</label><input type="text" id="nu-phone" placeholder="(000)000-0000" maxlength="13" oninput="fmtPhone(this)"/></div>
-        <div class="field"><label>Rol</label><select id="nu-role"><option value="driver">Driver</option><option value="admin">Admin</option></select></div>
+        <div class="field"><label>Rol</label><select id="nu-role"><option value="driver">Driver</option><option value="dispatch">Dispatch (solo ETA)</option><option value="admin">Admin</option></select></div>
       </div>
       <div class="g3">
         <div class="field"><label>Usuario (login)</label><input type="text" id="nu-user" placeholder="Ej. juan01"/></div>
@@ -5203,7 +5203,7 @@ function startApp(user){
   document.getElementById('login-screen').style.display='none';
   document.getElementById('app-screen').style.display='block';
   document.getElementById('hdr-name').textContent=user.name;
-  document.getElementById('hdr-role').textContent=user.role==='admin'?'Administrador':'Driver';
+  document.getElementById('hdr-role').textContent=user.role==='admin'?'Administrador':user.role==='dispatch'?'Dispatch':'Driver';
   const av=document.getElementById('hdr-avatar');
   av.textContent=(user.name||'U').charAt(0).toUpperCase();
   av.className='user-avatar '+(user.role==='admin'?'admin':'driver');
@@ -5212,7 +5212,7 @@ function startApp(user){
 
   // Build sidebar
   document.getElementById('sb-name').textContent = user.name||'Usuario';
-  document.getElementById('sb-role').textContent = user.role==='admin'?'Administrador':'Driver';
+  document.getElementById('sb-role').textContent = user.role==='admin'?'Administrador':user.role==='dispatch'?'Dispatch':'Driver';
   document.getElementById('sb-avatar').textContent = (user.name||'U').charAt(0).toUpperCase();
   _currentSidebarId = 'home';
   buildSidebar(user.role);
@@ -5240,6 +5240,9 @@ function startApp(user){
   if(user.role === 'driver'){
     setTimeout(startDriverTracking, 1500);
   }
+
+  // Dispatch: entra directo al ETA (solo ve eso)
+  if(user.role === 'dispatch'){ setTimeout(()=>sidebarNav('eta'),60); }
 
   // Show tutorial for drivers on first login
   if(user.role === 'driver' && !localStorage.getItem(TUTORIAL_KEY)){
@@ -5274,7 +5277,7 @@ function renderUsers(){
   el.innerHTML=users.map(u=>`
     <div class="user-list-item">
       <div style="flex:1;min-width:0;">
-        <div class="user-list-name">${u.name||'Sin nombre'} &nbsp;<span class="role-badge ${u.role||'driver'}">${u.role==='admin'?'Admin':'Driver'}</span></div>
+        <div class="user-list-name">${u.name||'Sin nombre'} &nbsp;<span class="role-badge ${u.role||'driver'}">${u.role==='admin'?'Admin':u.role==='dispatch'?'Dispatch':'Driver'}</span></div>
         <div class="user-list-role">@${u.username||'—'}${u.phone?' &nbsp;·&nbsp; 📞 '+u.phone:''}</div>
         ${u.firstName||u.lastName?`<div style="font-size:11px;color:var(--text2);margin-top:2px;">👤 ${[u.firstName,u.lastName].filter(Boolean).join(' ')}</div>`:''}
         ${u.mpg||u.dieselPrice||u.payPct||u.truckId!=null?`<div style="display:flex;gap:8px;margin-top:5px;flex-wrap:wrap;">
@@ -5998,7 +6001,7 @@ function etaChips(){
 function etaPickDrv(id){
   _etaDrv=String(id||''); etaChips();
   if(_etaLast) etaPaint(); else etaPaintFleet();
-  try{ const sel=document.getElementById('dl-driver'); if(sel){ dlFillSel(); const u=_etaDrv?getUsers().find(x=>x.role!=='admin'&&String(x.truckId)===_etaDrv):null; sel.value=u?u.username:''; dlRun(); } }catch(e){}
+  try{ const sel=document.getElementById('dl-driver'); if(sel){ dlFillSel(); const u=_etaDrv?getUsers().find(x=>x.role!=='admin'&&x.role!=='dispatch'&&String(x.truckId)===_etaDrv):null; sel.value=u?u.username:''; dlRun(); } }catch(e){}
 }
 
 // Simula el manejo: 30 min de descanso cada 8 h manejando. NO se cuenta el descanso de 10 h (así lo pidió Leonardo)
@@ -6159,7 +6162,7 @@ async function etaLoadFleet(){
   if(!_etaFleet) res.innerHTML='<div style="font-size:13px;color:var(--text3);padding:6px 0;">⏳ '+TR('Buscando la ubicación de cada camión…','Locating each truck…')+'</div>';
   const trips=loadTrips(), trucks=loadTrucks()||[], users=getUsers(), live=await etaLiveLocations(), now=Date.now(); const rows=[];
   for(const tr of trucks){
-    const drivers=users.filter(u=>u.role!=='admin'&&String(u.truckId)===String(tr.id));
+    const drivers=users.filter(u=>u.role!=='admin'&&u.role!=='dispatch'&&String(u.truckId)===String(tr.id));
     const mine=trips.filter(t=>tripTruckId(t)===String(tr.id));
     const active=mine.filter(t=>t.tripStatus==='active').sort((a,b)=>mlTripTime(b)-mlTripTime(a))[0]||null;
     const lastDone=lastDoneTripOfTruck(tr.id);
@@ -6199,7 +6202,7 @@ async function etaCalc(target){
   const trips=loadTrips(), trucks=loadTrucks()||[], users=getUsers(), live=await etaLiveLocations(), now=Date.now();
   const rows=[];
   for(const tr of trucks){
-    const drivers=users.filter(u=>u.role!=='admin'&&String(u.truckId)===String(tr.id));
+    const drivers=users.filter(u=>u.role!=='admin'&&u.role!=='dispatch'&&String(u.truckId)===String(tr.id));
     const mine=trips.filter(t=>tripTruckId(t)===String(tr.id));
     const active=mine.filter(t=>t.tripStatus==='active').sort((a,b)=>mlTripTime(b)-mlTripTime(a))[0]||null;
     const sched=mine.filter(t=>t.tripStatus==='scheduled').sort((a,b)=>String(a.date||'').localeCompare(String(b.date||'')));
@@ -6794,7 +6797,7 @@ function ddGroups(u){ return u===DD_CO?['c']:ddIsTruck(u)?['t']:['p','s']; }
 let _ddSel='', _ddData={};
 function ddPeople(){
   const out=[{username:DD_CO,name:'🏢 YENAVI FREIGHT LLC (compañía)'}]; const seen={};
-  getUsers().filter(u=>u.role!=='admin').forEach(u=>{ seen[u.username]=1; out.push({username:u.username,name:(u.firstName&&u.lastName)?u.firstName+' '+u.lastName:(u.name||u.username)}); });
+  getUsers().filter(u=>u.role!=='admin'&&u.role!=='dispatch').forEach(u=>{ seen[u.username]=1; out.push({username:u.username,name:(u.firstName&&u.lastName)?u.firstName+' '+u.lastName:(u.name||u.username)}); });
   // Leonardo maneja también: su carpeta de driver
   const nm=(currentUser&&(currentUser.firstName||currentUser.name))||'Leonardo'; const me=String(nm).split(' ')[0].toLowerCase().normalize('NFD').replace(/[^a-z0-9]/g,'')||'leonardo';
   (loadTrucks()||[]).forEach(t=>out.push({username:'truck:'+t.id,name:'🚚 '+t.name+(t.plate?' · '+t.plate:'')}));
@@ -6903,7 +6906,7 @@ async function renderAdminDocs(force){
   const esc=x=>String(x==null?'':x).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   const cell=(it,lbl)=>{ const s=st(it); const f=(it&&it.files||[]).find(x=>x.link); const rd=it&&it.read?Object.keys(it.read).filter(k=>k!=='at').map(k=>k.replace('_',' ')+': '+it.read[k]).join(' · '):'';
     return `<div style="display:flex;justify-content:space-between;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px;"><span>${lbl}${rd?`<div style="font-size:10px;color:var(--text3);">${esc(rd)}</div>`:''}</span><span style="white-space:nowrap;"><b style="color:${s.c};">${s.k==='none'?'⚠️ Falta':esc(s.t)}</b>${f?` <a href="${esc(f.link)}" target="_blank" style="font-size:11px;">ver</a>`:''}</span></div>`; };
-  const users=getUsers().filter(u=>u.role!=='admin'), trucks=loadTrucks()||[];
+  const users=getUsers().filter(u=>u.role!=='admin'&&u.role!=='dispatch'), trucks=loadTrucks()||[];
   let bad=0, soon=0; const blocks=[];
   users.forEach(u=>{ const D=(_adocs['drv_'+u.username]||{}).items||{}; ['cdl','medical'].forEach(t=>{ const k=st(D[t]).k; if(k==='exp'||k==='none') bad++; else if(k==='soon') soon++; });
     blocks.push(`<div style="border:1px solid var(--border);border-radius:10px;padding:8px 10px;"><div style="font-size:13px;font-weight:800;">👤 ${esc(u.firstName&&u.lastName?u.firstName+' '+u.lastName:(u.name||u.username))}</div>${cell(D.cdl,ADOC.cdl)}${cell(D.medical,ADOC.medical)}</div>`); });
@@ -6942,7 +6945,7 @@ async function dlRevGeo(lat,lon){
   try{ const r=await fetch('https://nominatim.openstreetmap.org/reverse?format=json&zoom=16&addressdetails=1&lat='+lat+'&lon='+lon); if(!r.ok) return null; const j=await r.json(); const a=j.address||{};
     const o={city:a.city||a.town||a.village||a.hamlet||a.county||'', st:((a['ISO3166-2-lvl4']||'').split('-')[1]||''), zip:String(a.postcode||'').slice(0,5)}; _dlGeo[k]=o; return o; }catch(e){ return null; }
 }
-function dlDrivers(){ return getUsers().filter(u=>u.role!=='admin').map(u=>({u,label:(u.firstName&&u.lastName?u.firstName+' '+u.lastName:(u.name||u.username))})).sort((a,b)=>a.label.localeCompare(b.label)); }
+function dlDrivers(){ return getUsers().filter(u=>u.role!=='admin'&&u.role!=='dispatch').map(u=>({u,label:(u.firstName&&u.lastName?u.firstName+' '+u.lastName:(u.name||u.username))})).sort((a,b)=>a.label.localeCompare(b.label)); }
 function dlFillSel(){
   const sel=document.getElementById('dl-driver'); if(!sel) return; const keep=sel.value; const trucks=loadTrucks()||[];
   sel.innerHTML='<option value="">'+TR('— Elige un driver —','— Pick a driver —')+'</option>'+dlDrivers().map(x=>{ const tk=trucks.find(t=>String(t.id)===String(x.u.truckId)); return '<option value="'+String(x.u.username).replace(/"/g,'&quot;')+'">'+x.label.replace(/</g,'&lt;')+(tk?' · '+tk.name:'')+'</option>'; }).join('');
@@ -11841,7 +11844,7 @@ function renderAdminReport(){
   const pendingDispatch=trips.filter(t=>t.profitSet && (t.dispatchPayStatus||'pending')!=='paid' && (t.fee||0)>0);
   const pendingDriver=trips.filter(t=>t.profitSet && t.driverPayStatus && t.driverPayStatus!=='paid');
   const activeTrips=trips.filter(t=>t.tripStatus==='active');
-  const overdueInsp=getUsers().filter(u=>u.role!=='admin').filter(u=>{ const l=getLastInspection(u.username); return (l?daysSince(l.date):Infinity)>7; });
+  const overdueInsp=getUsers().filter(u=>u.role!=='admin'&&u.role!=='dispatch').filter(u=>{ const l=getLastInspection(u.username); return (l?daysSince(l.date):Infinity)>7; });
   const oilTrucks=loadTrucks().filter(t=>getOilChangeStatus(t).status!=='ok');
   const sumF=(a,f)=>a.reduce((x,t)=>x+(parseFloat(f(t))||0),0);
   const items=[];
@@ -17657,7 +17660,7 @@ async function autoBackupTrips(){
 }
 function matchTripUser(name){
   const n=(name||'').trim().toLowerCase(); if(!n) return null;
-  const us=getUsers().filter(u=>u.role!=='admin');
+  const us=getUsers().filter(u=>u.role!=='admin'&&u.role!=='dispatch');
   const full=u=>((u.firstName&&u.lastName)?(u.firstName+' '+u.lastName):(u.name||'')).trim();
   return us.find(u=>(u.username||'').toLowerCase()===n || full(u).toLowerCase()===n || (u.name||'').toLowerCase()===n)
       || us.find(u=>{ const f=n.split(' ')[0]; return f.length>2 && (full(u).toLowerCase().split(' ')[0]===f || (u.username||'').toLowerCase()===f); })
@@ -18784,6 +18787,7 @@ const DRIVER_SIDEBAR_ITEMS = [
 
 // ===== BARRA DE ABAJO (celular): lo más usado a un toque, y "Menú" abre el menú completo =====
 function bottomNavItems(role){
+  if(role==='dispatch') return [{id:'eta',icon:'⏱️',es:'ETA',en:'ETA'}];
   return role==='admin'
     ? [{id:'home',icon:'🏠',es:'Inicio',en:'Home'},{id:'new',icon:'➕',es:'Nuevo',en:'New'},{id:'entransito',icon:'🚚',es:'En Tránsito',en:'In transit'},{id:'log',icon:'📋',es:'Historial',en:'History'}]
     : [{id:'home',icon:'🏠',es:'Inicio',en:'Home'},{id:'miviaje',icon:'🚚',es:'Mi Viaje',en:'My trip'},{id:'misganancias',icon:'💰',es:'Ganancias',en:'Earnings'},{id:'gas',icon:'⛽',es:'Gasolineras',en:'Fuel'}];
@@ -18802,7 +18806,7 @@ function markBottomNav(id){ document.querySelectorAll('#bottom-nav .bn-item[data
 function hideBottomNav(){ const b=document.getElementById('bottom-nav'); if(b) b.classList.remove('on'); document.body.classList.remove('has-bottom-nav'); }
 
 function buildSidebar(role){
-  const items = role==='admin' ? ADMIN_SIDEBAR_ITEMS : DRIVER_SIDEBAR_ITEMS;
+  const items = role==='admin' ? ADMIN_SIDEBAR_ITEMS : role==='dispatch' ? [{id:'eta',icon:'⏱️',label:'ETA'}] : DRIVER_SIDEBAR_ITEMS;
   const nav = document.getElementById('sidebar-nav');
   let lastSection = null;
   nav.innerHTML = items.map(item=>{
@@ -18829,6 +18833,7 @@ function buildSidebar(role){
 }
 
 function sidebarNav(id){
+  if(currentUser&&currentUser.role==='dispatch'&&id!=='eta') id='eta';
   _currentSidebarId = id;
   try{ markBottomNav(id); window.scrollTo(0,0); }catch(e){}
   updateDriverAlertStrip();
@@ -18862,7 +18867,7 @@ function sidebarNav(id){
   if(id==='pq'){ if(!currentUser||currentUser.role!=='admin') return sidebarNav('home'); pqMount('premium'); }
   if(id==='tql'){ if(!currentUser||currentUser.role!=='admin') return sidebarNav('home'); pqMount('tql'); }
   if(id==='drvdocs'){ if(!currentUser||currentUser.role!=='admin') return sidebarNav('home'); renderDrvDocsPage(); }
-  if(id==='eta'){ if(!currentUser||currentUser.role!=='admin') return sidebarNav('home'); renderEtaPage(); }
+  if(id==='eta'){ if(!currentUser||(currentUser.role!=='admin'&&currentUser.role!=='dispatch')) return sidebarNav('home'); renderEtaPage(); }
   if(id==='brokerreport') renderBrokerReport();
   if(id==='brokernamereport') renderBrokerNameReport();
   if(id==='dispatcherpay') renderDispatcherPay();

@@ -2794,15 +2794,17 @@
 
   <!-- INSPECCIÓN SEMANAL (driver) -->
   <!-- MIS DOCUMENTOS (driver): CDL, tarjeta médica, registro, seguro… con vencimiento y modo inspección -->
-  <div class="page" id="page-mytruck"><div id="mytruck-body" data-no-tr="1"></div></div>
+  <div class="page" id="page-mytruck"><div id="mytruck-body" data-no-tr="1"></div>
+    <!-- Medidas y Truck check se movieron aquí desde Mis Documentos (antes salían repetidas) -->
+    <div id="docs-dims"></div>
+    <div id="docs-tcheck"></div>
+  </div>
 
   <div class="page" id="page-misdocs">
     <button type="button" onclick="docsInspect()" style="width:100%;padding:14px;border:none;border-radius:14px;background:#B91C1C;color:#fff;font-size:16px;font-weight:800;margin-bottom:12px;">🚨 Modo inspección: enseñar documentos</button>
     <div id="docs-summary"></div>
     <div class="card"><div class="card-title">👤 Mis documentos</div><div id="docs-driver"></div></div>
     <div class="card"><div class="card-title">🚚 Documentos del camión <span id="docs-truck-name" style="font-weight:600;color:var(--text3);"></span></div><div id="docs-truck"></div></div>
-    <div id="docs-tcheck"></div>
-    <div id="docs-dims"></div>
     <div style="font-size:11px;color:var(--text3);margin:0 4px 16px;">Las fotos se guardan en tu celular para que las puedas enseñar aunque no tengas señal, y una copia queda en la oficina.</div>
     <input type="file" id="docs-file" accept="image/*,application/pdf" style="display:none;" onchange="docsFilePicked(this)"/>
     <input type="file" id="docs-cam" accept="image/*" capture="environment" style="display:none;" onchange="docsFilePicked(this)"/>
@@ -4352,7 +4354,7 @@ function startRealtimeSync(){
       if(id==='miviaje') renderMiViaje();
       if(id==='misganancias') renderMisGanancias(); if(id==='dmk') renderDmk();
       if(id==='misdocs') renderDocs();
-      if(id==='mytruck') renderMyTruck();
+      if(id==='mytruck'){ renderMyTruck(); myTruckExtras(); }
       if(id==='reporte') renderReporte();
       if(id==='brokerreport') renderBrokerReport();
       if(id==='brokernamereport') renderBrokerNameReport();
@@ -13394,7 +13396,6 @@ function drvDimsHTML(){
   const tid=docsMyTruckId(); const t=(loadTrucks()||[]).find(x=>String(x.id)===String(tid)); if(!t) return '';
   const L=truckDimsText(t), miss=truckDimsMissing(t);
   return '<div class="card"><div class="card-title">📏 Medidas de mi camión</div>'+
-    (L.length?'<div style="font-size:13px;line-height:1.6;margin-bottom:8px;">'+L.map(mvEsc).join('<br/>')+'</div>':'')+
     (miss.length?'<div style="font-size:12px;color:#B45309;font-weight:700;margin-bottom:6px;">Faltan medidas: mídelas con una cinta (en pulgadas) y guárdalas. Los brokers las piden.</div>':'')+
     '<details'+(miss.length?' open':'')+'><summary style="font-size:13px;font-weight:700;cursor:pointer;color:var(--accent);">'+(miss.length?'Escribir medidas':'Cambiar medidas')+'</summary><div style="margin-top:8px;">'+truckDimsForm(t,'tdd')+
     '<button type="button" onclick="drvSaveDims()" style="width:100%;margin-top:10px;padding:12px;border:none;border-radius:10px;background:#1E3A8A;color:#fff;font-weight:800;">Guardar medidas</button></div></details>'+
@@ -15196,8 +15197,8 @@ function mtSpecs(t){
   if(P.ymm) rows.push(['Year / Make / Model',P.ymm]);
   if(t&&t.plate) rows.push(['Plate','TX '+t.plate]);
   if(P.vin) rows.push(['VIN',P.vin]);
-  if([d.boxL,d.boxW,d.boxH].every(n)) rows.push(['Interior dimensions (L × W × H)',d.boxL+'" × '+d.boxW+'" × '+d.boxH+'"  ('+mtFt(d.boxL)+' × '+mtFt(d.boxW)+' × '+mtFt(d.boxH)+')']);
-  if([d.doorW,d.doorH].every(n)) rows.push(['Rear door opening (W × H)',d.doorW+'" × '+d.doorH+'"']);
+  if([d.boxL,d.boxW,d.boxH].every(n)) rows.push(['Interior dimensions (L × W × H)',mtFtW(d.boxL)+' × '+mtFtW(d.boxW)+' × '+mtFtW(d.boxH)+'  ('+d.boxL+'" × '+d.boxW+'" × '+d.boxH+'")']);
+  if([d.doorW,d.doorH].every(n)) rows.push(['Rear door opening (W × H)',mtFtW(d.doorW)+' × '+mtFtW(d.doorH)+'  ('+d.doorW+'" × '+d.doorH+'")']);
   if(P.door) rows.push(['Door type',P.door]);
   rows.push(['Side door',P.side?'Yes (passenger side)':'No']);
   if(n(d.pallets)) rows.push(['Pallet positions (48" × 40")',d.pallets]);
@@ -15210,6 +15211,16 @@ function mtSpecs(t){
   (P.extra||[]).forEach(x=>rows.push(['Other',x]));
   return rows;
 }
+function mtFtW(v){ v=parseFloat(v); if(!(v>0)) return ''; const f=Math.floor(v/12); let i=v-f*12; const half=Math.abs(i-Math.floor(i)-0.5)<0.01; i=Math.floor(i); return f+' ft'+(i||half?' '+(i||'')+(half?'½':'')+' in':''); }
+function mtTiles(t){
+  const d=(t&&t.dims)||{}, n=v=>parseFloat(v)>0, num=v=>Number(v).toLocaleString('en-US');
+  const tile=(label,big,small,col)=>`<div style="background:var(--bg3);border-radius:14px;padding:12px 10px;text-align:center;"><div style="font-size:11px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.3px;">${label}</div><div style="font-size:19px;font-weight:900;line-height:1.15;margin-top:4px;white-space:nowrap;color:${col||'var(--text)'};">${big}</div>${small?`<div style="font-size:12px;color:var(--text3);font-weight:700;margin-top:2px;">${small}</div>`:''}</div>`;
+  const grid=(title,sub,tiles)=>tiles.length?`<div style="margin-top:14px;"><div style="font-size:15px;font-weight:900;">${title}</div>${sub?`<div style="font-size:12px;color:var(--text3);margin-bottom:6px;">${sub}</div>`:''}<div style="display:grid;grid-template-columns:repeat(${Math.min(tiles.length,3)},minmax(0,1fr));gap:8px;margin-top:6px;">${tiles.join('')}</div></div>`:'';
+  const box=[]; if(n(d.boxL)) box.push(tile('Length',mtFtW(d.boxL),d.boxL+' in')); if(n(d.boxW)) box.push(tile('Width',mtFtW(d.boxW),d.boxW+' in')); if(n(d.boxH)) box.push(tile('Height',mtFtW(d.boxH),d.boxH+' in'));
+  const door=[]; if(n(d.doorW)) door.push(tile('Width',mtFtW(d.doorW),d.doorW+' in')); if(n(d.doorH)) door.push(tile('Height',mtFtW(d.doorH),d.doorH+' in','#B45309'));
+  const cap=[]; if(n(d.pallets)) cap.push(tile('Pallets',d.pallets,'48" × 40"')); if(n(d.payload)) cap.push(tile('Max weight',num(d.payload),'lbs','#1E3A8A')); cap.push(tile('Liftgate',n(d.liftCap)?num(d.liftCap):'Yes',n(d.liftCap)?'lbs':''));
+  return grid('📦 Cargo space','Inside the box',box)+grid('🚪 Rear door opening','Biggest load that fits through the door',door)+grid('⚖️ Capacity','',cap);
+}
 function renderMyTruck(){
   const box=document.getElementById('mytruck-body'); if(!box) return;
   const tid=docsMyTruckId(); const t=(loadTrucks()||[]).find(x=>String(x.id)===String(tid));
@@ -15218,7 +15229,10 @@ function renderMyTruck(){
   box.innerHTML=`<div class="card">
       <div style="font-size:18px;font-weight:900;">${mtEsc(String(t.name||'').replace(/Cami[oó]n/i,'Truck'))} · ${mtEsc(t.plate||'')}</div>
       <div style="font-size:13px;color:var(--text3);margin-bottom:10px;">${mtEsc((TRUCK_PROFILE[mtPlate(t)]||{}).ymm||t.makeModel||'')}</div>
-      <table style="width:100%;border-collapse:collapse;font-size:13px;">${rows.map(r=>`<tr><td style="padding:7px 8px 7px 0;color:var(--text3);font-weight:700;border-bottom:1px solid var(--border2);vertical-align:top;width:44%;">${mtEsc(r[0])}</td><td style="padding:7px 0;font-weight:800;border-bottom:1px solid var(--border2);">${mtEsc(r[1])}</td></tr>`).join('')}</table>
+      <div style="font-size:13px;font-weight:800;color:var(--text2);">${mtEsc((TRUCK_PROFILE[mtPlate(t)]||{}).equip||'Straight Truck (Box Truck)')}</div>
+      ${mtTiles(t)}
+      <details style="margin-top:14px;"><summary style="font-size:13px;font-weight:800;cursor:pointer;color:var(--accent);">All truck details (broker terms)</summary>
+      <table style="width:100%;border-collapse:collapse;font-size:13px;margin-top:6px;">${rows.map(r=>`<tr><td style="padding:7px 8px 7px 0;color:var(--text3);font-weight:700;border-bottom:1px solid var(--border2);vertical-align:top;width:44%;">${mtEsc(r[0])}</td><td style="padding:7px 0;font-weight:800;border-bottom:1px solid var(--border2);">${mtEsc(r[1])}</td></tr>`).join('')}</table></details>
       <button type="button" onclick="myTruckCopy(this)" style="width:100%;margin-top:12px;padding:13px;border:none;border-radius:12px;background:#1E3A8A;color:#fff;font-size:15px;font-weight:800;cursor:pointer;">📋 Copy truck info for broker</button>
     </div>
     <div class="card"><div class="card-title">📷 Truck photos (${M.length})</div>
@@ -15229,6 +15243,7 @@ function renderMyTruck(){
       :'<div style="font-size:13px;color:var(--text3);">No photos yet for this truck.</div>'}
     </div>`;
 }
+function myTruckExtras(){ try{ const dd=document.getElementById('docs-dims'); if(dd) dd.innerHTML=drvDimsHTML(); }catch(e){} try{ tcDriverRender(); }catch(e){} }
 function myTruckCopy(btn){
   const tid=docsMyTruckId(); const t=(loadTrucks()||[]).find(x=>String(x.id)===String(tid)); if(!t) return;
   const msg='YENAVI FREIGHT LLC · USDOT 6498343 · MC 92117262\n'+mtSpecs(t).map(r=>r[0]+': '+r[1]).join('\n');
@@ -15711,7 +15726,7 @@ function sidebarNav(id){
   if(id==='eta'){ try{ deOpenPage(); }catch(e){ console.warn('eta',e); } }
   if(id==='misganancias') renderMisGanancias(); if(id==='dmk') renderDmk();
   if(id==='misdocs') renderDocs();
-  if(id==='mytruck') renderMyTruck();
+  if(id==='mytruck'){ renderMyTruck(); myTruckExtras(); }
   if(id==='inspeccion'){ if(currentUser&&currentUser.role==='driver'){ return sidebarNav('home'); } renderInspeccion(); }
   if(id==='ubicacion') renderUbicacion();
   if(id==='business') renderBusiness();

@@ -103,6 +103,7 @@
       .bn-item .bn-ic{font-size:20px;line-height:22px;height:22px;display:flex;align-items:center;justify-content:center;}
       .bn-item .bn-ic svg{width:22px;height:22px;}
       .bn-item.active{color:#fff;background:#1D2A5E;}
+      .bn-item.main{color:#fff;} .bn-item.main .bn-ic{background:#16A34A;border-radius:10px;width:38px;height:26px;} .bn-item.main.active{background:#14532D;}
       .bn-item.menu .bn-ic{background:#2563EB;color:#fff;border-radius:8px;width:34px;}
     }
 
@@ -15170,11 +15171,11 @@ const ADMIN_SIDEBAR_ITEMS = [
   {id:'users',     icon:'👥', label:'Usuarios', section:'Management'},
 ];
 const DRIVER_SIDEBAR_ITEMS = [
+  {id:'pq',      icon:'💵', label:'Quote load'},
   {id:'home',    icon:'🏠', label:'Inicio'},
   {id:'new',     icon:'➕', label:'Nuevo viaje'},
   {id:'miviaje', icon:'🚚', label:'Mi Viaje'},
   {id:'eta',     icon:'⏱️', label:'ETA al pick up'},
-  {id:'pq',      icon:'💵', label:'Quote load'},
   {id:'misganancias', icon:'💰', label:'Mis Ganancias'},
   {id:'dmk', icon:'📊', label:'Mi Mercado'},
   {id:'misdocs', icon:'📁', label:'Mis Documentos'},
@@ -15918,14 +15919,14 @@ function proIcon(id){ return '<svg viewBox="0 0 24 24" fill="none" stroke="curre
 function bottomNavItems(role){
   return role==='admin'
     ? [{id:'home',icon:'🏠',es:'Inicio',en:'Home'},{id:'new',icon:'➕',es:'Nuevo',en:'New'},{id:'entransito',icon:'🚚',es:'En Tránsito',en:'In transit'},{id:'log',icon:'📋',es:'Historial',en:'History'}]
-    : [{id:'home',icon:'🏠',es:'Inicio',en:'Home'},{id:'miviaje',icon:'🚚',es:'Mi Viaje',en:'My trip'},{id:'eta',icon:'⏱️',es:'ETA',en:'ETA'},{id:'misganancias',icon:'💰',es:'Ganancias',en:'Earnings'},{id:'gas',icon:'⛽',es:'Gasolineras',en:'Fuel'}];
+    : [{id:'pq',icon:'💵',es:'Cotizar',en:'Quote',main:1},{id:'home',icon:'🏠',es:'Inicio',en:'Home'},{id:'miviaje',icon:'🚚',es:'Mi Viaje',en:'My trip'},{id:'eta',icon:'⏱️',es:'ETA',en:'ETA'},{id:'misganancias',icon:'💰',es:'Ganancias',en:'Earnings'},{id:'gas',icon:'⛽',es:'Gasolineras',en:'Fuel'}];
 }
 function buildBottomNav(role){
   let bar=document.getElementById('bottom-nav');
   if(!bar){ bar=document.createElement('nav'); bar.id='bottom-nav'; bar.setAttribute('data-no-tr','1'); document.body.appendChild(bar); }
   const en=window.TL_LANG==='en';
   const ic=it=>(typeof PRO_ICONS!=='undefined'&&PRO_ICONS[it.id]&&typeof proIcon==='function')?proIcon(it.id):it.icon;
-  bar.innerHTML=bottomNavItems(role).map(it=>'<button type="button" class="bn-item" data-id="'+it.id+'" onclick="sidebarNav(\''+it.id+'\')"><span class="bn-ic">'+ic(it)+'</span><span>'+(en?it.en:it.es)+'</span></button>').join('')+
+  bar.innerHTML=bottomNavItems(role).map(it=>'<button type="button" class="bn-item'+(it.main?' main':'')+'" data-id="'+it.id+'" onclick="sidebarNav(\''+it.id+'\')"><span class="bn-ic">'+ic(it)+'</span><span>'+(en?it.en:it.es)+'</span></button>').join('')+
     '<button type="button" class="bn-item menu" onclick="toggleSidebar()"><span class="bn-ic">☰</span><span>'+(en?'Menu':'Menú')+'</span></button>';
   bar.classList.add('on'); document.body.classList.add('has-bottom-nav');
   markBottomNav(typeof _currentSidebarId!=='undefined'?_currentSidebarId:'home');

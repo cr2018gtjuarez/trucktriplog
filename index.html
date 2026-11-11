@@ -1603,6 +1603,10 @@ label.dead-lock-lbl{color:#B91C1C!important;font-weight:800;}
   </div>
 
   <!-- EN TRÁNSITO -->
+  <div class="page" id="page-drvdocs">
+    <div id="drvdocs-body" data-no-tr></div>
+  </div>
+
   <div class="page" id="page-eta">
     <style id="eta-css">
 .eta-stats{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;max-width:520px}
@@ -6292,6 +6296,100 @@ function etaPaint(){
     </div>`; }).join('');
   etaDraw();
 }
+// ===== CARPETA DE DOCUMENTOS POR DRIVER (admin) =====
+// Cada driver tiene su carpeta en Drive (Documentos_<usuario>) y su ficha en Firestore docs/drv_<usuario>.
+// El admin puede subir todo el paquete de una vez (por ejemplo el ZIP de alta con un broker): la app reconoce cada archivo por su nombre.
+// Leonardo también maneja, así que aparece como driver aunque su usuario sea admin.
+const DRV_DOCS={
+  cdl:{g:'p',es:'Licencia de manejo',kw:/licen[cs]e|licencia|\bcdl\b|driver.?s?\s*lic/i,exp:true},
+  medical:{g:'p',es:'Certificado médico DOT',kw:/medic|dot\s*card|med\s*card/i,exp:true},
+  mvr:{g:'p',es:'Récord de manejo (MVR)',kw:/driving\s*record|record|mvr/i,exp:false},
+  ssn:{g:'s',es:'Seguro social',kw:/social|ssn|\bss\b/i,exp:false},
+  passport:{g:'s',es:'Pasaporte / Green card / permiso de trabajo',kw:/pass?aport|passport|green\s*card|work\s*permit|\bead\b/i,exp:true},
+  deposit:{g:'s',es:'Depósito directo / cheque anulado',kw:/deposit|void|cheque|check/i,exp:false},
+  w9:{g:'c',es:'W-9',kw:/\bf?w-?9\b|w9/i,exp:false},
+  ein:{g:'c',es:'EIN',kw:/\bein\b/i,exp:false},
+  articles:{g:'c',es:'Articles of Organization',kw:/article|organization|incorporat/i,exp:false},
+  authority:{g:'c',es:'Autoridad MC / USDOT',kw:/authority|\bmc\b|usdot|dot\s*no/i,exp:false},
+  coi:{g:'c',es:'Seguro: certificado (COI) e ID card',kw:/certificate|insurance|\bcoi\b|seguro|acord|id\s*card/i,exp:true},
+  weight:{g:'c',es:'Ticket de báscula (CAT scale)',kw:/weight|cat\s*scale|scale/i,exp:false},
+  broker:{g:'c',es:'Contratos con brokers',kw:/agreement|contract|contrato|setup|carrier\s*packet/i,exp:false},
+  other:{g:'c',es:'Otros',kw:/$^/,exp:false}
+};
+const DRV_DOC_GROUPS={p:'Del driver',s:'Personales (privados)',c:'Compañía y alta con brokers'};
+let _ddSel='', _ddData={};
+function ddPeople(){
+  const out=[]; const seen={};
+  getUsers().filter(u=>u.role!=='admin').forEach(u=>{ seen[u.username]=1; out.push({username:u.username,name:(u.firstName&&u.lastName)?u.firstName+' '+u.lastName:(u.name||u.username)}); });
+  // Leonardo maneja también: su carpeta de driver
+  const nm=(currentUser&&(currentUser.firstName||currentUser.name))||'Leonardo'; const me=String(nm).split(' ')[0].toLowerCase().normalize('NFD').replace(/[^a-z0-9]/g,'')||'leonardo';
+  if(currentUser&&!seen[me]) out.unshift({username:me,name:String(nm).split(' ')[0]+' (admin y driver)'});
+  return out;
+}
+function ddGuess(fname){ const n=String(fname||'').replace(/\.[a-z0-9]+$/i,'').replace(/[_\-]+/g,' ');
+  if(/\bein\b/i.test(n)) return 'ein';
+  if(/article|organization/i.test(n)) return 'articles';
+  if(/authority|usdot|\bmc\s*#?/i.test(n)) return 'authority';
+  for(const k of Object.keys(DRV_DOCS)){ if(k==='other') continue; if(DRV_DOCS[k].kw.test(n)) return k; }
+  return 'other'; }
+async function ddLoad(u){ if(!(fbReady&&db)) return {items:{}}; try{ const s=await db.collection('docs').doc('drv_'+u).get(); return s.exists?(s.data()||{items:{}}):{items:{}}; }catch(e){ return {items:{}}; } }
+async function renderDrvDocsPage(){
+  const box=document.getElementById('drvdocs-body'); if(!box) return;
+  const people=ddPeople(); if(!_ddSel||!people.some(p=>p.username===_ddSel)) _ddSel=(people[0]||{}).username||'';
+  const esc=etaEsc;
+  box.innerHTML=`<div style="font-size:12px;font-weight:800;color:var(--text3);text-transform:uppercase;margin:0 0 6px 2px;">Elige el driver</div>
+    <div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:10px;">${people.map(p=>{ const on=p.username===_ddSel; return `<button type="button" onclick="_ddSel='${esc(p.username)}';renderDrvDocsPage()" style="flex-shrink:0;padding:9px 14px;border-radius:14px;cursor:pointer;font-family:inherit;font-size:14px;font-weight:800;${on?'background:#1E3A8A;color:#fff;border:2px solid #1E3A8A;':'background:var(--card,#fff);color:var(--text);border:2px solid var(--border);'}">${esc(p.name)}</button>`; }).join('')}</div>
+    <div id="dd-list" style="background:var(--card,#fff);border:1px solid var(--border);border-radius:16px;padding:14px;"><div style="font-size:13px;color:var(--text3);">Cargando…</div></div>
+    <input type="file" id="dd-multi" multiple accept="image/*,application/pdf" style="display:none" onchange="ddUploadMany(this.files)"/>
+    <input type="file" id="dd-one" accept="image/*,application/pdf" style="display:none" onchange="ddUploadOne(this.files)"/>`;
+  if(!_ddSel) return;
+  _ddData[_ddSel]=await ddLoad(_ddSel); ddPaint();
+}
+let _ddOneType='';
+function ddPaint(){
+  const L=document.getElementById('dd-list'); if(!L) return; const esc=etaEsc; const D=(_ddData[_ddSel]||{}).items||{};
+  const today=rpLocalISO(new Date());
+  const row=k=>{ const T=DRV_DOCS[k], it=D[k]||{}, files=it.files||[];
+    const exp=it.exp?(it.exp<today?`<span style="color:#B91C1C;font-weight:800;">Vencido ${fmtDate(it.exp)}</span>`:`<span style="color:#16A34A;font-weight:700;">Vence ${fmtDate(it.exp)}</span>`):'';
+    return `<div style="padding:10px 0;border-top:1px solid var(--border);">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+        <div style="min-width:0;"><div style="font-size:14px;font-weight:800;">${files.length?'✅':'⚪'} ${esc(T.es)}</div>
+          <div style="font-size:12px;color:var(--text3);">${files.length?files.map((f,i)=>f.link?`<a href="${esc(f.link)}" target="_blank" style="margin-right:8px;">${esc(f.name||('archivo '+(i+1)))}</a>`:esc(f.name||'archivo')).join(''):'Sin subir'}${exp?' · '+exp:''}</div></div>
+        <div style="display:flex;gap:6px;flex-shrink:0;">
+          ${T.exp?`<input type="date" value="${esc(it.exp||'')}" onchange="ddSetExp('${k}',this.value)" title="Vence" style="font-size:12px;padding:5px;border:1px solid var(--border);border-radius:8px;background:var(--bg3);color:var(--text);max-width:130px;"/>`:''}
+          <button type="button" onclick="_ddOneType='${k}';document.getElementById('dd-one').click()" style="font-size:12px;font-weight:800;padding:7px 12px;border-radius:14px;border:1px solid var(--border);background:var(--bg3);color:var(--text);cursor:pointer;">${files.length?'Agregar':'Subir'}</button>
+        </div></div></div>`; };
+  const have=Object.keys(DRV_DOCS).filter(k=>((D[k]||{}).files||[]).length).length;
+  L.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px;">
+      <div><div style="font-size:16px;font-weight:800;">📁 Carpeta de ${esc((ddPeople().find(p=>p.username===_ddSel)||{}).name||_ddSel)}</div><div style="font-size:12px;color:var(--text3);">${have} de ${Object.keys(DRV_DOCS).length-1} documentos · en Drive: Documentos_${esc(_ddSel)}</div></div>
+      <button type="button" onclick="document.getElementById('dd-multi').click()" style="flex-shrink:0;font-size:13px;font-weight:800;padding:10px 14px;border-radius:12px;border:none;background:#1E3A8A;color:#fff;cursor:pointer;">⬆ Subir varios</button></div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:6px;">Con "Subir varios" eliges todos los archivos juntos (por ejemplo, los del paquete de alta con Premium) y la app pone cada uno en su lugar según el nombre del archivo.</div>
+    ${Object.keys(DRV_DOC_GROUPS).map(g=>`<div style="font-size:11px;font-weight:800;color:var(--text3);text-transform:uppercase;margin-top:12px;">${DRV_DOC_GROUPS[g]}</div>${Object.keys(DRV_DOCS).filter(k=>DRV_DOCS[k].g===g).map(row).join('')}`).join('')}`;
+}
+async function ddSave(u,fn){ const ref=db.collection('docs').doc('drv_'+u); const s=await ref.get(); const cur=s.exists?s.data():{items:{}}; cur.items=cur.items||{}; fn(cur); cur.username=u; await ref.set(cur); _ddData[u]=cur; }
+async function ddSetExp(k,v){ if(!(fbReady&&db)) return alert('Necesitas internet.'); try{ await ddSave(_ddSel,cur=>{ cur.items[k]=Object.assign({},cur.items[k]||{},{exp:v||'',expBy:'manual',updatedAt:new Date().toISOString(),by:currentUser.username}); }); }catch(e){ alert('No se pudo guardar: '+(e.message||e)); } ddPaint(); }
+async function ddUploadFile(u,k,f){
+  let dataUrl=await new Promise((ok,ko)=>{ const r=new FileReader(); r.onload=()=>ok(r.result); r.onerror=ko; r.readAsDataURL(f); });
+  if(/^data:image\//.test(dataUrl)){ try{ dataUrl=await shrinkDataUrl(dataUrl,2000,0.85); }catch(e){} }
+  const isPdf=/^data:application\/pdf/.test(dataUrl);
+  const file={name:f.name,mime:isPdf?'application/pdf':'image/jpeg',id:'',link:'',at:new Date().toISOString()};
+  if(!scriptMode()) throw new Error('Falta conectar el servicio de fotos (Ajustes de la compañía).');
+  const j=await scriptUpload(dataUrl, k+'_'+u+'_'+String(f.name||'').replace(/[^\w.\-]+/g,'_').slice(0,60)+(isPdf?(/\.pdf$/i.test(f.name)?'':'.pdf'):'.jpg'), {folder:'Documentos_'+u});
+  file.id=j.id||''; file.link=j.webViewLink||'';
+  await ddSave(u,cur=>{ const it=cur.items[k]||{}; cur.items[k]=Object.assign({},it,{files:(it.files||[]).concat([file]).slice(-6),updatedAt:file.at,by:currentUser.username}); });
+}
+function ddBusy(t){ let b=document.getElementById('dd-busy'); if(!t){ if(b) b.remove(); return; } if(!b){ b=document.createElement('div'); b.id='dd-busy'; b.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99999;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:16px;padding:20px;text-align:center;'; document.body.appendChild(b); } b.textContent=t; }
+async function ddUploadOne(files){ const f=files&&files[0]; const inp=document.getElementById('dd-one'); if(!f||!_ddOneType) return; if(!(fbReady&&db)) return alert('Necesitas internet.');
+  ddBusy('Subiendo '+DRV_DOCS[_ddOneType].es+'…'); try{ await ddUploadFile(_ddSel,_ddOneType,f); }catch(e){ alert('No se pudo subir: '+(e.message||e)); } finally{ ddBusy(''); if(inp) inp.value=''; ddPaint(); } }
+async function ddUploadMany(files){
+  const inp=document.getElementById('dd-multi'); const list=Array.from(files||[]); if(!list.length) return; if(!(fbReady&&db)) return alert('Necesitas internet.');
+  const plan=list.map(f=>({f,k:ddGuess(f.name)}));
+  if(!confirm('Voy a subir '+plan.length+' archivo(s) a la carpeta de '+((ddPeople().find(p=>p.username===_ddSel)||{}).name||_ddSel)+':\n\n'+plan.map(x=>'• '+x.f.name+'  →  '+DRV_DOCS[x.k].es).join('\n')+'\n\n¿Está bien?')){ if(inp) inp.value=''; return; }
+  const bad=[]; for(let i=0;i<plan.length;i++){ ddBusy('Subiendo '+(i+1)+' de '+plan.length+': '+plan[i].f.name); try{ await ddUploadFile(_ddSel,plan[i].k,plan[i].f); }catch(e){ bad.push(plan[i].f.name+': '+(e.message||e)); } }
+  ddBusy(''); if(inp) inp.value=''; ddPaint();
+  alert(bad.length?'Se subieron '+(plan.length-bad.length)+' de '+plan.length+'.\n\nNo se pudieron:\n'+bad.join('\n'):'Listo: se subieron los '+plan.length+' archivos.');
+}
+
 // ===== DOCUMENTOS (admin): licencia, tarjeta médica, registro, seguro, IFTA, inspección anual — los sube el chofer en su app
 const ADOC={cdl:'🪪 CDL',medical:'🩺 Tarjeta médica',registration:'📄 Registro',insurance:'🛡️ Seguro',ifta:'⛽ IFTA',annual:'🔧 Inspección anual'};
 let _adocs=null, _adocsAt=0, _adocsOpen=false;
@@ -18157,6 +18255,7 @@ const ADMIN_SIDEBAR_ITEMS = [
   {id:'new',       icon:'➕', label:'Nuevo viaje', section:'Operaciones'},
   {id:'entransito', icon:'🚚', label:'En Tránsito', section:'Operaciones'},
   {id:'eta',       icon:'⏱️', label:'ETA al pick up', section:'Operaciones'},
+  {id:'drvdocs',   icon:'📁', label:'Documentos drivers', section:'Operaciones'},
   {id:'log',       icon:'📋', label:'Historial', section:'Operaciones'},
   {id:'ubicacion', icon:'📍', label:'Ubicación', section:'Operaciones'},
   {id:'gastos',    icon:'⛽', label:'Gastos', section:'Finanzas'},
@@ -18257,6 +18356,7 @@ function sidebarNav(id){
   if(id==='otrosgastos') renderOtrosGastos();
   if(id==='reporte') renderReporte();
   if(id==='entransito') renderEnTransito();
+  if(id==='drvdocs'){ if(!currentUser||currentUser.role!=='admin') return sidebarNav('home'); renderDrvDocsPage(); }
   if(id==='eta'){ if(!currentUser||currentUser.role!=='admin') return sidebarNav('home'); renderEtaPage(); }
   if(id==='brokerreport') renderBrokerReport();
   if(id==='brokernamereport') renderBrokerNameReport();
@@ -18346,6 +18446,7 @@ window.addEventListener('load', function(){
 <script>
 /* ══════════ TEMA CORPORATIVO: íconos y limpieza de emojis ══════════ */
 const PRO_ICONS={
+  drvdocs:'<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
   eta:'<path d="M12 21s-7-6.5-7-12a7 7 0 0 1 14 0c0 5.5-7 12-7 12z"/><path d="M12 6v3.5l2 1.5"/>',
   home:'<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M10 21v-6h4v6"/>',
   dashboard:'<path d="M3 3v18h18"/><path d="M8 17v-5"/><path d="M13 17V8"/><path d="M18 17v-8"/>',

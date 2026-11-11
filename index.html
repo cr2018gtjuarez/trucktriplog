@@ -6327,34 +6327,50 @@ const DRV_DOCS={
   boc3:{g:'c',es:'BOC-3 / Clearinghouse / otros FMCSA',kw:/boc|clearinghouse|fmcsa/i,exp:false},
   bank:{g:'c',es:'Banco / factoring (cuenta de la compañía)',kw:/bank|banco|factoring|noa|letter\s*of\s*assignment/i,exp:false},
   broker:{g:'c',es:'Contratos con brokers',kw:/agreement|contract|contrato|setup|carrier\s*packet/i,exp:false},
-  other:{g:'c',es:'Otros',kw:/$^/,exp:false}
+  other:{g:'c',es:'Otros',kw:/$^/,exp:false},
+  t_photos:{g:'t',es:'Fotos del camión (lados, frente, atrás, adentro, placa)',kw:/photo|picture|foto|side|front|rear|rare|cargo|inside|interior|plate|placa|lado|frente/i,exp:false},
+  t_dims:{g:'t',es:'Fotos de las medidas (cinta)',kw:/width|height|length|ancho|alto|largo|measure|medida|tape|cinta|door.*(open|height|width)/i,exp:false},
+  registration:{g:'t',es:'Registro (cab card)',kw:/regist|registro|cab\s*card/i,exp:true},
+  annual:{g:'t',es:'Inspección anual DOT',kw:/annual|inspec/i,exp:true},
+  t_label:{g:'t',es:'Etiqueta del fabricante (VIN y GVWR)',kw:/label|etiqueta|manufactur|gvwr|sticker/i,exp:false},
+  t_scale:{g:'t',es:'Ticket de báscula (CAT scale)',kw:/weight|scale|bascula|báscula/i,exp:false},
+  insurance:{g:'t',es:'Seguro del camión (ID card)',kw:/insurance|id\s*card|seguro|coi|certificate/i,exp:true},
+  ifta:{g:'t',es:'IFTA',kw:/ifta/i,exp:true},
+  permit:{g:'t',es:'Permisos (IRP / UCR / otros)',kw:/permit|permiso|\birp\b|\bucr\b/i,exp:false},
+  t_lease:{g:'t',es:'Lease / contrato de renta del camión',kw:/lease|arrend|rent/i,exp:false},
+  t_other:{g:'t',es:'Otros del camión',kw:/$^/,exp:false}
 };
-const DRV_DOC_GROUPS={p:'Del driver',s:'Personales (privados)',c:'Documentos de la compañía'};
+const DRV_DOC_GROUPS={p:'Del driver',s:'Personales (privados)',c:'Documentos de la compañía',t:'Documentos y fotos del camión'};
 const DD_CO='__company';
-function ddDocId(u){ return u===DD_CO?'company_docs':'drv_'+u; }
-function ddFolder(u){ return u===DD_CO?'Documentos_compania':'Documentos_'+u; }
-function ddGroups(u){ return u===DD_CO?['c']:['p','s']; }
+function ddIsTruck(u){ return String(u||'').startsWith('truck:'); }
+function ddDocId(u){ return u===DD_CO?'company_docs':ddIsTruck(u)?'truck_'+u.slice(6):'drv_'+u; }
+function ddFolder(u){ return u===DD_CO?'Documentos_compania':ddIsTruck(u)?'Documentos_truck_'+u.slice(6):'Documentos_'+u; }
+function ddGroups(u){ return u===DD_CO?['c']:ddIsTruck(u)?['t']:['p','s']; }
 let _ddSel='', _ddData={};
 function ddPeople(){
   const out=[{username:DD_CO,name:'🏢 YENAVI FREIGHT LLC (compañía)'}]; const seen={};
   getUsers().filter(u=>u.role!=='admin').forEach(u=>{ seen[u.username]=1; out.push({username:u.username,name:(u.firstName&&u.lastName)?u.firstName+' '+u.lastName:(u.name||u.username)}); });
   // Leonardo maneja también: su carpeta de driver
   const nm=(currentUser&&(currentUser.firstName||currentUser.name))||'Leonardo'; const me=String(nm).split(' ')[0].toLowerCase().normalize('NFD').replace(/[^a-z0-9]/g,'')||'leonardo';
+  (loadTrucks()||[]).forEach(t=>out.push({username:'truck:'+t.id,name:'🚚 '+t.name+(t.plate?' · '+t.plate:'')}));
   if(currentUser&&!seen[me]) out.splice(1,0,{username:me,name:String(nm).split(' ')[0]+' (admin y driver)'});
   return out;
 }
+function ddGuessTruck(fname){ const n=String(fname||'').replace(/\.[a-z0-9]+$/i,'').replace(/[_\-]+/g,' ');
+  for(const k of ['t_lease','registration','annual','t_scale','t_label','insurance','ifta','permit','t_dims','t_photos']){ if(DRV_DOCS[k].kw.test(n)) return k; }
+  return /\.(jpe?g|png|heic|webp)$/i.test(fname)?'t_photos':'t_other'; }
 function ddGuess(fname){ const n=String(fname||'').replace(/\.[a-z0-9]+$/i,'').replace(/[_\-]+/g,' ');
   if(/\bein\b/i.test(n)) return 'ein';
   if(/article|organization/i.test(n)) return 'articles';
   if(/authority|usdot|\bmc\s*#?/i.test(n)) return 'authority';
-  for(const k of Object.keys(DRV_DOCS)){ if(k==='other') continue; if(DRV_DOCS[k].kw.test(n)) return k; }
+  for(const k of Object.keys(DRV_DOCS)){ if(k==='other'||DRV_DOCS[k].g==='t') continue; if(DRV_DOCS[k].kw.test(n)) return k; }
   return 'other'; }
 async function ddLoad(u){ if(!(fbReady&&db)) return {items:{}}; try{ const s=await db.collection('docs').doc(ddDocId(u)).get(); return s.exists?(s.data()||{items:{}}):{items:{}}; }catch(e){ return {items:{}}; } }
 async function renderDrvDocsPage(){
   const box=document.getElementById('drvdocs-body'); if(!box) return;
   const people=ddPeople(); if(!_ddSel||!people.some(p=>p.username===_ddSel)) _ddSel=(people[0]||{}).username||'';
   const esc=etaEsc;
-  box.innerHTML=`<div style="font-size:12px;font-weight:800;color:var(--text3);text-transform:uppercase;margin:0 0 6px 2px;">Elige la carpeta</div>
+  box.innerHTML=`<div style="font-size:12px;font-weight:800;color:var(--text3);text-transform:uppercase;margin:0 0 6px 2px;">Elige la carpeta (compañía, driver o camión)</div>
     <div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:10px;">${people.map(p=>{ const on=p.username===_ddSel; return `<button type="button" onclick="_ddSel='${esc(p.username)}';renderDrvDocsPage()" style="flex-shrink:0;padding:9px 14px;border-radius:14px;cursor:pointer;font-family:inherit;font-size:14px;font-weight:800;${on?'background:#1E3A8A;color:#fff;border:2px solid #1E3A8A;':'background:var(--card,#fff);color:var(--text);border:2px solid var(--border);'}">${esc(p.name)}</button>`; }).join('')}</div>
     <div id="dd-list" style="background:var(--card,#fff);border:1px solid var(--border);border-radius:16px;padding:14px;"><div style="font-size:13px;color:var(--text3);">Cargando…</div></div>
     <input type="file" id="dd-multi" multiple accept="image/*,application/pdf" style="display:none" onchange="ddUploadMany(this.files)"/>
@@ -6376,15 +6392,15 @@ function ddPaint(){
           ${T.exp?`<input type="date" value="${esc(it.exp||'')}" onchange="ddSetExp('${k}',this.value)" title="Vence" style="font-size:12px;padding:5px;border:1px solid var(--border);border-radius:8px;background:var(--bg3);color:var(--text);max-width:130px;"/>`:''}
           <button type="button" onclick="_ddOneType='${k}';document.getElementById('dd-one').click()" style="font-size:12px;font-weight:800;padding:7px 12px;border-radius:14px;border:1px solid var(--border);background:var(--bg3);color:var(--text);cursor:pointer;">${files.length?'Agregar':'Subir'}</button>
         </div></div></div>`; };
-  const G=ddGroups(_ddSel), keys=Object.keys(DRV_DOCS).filter(k=>G.includes(DRV_DOCS[k].g)||(k==='other'&&_ddSel!==DD_CO)), real=keys.filter(k=>k!=='other');
+  const G=ddGroups(_ddSel), keys=Object.keys(DRV_DOCS).filter(k=>G.includes(DRV_DOCS[k].g)||(k==='other'&&_ddSel!==DD_CO&&!ddIsTruck(_ddSel))), real=keys.filter(k=>k!=='other');
   const have=real.filter(k=>((D[k]||{}).files||[]).length).length;
   L.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px;">
       <div><div style="font-size:16px;font-weight:800;">📁 Carpeta de ${esc((ddPeople().find(p=>p.username===_ddSel)||{}).name||_ddSel)}</div><div style="font-size:12px;color:var(--text3);">${have} de ${real.length} documentos · en Drive: ${esc(ddFolder(_ddSel))}</div></div>
       <button type="button" onclick="document.getElementById('dd-multi').click()" style="flex-shrink:0;font-size:13px;font-weight:800;padding:10px 14px;border-radius:12px;border:none;background:#1E3A8A;color:#fff;cursor:pointer;">⬆ Subir varios</button></div>
     <div style="font-size:12px;color:var(--text3);margin-bottom:6px;">Con "Subir varios" eliges todos los archivos juntos y la app pone cada uno en su lugar según el nombre. Los de la compañía (EIN, W-9, MC, seguro, contratos…) siempre se van a la carpeta de la compañía; los personales, a la carpeta del driver.</div>
-    ${G.map(g=>`<div style="font-size:11px;font-weight:800;color:var(--text3);text-transform:uppercase;margin-top:12px;">${DRV_DOC_GROUPS[g]}</div>${keys.filter(k=>DRV_DOCS[k].g===g||(k==='other'&&g===G[G.length-1]&&_ddSel!==DD_CO)).filter((k,i,a)=>a.indexOf(k)===i).map(row).join('')}`).join('')}`;
+    ${G.map(g=>`<div style="font-size:11px;font-weight:800;color:var(--text3);text-transform:uppercase;margin-top:12px;">${DRV_DOC_GROUPS[g]}</div>${keys.filter(k=>DRV_DOCS[k].g===g||(k==='other'&&g===G[G.length-1]&&_ddSel!==DD_CO&&!ddIsTruck(_ddSel))).filter((k,i,a)=>a.indexOf(k)===i).map(row).join('')}`).join('')}`;
 }
-async function ddSave(u,fn){ const ref=db.collection('docs').doc(ddDocId(u)); const s=await ref.get(); const cur=s.exists?s.data():{items:{}}; cur.items=cur.items||{}; fn(cur); if(u!==DD_CO) cur.username=u; await ref.set(cur); _ddData[u]=cur; }
+async function ddSave(u,fn){ const ref=db.collection('docs').doc(ddDocId(u)); const s=await ref.get(); const cur=s.exists?s.data():{items:{}}; cur.items=cur.items||{}; fn(cur); if(ddIsTruck(u)) cur.truckId=u.slice(6); else if(u!==DD_CO) cur.username=u; await ref.set(cur); _ddData[u]=cur; }
 async function ddSetExp(k,v){ if(!(fbReady&&db)) return alert('Necesitas internet.'); try{ await ddSave(_ddSel,cur=>{ cur.items[k]=Object.assign({},cur.items[k]||{},{exp:v||'',expBy:'manual',updatedAt:new Date().toISOString(),by:currentUser.username}); }); }catch(e){ alert('No se pudo guardar: '+(e.message||e)); } ddPaint(); }
 async function ddUploadFile(u,k,f){
   let dataUrl=await new Promise((ok,ko)=>{ const r=new FileReader(); r.onload=()=>ok(r.result); r.onerror=ko; r.readAsDataURL(f); });
@@ -6394,15 +6410,15 @@ async function ddUploadFile(u,k,f){
   if(!scriptMode()) throw new Error('Falta conectar el servicio de fotos (Ajustes de la compañía).');
   const j=await scriptUpload(dataUrl, k+'_'+u+'_'+String(f.name||'').replace(/[^\w.\-]+/g,'_').slice(0,60)+(isPdf?(/\.pdf$/i.test(f.name)?'':'.pdf'):'.jpg'), {folder:ddFolder(u)});
   file.id=j.id||''; file.link=j.webViewLink||'';
-  await ddSave(u,cur=>{ const it=cur.items[k]||{}; cur.items[k]=Object.assign({},it,{files:(it.files||[]).concat([file]).slice(-6),updatedAt:file.at,by:currentUser.username}); });
+  await ddSave(u,cur=>{ const it=cur.items[k]||{}; cur.items[k]=Object.assign({},it,{files:(it.files||[]).concat([file]).slice(ddIsTruck(u)?-20:-6),updatedAt:file.at,by:currentUser.username}); });
 }
 function ddBusy(t){ let b=document.getElementById('dd-busy'); if(!t){ if(b) b.remove(); return; } if(!b){ b=document.createElement('div'); b.id='dd-busy'; b.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99999;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:16px;padding:20px;text-align:center;'; document.body.appendChild(b); } b.textContent=t; }
 async function ddUploadOne(files){ const f=files&&files[0]; const inp=document.getElementById('dd-one'); if(!f||!_ddOneType) return; if(!(fbReady&&db)) return alert('Necesitas internet.');
   ddBusy('Subiendo '+DRV_DOCS[_ddOneType].es+'…'); try{ await ddUploadFile(_ddSel,_ddOneType,f); }catch(e){ alert('No se pudo subir: '+(e.message||e)); } finally{ ddBusy(''); if(inp) inp.value=''; ddPaint(); } }
 async function ddUploadMany(files){
   const inp=document.getElementById('dd-multi'); const list=Array.from(files||[]); if(!list.length) return; if(!(fbReady&&db)) return alert('Necesitas internet.');
-  const nameOf=u=>u===DD_CO?'Compañía':((ddPeople().find(p=>p.username===u)||{}).name||u).replace(/ \(admin y driver\)$/,'');
-  const plan=list.map(f=>{ let k=ddGuess(f.name); let u=DRV_DOCS[k].g==='c'&&k!=='other'?DD_CO:_ddSel; if(u===DD_CO&&k==='other') k='other_co'; return {f,k,u}; });
+  const nameOf=u=>u===DD_CO?'Compañía':ddIsTruck(u)?((ddPeople().find(p=>p.username===u)||{}).name||u):((ddPeople().find(p=>p.username===u)||{}).name||u).replace(/ \(admin y driver\)$/,'');
+  const plan=ddIsTruck(_ddSel)?list.map(f=>({f,k:ddGuessTruck(f.name),u:_ddSel})):list.map(f=>{ let k=ddGuess(f.name); let u=DRV_DOCS[k].g==='c'&&k!=='other'?DD_CO:_ddSel; if(u===DD_CO&&k==='other') k='other_co'; return {f,k,u}; });
   plan.forEach(x=>{ if(x.u===DD_CO&&DRV_DOCS[x.k]&&DRV_DOCS[x.k].g!=='c'){ x.skip=true; } if(x.k==='other_co') x.k='broker'; });
   const ok=plan.filter(x=>!x.skip), skip=plan.filter(x=>x.skip);
   if(!confirm('Voy a subir '+ok.length+' archivo(s):\n\n'+ok.map(x=>'• '+x.f.name+'  →  '+nameOf(x.u)+': '+DRV_DOCS[x.k].es).join('\n')+(skip.length?'\n\nNo los subo aquí (son personales; elige primero al driver):\n'+skip.map(x=>'• '+x.f.name).join('\n'):'')+'\n\n¿Está bien?')){ if(inp) inp.value=''; return; }

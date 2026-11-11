@@ -6353,7 +6353,8 @@ function ddPeople(){
   // Leonardo maneja también: su carpeta de driver
   const nm=(currentUser&&(currentUser.firstName||currentUser.name))||'Leonardo'; const me=String(nm).split(' ')[0].toLowerCase().normalize('NFD').replace(/[^a-z0-9]/g,'')||'leonardo';
   (loadTrucks()||[]).forEach(t=>out.push({username:'truck:'+t.id,name:'🚚 '+t.name+(t.plate?' · '+t.plate:'')}));
-  if(currentUser&&!seen[me]) out.splice(1,0,{username:me,name:String(nm).split(' ')[0]+' (admin y driver)'});
+  // Leonardo ya tiene su usuario de driver (ljuarez): no se agrega una carpeta extra para el usuario admin
+  if(currentUser&&!seen[me]&&!getUsers().some(u=>u.role!=='admin'&&String(u.firstName||u.name||'').split(' ')[0].toLowerCase()===String(nm).split(' ')[0].toLowerCase())&&!/^admin/i.test(nm)) out.splice(1,0,{username:me,name:String(nm).split(' ')[0]+' (admin y driver)'});
   return out;
 }
 function ddGuessTruck(fname){ const n=String(fname||'').replace(/\.[a-z0-9]+$/i,'').replace(/[_\-]+/g,' ');

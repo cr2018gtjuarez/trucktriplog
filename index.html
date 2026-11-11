@@ -6482,7 +6482,6 @@ function pqWhyHTML(){
   if(redMkt||(mk&&mk.lvl==='y')) say.push([`${mk.rate?mk.name:W.dS} has very few loads out. I'll probably come back empty, so I need a better rate.`,`Allá hay pocas cargas de salida. Voy a regresar vacío, necesito mejor precio.`]);
   else if(mk&&mk.lvl==='g') say.push([`Market rate out of ${mk.name} is $${mk.rate.toFixed(2)} a mile. My rate is fair.`,`El mercado allá paga $${mk.rate.toFixed(2)} la milla. Mi precio es justo.`]);
   if(W.wLvl==='heavy') say.push([`${n(W.w)} lbs is heavy for a box truck.`,`${n(W.w)} libras es pesado para un box truck.`]);
-  if(W.pickupGone||late) say.push(['I can\'t make those times legally. I need new pickup and delivery times.','No llego legal a esas horas. Necesito horarios nuevos.']);
   const sayHTML=say.map(x=>`<div style="padding:8px 10px;border-radius:10px;background:var(--bg2,#F3F4F6);margin-top:6px;"><div style="font-size:14px;font-weight:800;color:var(--text);">“${pqEsc(x[0])}”</div><div style="font-size:12px;color:var(--text3);margin-top:2px;">${pqEsc(x[1])}</div></div>`).join('');
   const adminHTML=admin?`<div style="margin-top:10px;padding-top:8px;border-top:2px solid var(--border,#eee);font-size:13px;">
       <b>⛽ ${pqT('Costo de diésel','Diesel cost')}:</b> ${money(W.fuel)} · ${m2(W.fuel/W.tot)}/mi${W.fuelSmart?` · <span style="color:#16A34A;">${pqT('llenando antes de CA','fill before CA')}: ${money(W.fuelSmart)}</span>`:''}

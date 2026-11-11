@@ -7186,6 +7186,23 @@ function homeMenuHTML(){
       <button type="button" class="hm-c3 hm-tap" ${go('misganancias')}><div class="i">💰</div>${T('Mi dinero','My money')}<div class="hm-bar" style="background:#F59E0B;"></div></button>
       <button type="button" class="hm-c3 hm-tap" ${go('misdocs')}><div class="i">📁</div>${T('Mis papeles','My papers')}<div class="hm-bar" style="background:#A855F7;"></div></button>
     </div>
+  </div>`+homeMarketHTML();
+}
+// ===== CÓMO VIENE EL MERCADO (actualizar cada semana o dos: DAT, C.H. Robinson, EIA, Truckstop) =====
+const HOME_MKT={date:'10 nov 2026',dateEn:'Nov 10, 2026',ltr:10.9,ltrYear:6.4,rate:2.24,thanks:'26 nov',thanksEn:'Nov 26'};
+function homeMarketHTML(){
+  const T=(es,en)=>window.TL_LANG==='en'?en:es, M=HOME_MKT;
+  const row=(c,ic,t,d)=>`<div style="display:flex;gap:10px;padding:10px 0;border-top:1px solid #1F2850;"><div style="width:30px;height:30px;border-radius:9px;background:${c}22;color:${c};display:flex;align-items:center;justify-content:center;font-size:16px;flex:none;">${ic}</div><div style="min-width:0;"><div style="font-size:14px;font-weight:800;color:#fff;">${t}</div><div style="font-size:12px;color:#9AA6D1;margin-top:2px;line-height:1.4;">${d}</div></div></div>`;
+  return `<div data-no-tr="1" style="background:#0B1022;border-radius:22px;padding:16px 14px 8px;margin-bottom:16px;color:#fff;">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;"><div style="font-size:12px;letter-spacing:1.5px;color:#7C8BC4;font-weight:800;text-transform:uppercase;">📈 ${T('Cómo viene el mercado','Market outlook')}</div><div style="font-size:11px;color:#5A659A;">${T(M.date,M.dateEn)}</div></div>
+    <div style="display:flex;align-items:center;gap:12px;margin:12px 0 6px;padding:12px;border-radius:16px;background:linear-gradient(135deg,#064E3B,#16A34A);">
+      <div style="font-size:30px;font-weight:900;line-height:1;">${M.ltr}</div>
+      <div style="font-size:13px;font-weight:800;line-height:1.35;">${T(`cargas por cada camión disponible (hace un año: ${M.ltrYear}). Hay más cargas que camiones: buen momento para pedir más.`,`loads per available truck (a year ago: ${M.ltrYear}). More loads than trucks: a good time to ask for more.`)}</div></div>
+    ${row('#38BDF8','➡️',T(`Precio promedio: $${M.rate.toFixed(2)}/milla`,`Average rate: $${M.rate.toFixed(2)}/mile`),T('Se espera que se quede igual las próximas 5 semanas (sin contar diésel).','Expected to hold for the next 5 weeks (without fuel).'))}
+    ${row('#F59E0B','🦃',T(`Thanksgiving (${M.thanks}): se aprieta`,`Thanksgiving (${M.thanksEn}): it gets tight`),T('Más cargas y menos camiones esa semana. Pide alto y no regales el precio.','More loads and fewer trucks that week. Ask high and don\'t give the price away.'))}
+    ${row('#EF4444','⛽',T('Diésel: bajó un poco esta semana','Diesel: down a little this week'),T('California sigue arriba de $8 el galón. Llena antes de entrar.','California is still over $8 a gallon. Fill up before you enter.'))}
+    ${row('#22C55E','✅',T('Mejores para entregar','Best places to deliver'),T('California, Illinois, Ohio, Indiana y Kentucky: hay carga para salir.','California, Illinois, Ohio, Indiana and Kentucky: loads to get out.'))}
+    ${row('#EF4444','⛔',T('Cuidado al entregar en','Careful delivering to'),T('Florida, las Dakotas, Nuevo México y Maine/Vermont/New Hampshire: pocas cargas o pagan poco para salir.','Florida, the Dakotas, New Mexico and Maine/Vermont/New Hampshire: few loads or low pay to get out.'))}
   </div>`;
 }
 function renderHomeMenu(){ if(!currentUser||currentUser.role==='admin') return; let m=document.getElementById('home-menu');

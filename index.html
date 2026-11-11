@@ -6327,6 +6327,14 @@ function pqParse(text){
   if((m=T.match(/truck\s*types?\s*:?\s*([\s\S]{0,160}?)(?:\n\s*drivers?\b|$)/i))) R.truckTypes=m[1].replace(/\s*\n\s*/g,' ').replace(/\s+,/g,',').replace(/\s{2,}/g,' ').trim();
   if((m=T.match(/drivers?\s*:?\s*(solo|team)/i))) R.drivers=m[1][0].toUpperCase()+m[1].slice(1).toLowerCase();
   R.direct=/\bDIRECT\b/i.test(T);
+  if(R.loaded==null&&(m=T.match(/\bmiles\s*:?\s*(?:estimated\s*)?([\d,]{2,7})\s*mi/i))) R.loaded=num(m[1]);
+  if(R.empty==null&&(m=T.match(/\b(?:DH|deadhead)\s*:?\s*([\d,]{1,6})\s*mi/i))) R.empty=num(m[1]);
+  if(/team\s*(?:required|only)|\bteam\b\s*$/im.test(T)) R.drivers='Team';
+  R.liftgate=/lift\s*gate/i.test(T); R.palletJack=/pallet\s*jack/i.test(T);
+  if((m=T.match(/(\d+)\s*pick(?:s|ups?)?\W{0,3}(\d+)\s*drop/i))){ R.picks=+m[1]; R.drops=+m[2]; }
+  if((m=T.match(/\$\s?(\d{1,2},?\d{3})(?![\d.])/))) R.posted=num(m[1]);
+  if((m=T.match(/call\s+([A-Z][A-Za-z&]{1,24})\b/))) R.broker=m[1];
+  if((m=T.match(/notes?\s*:?\s*\n?\s*([^\n]{3,200})/i))) R.notes=m[1].trim();
   // Paradas: "Ciudad, ST, 12345, US" seguidas de su horario y de "PICK UP #n" / "DELIVERY #n"
   const lines=T.split('\n').map(s=>s.trim()).filter(Boolean);
   const placeRx=/([A-Za-z][A-Za-z .'\-]{1,40}),\s*([A-Z]{2}),?\s*(\d{5})(?:\s*,?\s*US)?/;
@@ -6337,7 +6345,7 @@ function pqParse(text){
     if(!cur) return;
     const lab=l.match(/(PICK\s*-?\s*UP|DELIVERY)\s*#?\s*(\d+)/i);
     if(lab){ cur.type=/PICK/i.test(lab[1])?'pickup':'delivery'; cur.num=+lab[2]; cur=null; return; }
-    if(/\d{1,2}\/\d{1,2}|\b\d{1,2}:\d{2}\b|DIRECT|\(today\)|\(tomorrow\)|AM|PM/i.test(l) && !/view route|weight|pieces|truck types|drivers/i.test(l)) cur.when.push(l);
+    if(/\d{1,2}\/\d{1,2}|\b\d{1,2}:\d{2}\b|DIRECT|\(today\)|\(tomorrow\)|\bAM\b|\bPM\b/i.test(l) && !/view route|weight|pieces|truck types|drivers|trailer|miles|notes|required|liftgate|post id|\$/i.test(l)) cur.when.push(l);
   });
   R.stops.forEach((s,i)=>{ if(!s.type) s.type=i===0?'pickup':'delivery'; s.when=s.when.join(' ').replace(/\s+/g,' ').replace(/\s*-\s*/g,' – ').trim(); });
   return R;
@@ -6394,12 +6402,17 @@ function pqDriverPct(){
     const any=L.sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
     const t=(u.role==='admin'?prem.filter(x=>(_pqDrv?x.driverUser===_pqDrv:true)):prem)[0]||any[0]; return t?parseFloat(t.payPct):30; }catch(e){ return 30; } }
 let _pqDrv='';
+// Extras típicos del mercado (estimado): parada extra $75 c/u, liftgate $100
+function pqExtras(R){ const it=[]; let t=0; if(!R) return {items:it,total:0};
+  const extra=Math.max(0,((+R.picks||1)-1)+((+R.drops||1)-1)); if(extra){ t+=extra*75; it.push(extra+' '+pqT('paradas extra','extra stops')+' × $75'); }
+  if(R.liftgate){ t+=100; it.push('liftgate $100'); }
+  return {items:it,total:t}; }
 function pqPriceHTML(){
   const R=_pq; if(!R) return '';
   const lm=+R.loaded||0, em=+R.empty||0, tot=lm+em; if(!(tot>0)) return '';
   const pct=pqDriverPct(); const money=v=>'$'+Math.round(v).toLocaleString('en-US'); const m2=v=>'$'+v.toFixed(2);
   const admin=currentUser&&currentUser.role==='admin'; let dpm=null; if(admin){ try{ const b=asstBreakEven(); dpm=b&&b.dpm; }catch(e){} }
-  const rows=PQ_RATES.map(x=>{ const ask=Math.round(tot*x.r/5)*5, per=ask/tot, perL=lm>0?ask/lm:0, earn=ask*pct/100, keep=dpm!=null?ask-earn-tot*dpm:null;
+  const EX=pqExtras(R); const rows=PQ_RATES.map(x=>{ const ask=Math.round(tot*x.r/5)*5+EX.total, per=ask/tot, perL=lm>0?ask/lm:0, earn=ask*pct/100, keep=dpm!=null?ask-earn-tot*dpm:null;
     return `<div style="border:2px solid ${x.c};background:${x.bg};border-radius:14px;padding:10px 12px;margin-top:8px;">
       <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;"><div style="font-size:12px;font-weight:900;color:${x.c};text-transform:uppercase;">${pqT(x.es,x.en)}</div><div style="font-size:12px;color:#374151;font-weight:700;">${pqT('Pídele al broker','Ask the broker')}</div></div>
       <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:2px;">
@@ -6412,6 +6425,8 @@ function pqPriceHTML(){
   return `<div class="card" style="background:var(--card,#fff);border:1px solid var(--border,#ddd);border-radius:16px;padding:14px;margin-bottom:12px;">
     <div style="font-size:16px;font-weight:900;">💵 ${pqT('¿Cuánto pedir?','How much to ask?')}</div>
     <div style="font-size:13px;color:var(--text3);margin-top:2px;">${pqT('Millas totales','Total miles')}: <b>${tot.toLocaleString('en-US')}</b> (${lm.toLocaleString('en-US')} ${pqT('cargado','loaded')} + ${em.toLocaleString('en-US')} ${pqT('vacío','empty')})</div>
+    ${EX.total?`<div style="font-size:13px;margin-top:4px;color:#1E3A8A;font-weight:700;">➕ ${pqT('Ya incluye extras','Includes extras')}: ${EX.items.map(i=>pqEsc(i)).join(' · ')} = ${money(EX.total)}</div>`:''}
+    ${R.posted?`<div style="font-size:13px;margin-top:4px;font-weight:800;color:${(()=>{const A=pqAsks(R); return R.posted>=A[1]?'#16A34A':R.posted>=A[2]?'#B45309':'#B91C1C';})()};">📢 ${pqT('El broker ofrece','Broker posted')} ${money(R.posted)} = ${m2(R.posted/tot)}/mi${R.broker?' ('+pqEsc(R.broker)+')':''}${R.posted<pqAsks(R)[2]?' · '+pqT('menos que tu mínimo','below your minimum'):''}</div>`:''}
     ${rows}
     <div style="font-size:12px;color:var(--text3);margin-top:8px;line-height:1.5;">${pqT('Empieza en el verde, intenta cerrar en el amarillo y nunca bajes del rojo. El precio se calcula sobre las millas totales para cobrar también las millas vacías.','Start at green, try to close at yellow, never go below red. Prices use total miles so the empty miles get paid too.')}${admin&&dpm!=null?' '+pqT('Diésel: $'+dpm.toFixed(2)+'/milla, de tus viajes.','Diesel: $'+dpm.toFixed(2)+'/mile, from your trips.'):''}</div>
   </div>`;
@@ -6479,6 +6494,7 @@ function pqWhyHTML(){
   if(W.pickupGone) it.push(['r','⏱️',pqT('Tiempo','Timing'),pqT('Ya pasó','Passed'),pqT('La ventana para cargar ya cerró. Pide fechas nuevas.','The pickup window already closed. Ask for new dates.')]);
   else if(W.hrsHave!=null) it.push([late?'r':'g','⏱️',pqT('Tiempo','Timing'),late?pqT('No llegas','Can\'t make it'):pqT('Sí llegas','On time'),late?pqT(`Necesitas ~${n(W.hrsNeed)} h con descanso y hay ${n(W.hrsHave)} h. Pide otra cita.`,`You need ~${n(W.hrsNeed)} h with rest and there are ${n(W.hrsHave)} h. Ask for another appointment.`):pqT(`~${n(W.hrsNeed)} h de ${n(W.hrsHave)} h disponibles.`,`~${n(W.hrsNeed)} h of ${n(W.hrsHave)} h available.`)]);
   if(mk) it.push([mk.lvl,'📍',pqT('Donde entregas','Where you deliver'),mk.why==='vol'?pqT('pocas cargas','few loads'):mk.why==='thin'?pqT('poca carga','few loads'):mk.rate?'$'+mk.rate.toFixed(2)+'/mi':'—',pqMkText(mk,place)[1]]);
+  { const R=_pq, EX=pqExtras(R); if(EX.total) it.push(['y','📦',pqT('Extras','Extras'),'+$'+EX.total,EX.items.join(' · ')+(R.palletJack?' · '+pqT('necesitas pallet jack','pallet jack needed'):'')]); }
   if(W.direct) it.push(['g','🚚','DIRECT',pqT('Sí','Yes'),pqT('Tu camión va solo con esta carga: se cobra más.','Your truck carries only this load: charge more.')]);
   const rows=it.map(x=>`<div style="display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-top:1px solid var(--border,#eee);">
       <div style="width:12px;height:12px;border-radius:50%;background:${C[x[0]][0]};margin-top:5px;flex:none;"></div>
@@ -6490,8 +6506,11 @@ function pqWhyHTML(){
   if(W.em>=50) say.push([`I'm ${n(W.em)} empty miles away. Total is ${n(W.tot)} miles, not ${n(W.lm)}.`,`Estoy a ${n(W.em)} millas vacías. Son ${n(W.tot)} en total, no ${n(W.lm)}.`]);
   if(W.pD>=7) say.push([`Diesel in ${W.dS} is over $${Math.floor(W.pD)} a gallon.`,`El diésel en ${W.dS} pasa de $${Math.floor(W.pD)} el galón.`]);
   if(mk&&mk.why==='tx') say.push([`Outbound rates from Texas are low, so I need a fair rate on this load.`,`Las cargas que salen de Texas pagan poco; necesito buen precio en esta.`]);
+  else if(mk&&mk.why==='rate'&&mk.lvl==='r') say.push([`Loads out of ${PQ_STN[W.dS]||W.dS} pay very little. I'll probably deadhead out, so I need a better rate.`,`Las cargas que salen de allá pagan muy poco. Voy a salir vacío, necesito mejor precio.`]);
   else if(redMkt||(mk&&(mk.why==='thin'||(mk.why==='rate'&&mk.lvl==='y')))) say.push([`${PQ_STN[W.dS]||W.dS} has very few loads out. I'll probably come back empty, so I need a better rate.`,`Allá hay pocas cargas de salida. Voy a regresar vacío, necesito mejor precio.`]);
   else if(mk&&mk.lvl==='g') say.push([`Market rate out of ${mk.name} is $${mk.rate.toFixed(2)} a mile. My rate is fair.`,`El mercado allá paga $${mk.rate.toFixed(2)} la milla. Mi precio es justo.`]);
+  { const R=_pq, EX=pqExtras(R); if(EX.total){ const st=Math.max(0,((+R.picks||1)-1)+((+R.drops||1)-1));
+      say.push([`${st?`It's ${(+R.picks||1)} pick and ${(+R.drops||1)} drops`:'It needs a liftgate'}${st&&R.liftgate?' with liftgate':''}. That's $${EX.total} in extras on top of the miles.`,`${st?`Son ${(+R.picks||1)} pick y ${(+R.drops||1)} entregas`:'Necesita liftgate'}${st&&R.liftgate?' con liftgate':''}. Son $${EX.total} de extras aparte de las millas.`]); } }
   if(W.wLvl==='heavy') say.push([`${n(W.w)} lbs is heavy for a box truck.`,`${n(W.w)} libras es pesado para un box truck.`]);
   const sayHTML=say.map(x=>`<div style="padding:8px 10px;border-radius:10px;background:var(--bg2,#F3F4F6);margin-top:6px;"><div style="font-size:14px;font-weight:800;color:var(--text);">“${pqEsc(x[0])}”</div><div style="font-size:12px;color:var(--text3);margin-top:2px;">${pqEsc(x[1])}</div></div>`).join('');
   const adminHTML=admin?`<div style="margin-top:10px;padding-top:8px;border-top:2px solid var(--border,#eee);font-size:13px;">
@@ -6516,9 +6535,13 @@ function pqMkText(mk,place){ const m2=v=>'$'+v.toFixed(2), N=PQ_STN[mk.st]||mk.s
   if(mk.lvl==='r') return [pqT(`Las cargas que salen de <b>${pqEsc(mk.name)}</b> pagan <b>${m2(mk.rate)}/milla</b> (promedio del país ${m2(PQ_DATA.national)}). Después de entregar te puede costar salir de ahí o regresar vacío.`,`Loads out of <b>${pqEsc(mk.name)}</b> pay <b>${m2(mk.rate)}/mile</b> (national average ${m2(PQ_DATA.national)}). After delivery it may be hard to get out or you may come back empty.`),
       pqT(`${place}: pagan muy poco para salir. Ver alerta.`,`${place}: outbound pays very little. See alert.`)];
   return ['',mk.lvl==='g'?pqT(`${place}: buen mercado, fácil conseguir la siguiente carga.`,`${place}: good market, easy to find the next load.`):pqT(`${place}: mercado regular. Puede tardar la siguiente carga.`,`${place}: average market. The next load may take time.`)]; }
-function pqAlertHTML(){ const W=pqWhy(); const mk=W&&W.mk; if(!mk||mk.lvl!=='r') return '';
+function pqAlertHTML(){ const W=pqWhy(); const mk=W&&W.mk; let team='';
+  if(W&&W.team) team=`<div style="border:2px solid #B91C1C;background:#FDECEC;border-radius:14px;padding:12px;margin-bottom:12px;">
+      <div style="font-size:16px;font-weight:900;color:#B91C1C;">🚨 ${pqT('Piden TEAM (2 drivers)','TEAM required (2 drivers)')}</div>
+      <div style="font-size:14px;color:#7F1D1D;margin-top:4px;">${pqT('Si vas solo, no la tomes. Si van 2 drivers, cobra más: los 2 tienen que ganar.','If you are solo, do not take it. With 2 drivers, charge more: both need to get paid.')}</div></div>`;
+  if(!mk||mk.lvl!=='r') return team;
   const place=(W.dCity?W.dCity+', ':'')+W.dS;
-  return `<div style="border:2px solid #B91C1C;background:#FDECEC;border-radius:14px;padding:12px;margin-bottom:12px;">
+  return team+`<div style="border:2px solid #B91C1C;background:#FDECEC;border-radius:14px;padding:12px;margin-bottom:12px;">
       <div style="font-size:16px;font-weight:900;color:#B91C1C;">🚨 ${pqT('ALERTA: zona con pocas cargas','ALERT: low-freight area')}</div>
       <div style="font-size:14px;color:#7F1D1D;margin-top:4px;line-height:1.45;">${pqMkText(mk,place)[0]}</div>
       <div style="font-size:14px;font-weight:900;color:#B91C1C;margin-top:6px;">${pqT('En esta carga no bajes del amarillo. Avisa a la oficina antes de aceptar.','On this load do not go below yellow. Tell the office before accepting.')}</div></div>`; }
@@ -6571,7 +6594,7 @@ function pqWxHTML(){
   </div>`;
 }
 // ===== COTIZACIONES: el driver guarda la carga + el precio que le mandó al broker → aviso al admin (campanita y Telegram) =====
-function pqAsks(R){ const tot=(+R.loaded||0)+(+R.empty||0); return PQ_RATES.map(x=>Math.round(tot*x.r/5)*5); }
+function pqAsks(R){ const tot=(+R.loaded||0)+(+R.empty||0), ex=pqExtras(R).total; return PQ_RATES.map(x=>Math.round(tot*x.r/5)*5+ex); }
 function pqRoute(r){ const P=(r.stops||[]).find(s=>s.type==='pickup')||(r.stops||[])[0]||{}, D=[...(r.stops||[])].reverse().find(s=>s.type==='delivery')||{}; return {P,D,txt:(P.city||'—')+(P.st?', '+P.st:'')+' → '+(D.city||'—')+(D.st?', '+D.st:'')}; }
 let _pqList=[];
 function pqLoadList(){

@@ -6320,40 +6320,65 @@ function pqT(es,en){ try{ if(typeof TR==='function') return TR(es,en); if(typeof
 function pqEsc(x){ return String(x==null?'':x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 // Lee el texto de la captura y saca los datos de la carga
 function pqParse(text){
-  const T=String(text||'').replace(/\r/g,'').replace(/[“”]/g,'"');
+  const T=String(text||'').replace(/\r/g,'').replace(/[“”]/g,'"').replace(/(\d)\s*[Il1]bs\b/g,'$1 lbs');
   const num=s=>{ const n=parseFloat(String(s||'').replace(/[, ]/g,'')); return isNaN(n)?null:n; };
   const R={loaded:null,empty:null,stops:[],weight:null,pieces:null,truckTypes:'',drivers:'',direct:false};
   let m;
+  // Millas cargadas (Premium "842 loaded mi", TQL "Miles Estimated 1004 mi" / "Total Miles: Estimated 482 mi", DAT "VIAJE 1,037 mi", Uber "DROPOFF (921 mi)" / "Distance 921 mi")
   if((m=T.match(/([\d,]{2,7})\s*load(?:ed)?\s*mi/i))) R.loaded=num(m[1]);
+  if(R.loaded==null&&(m=T.match(/\bmiles\s*:?\s*(?:estimated\s*)?([\d,]{2,7})\s*mi/i))) R.loaded=num(m[1]);
+  if(R.loaded==null&&(m=T.match(/\b(?:viaje|trip)\b[\s\S]{0,60}?([\d,]{2,7})\s*mi\b/i))) R.loaded=num(m[1]);
+  if(R.loaded==null&&(m=T.match(/\b(?:drop\s*-?\s*off|drop|delivery)\s*\(\s*([\d,]{2,7})\s*mi\s*\)/i))) R.loaded=num(m[1]);
+  if(R.loaded==null&&(m=T.match(/\bdistance\b[\s\S]{0,40}?([\d,]{2,7})\s*mi\b/i))) R.loaded=num(m[1]);
+  // Millas vacías (Premium "23 empty mi", TQL "DH 142 mi", DAT "Coal Valley, IL (378 mi)")
   if((m=T.match(/([\d,]{1,6})\s*empty\s*mi/i))) R.empty=num(m[1]);
-  if((m=T.match(/weight\s*:?\s*([\d,]+)\s*(?:l|I|1)bs?/i))||(m=T.match(/weight\s*:?\s*([\d,]+)/i))) R.weight=num(m[1]);
+  if(R.empty==null&&(m=T.match(/\b(?:DH|deadhead)\s*:?\s*([\d,]{1,6}|O)\s*mi/i))) R.empty=m[1]==='O'?0:num(m[1]);
+  if((m=T.match(/weight\s*:?\s*\n?\s*([\d,]+)\s*lbs?/i))||(m=T.match(/weight\s*:?\s*([\d,]+)/i))) R.weight=num(m[1]);
+  if(R.weight==null&&(m=T.match(/([\d,]{3,6})\s*lbs\b/i))) R.weight=num(m[1]);
   if((m=T.match(/pieces\s*:?\s*([\d,]+)/i))) R.pieces=num(m[1]);
   if((m=T.match(/truck\s*types?\s*:?\s*([\s\S]{0,160}?)(?:\n\s*drivers?\b|$)/i))) R.truckTypes=m[1].replace(/\s*\n\s*/g,' ').replace(/\s+,/g,',').replace(/\s{2,}/g,' ').trim();
+  if(!R.truckTypes&&(m=T.match(/\bequipment\s+measurements?\s*\n\s*([A-Za-z][A-Za-z ]{1,25}?)\s+[\d]/i))) R.truckTypes=m[1].trim();
+  if(!R.truckTypes&&(m=T.match(/\b(?:trailer|equipment)\s*:?\s*\n?\s*(?!measure)([A-Za-z][A-Za-z ]{1,30}?)(?=\s{2,}|\s+DH\b|\s+size\b|\n|$)/i))) R.truckTypes=m[1].trim();
+  if((m=T.match(/dimensions?\s*:?\s*([\d.]+\s*[xX×]\s*[\d.]+\s*[xX×]\s*[\d.]+)/))) R.dims=m[1].replace(/\s/g,'');
   if((m=T.match(/drivers?\s*:?\s*(solo|team)/i))) R.drivers=m[1][0].toUpperCase()+m[1].slice(1).toLowerCase();
+  if(/team\s*required/i.test(T)||/team\s*only\s*:?\s*\n?\s*(?:yes|y)\b/i.test(T)) R.drivers='Team';
   R.direct=/\bDIRECT\b/i.test(T);
-  if(R.loaded==null&&(m=T.match(/\bmiles\s*:?\s*(?:estimated\s*)?([\d,]{2,7})\s*mi/i))) R.loaded=num(m[1]);
-  if(R.empty==null&&(m=T.match(/\b(?:DH|deadhead)\s*:?\s*([\d,]{1,6})\s*mi/i))) R.empty=num(m[1]);
-  if(/team\s*(?:required|only)|\bteam\b\s*$/im.test(T)) R.drivers='Team';
   R.liftgate=/lift\s*gate/i.test(T); R.palletJack=/pallet\s*jack/i.test(T);
-  if((m=T.match(/(\d+)\s*pick(?:s|ups?)?\W{0,3}(\d+)\s*drop/i))){ R.picks=+m[1]; R.drops=+m[2]; }
-  if((m=T.match(/\$\s?(\d{1,2},?\d{3})(?![\d.])/))) R.posted=num(m[1]);
-  if((m=T.match(/call\s+([A-Z][A-Za-z&]{1,24})\b/))) R.broker=m[1];
-  if((m=T.match(/post\s*id\s*:?\s*#?\s*(\d{4,12})/i))) R.postId=m[1];
+  if((m=T.match(/(\d+)\s*pick(?:s|ups?)?\W{0,3}(\d+)\s*drops?/i))){ R.picks=+m[1]; R.drops=+m[2]; }
+  // Precio publicado: "$2,300", "TARIFAS $2,200", "Book (3,000.00 USD)"
+  if((m=T.match(/\$\s?(\d{1,2},?\d{3}|\d{3})(?:\.\d{2})?(?![\d])/))) R.posted=num(m[1]);
+  if(R.posted==null&&(m=T.match(/(\d{1,2},?\d{3})(?:\.\d{2})?\s*USD/i))) R.posted=num(m[1]);
+  if((m=T.match(/call\s+(TQL)\b/i))||/\bTQL\b/.test(T)) R.broker='TQL';
+  else if(/accepted offer|navisphere|book\s*\([\d,.]+\s*USD\)|appointment set/i.test(T)) R.broker='C.H. Robinson';
+  else if(/loaded\s*mi|\bauction\b|PICK\s*UP\s*#\s*1/i.test(T)) R.broker='Premium Logistics';
+  else if((m=T.match(/^[^A-Za-z\n]{0,6}([A-Z][A-Za-z&.' ]{2,40}?\s(?:LLC|Inc\.?|Logistics|Freight|Transport(?:ation)?|Brokerage))\b/m))) R.broker=m[1].trim();
+  if(/show\s*reloads|\bTARIFAS\b|\bVIAJE\b[\s\S]{0,40}\bMERCADO\b|\bDAT\b/i.test(T)) R.broker=(R.broker&&R.broker!=='TQL'?R.broker+' · ':'')+'DAT One';
+  if((m=T.match(/post\s*id\s*:?\s*#?\s*(\d{4,12})/i))||(m=T.match(/^\s*#\s?(\d{6,12})\b/m))) R.postId=m[1];
   { const L=T.split('\n').map(x=>x.trim()); const i=L.findIndex(x=>/^notes?\b/i.test(x)); if(i>=0){ const out=[]; const first=L[i].replace(/^notes?\s*:?\s*/i,''); if(first) out.push(first);
-      for(let j=i+1;j<L.length&&out.length<4;j++){ const x=L[j]; if(!x) { if(out.length) break; else continue; } if(/post\s*id|^\$|quote it|call\s|^[A-Z][a-z]+ [A-Z]\.?$/i.test(x)) break; out.push(x); } if(out.length) R.notes=out.join(' ').replace(/\s+/g,' ').trim(); } }
-  // Paradas: "Ciudad, ST, 12345, US" seguidas de su horario y de "PICK UP #n" / "DELIVERY #n"
+      for(let j=i+1;j<L.length&&out.length<4;j++){ const x=L[j]; if(!x) { if(out.length) break; else continue; } if(/post\s*id|^\$|quote it|call\s|^[A-Z][a-z]+ [A-Z|]\.?\s*(?:\$[\d,]+)?$/i.test(x)) break; out.push(x.replace(/\s*\$[\d,]+$/,'')); } if(out.length) R.notes=out.join(' ').replace(/\s+/g,' ').trim(); } }
+  // Paradas. Formatos: "Liberty, MO, 64068, US" + "PICK UP #1" (Premium) · "Houston, TX 77039" (TQL) · "RECOGER / Coal Valley, IL (378 mi)" (DAT) · "Pickup / Empresa / Preston, IA" (Uber)
+  const MES={jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12,ene:1,abr:4,ago:8,dic:12,enero:1,febrero:2,marzo:3,abril:4,mayo:5,junio:6,julio:7,agosto:8,septiembre:9,setiembre:9,octubre:10,noviembre:11,diciembre:12};
   const lines=T.split('\n').map(s=>s.trim()).filter(Boolean);
-  const placeRx=/([A-Za-z][A-Za-z .'\-]{1,40}),\s*([A-Z]{2}),?\s*(\d{5})(?:\s*,?\s*US)?/;
-  let cur=null;
+  const placeRx=/^([A-Za-z][A-Za-z.'\-]*(?:\s[A-Za-z][A-Za-z.'\-]*){0,3}),\s*([A-Z]{2})\b(?:,?\s*(\d{5}))?(?:,?\s*US)?\s*(?:\(\s*([\d,]+)\s*mi\s*\))?(?:\s+\S{1,5}){0,2}$/;
+  let cur=null, pend='';
   lines.forEach(l=>{
-    const p=l.match(placeRx);
-    if(p){ cur={type:'',num:null,city:p[1].replace(/^[^A-Za-z]+/,'').replace(/^[OoQ]\s+(?=[A-Z])/,'').trim(),st:p[2],zip:p[3],when:[]}; R.stops.push(cur); return; }
+    const c=l.replace(/^(?:[^A-Za-z]+|[A-Za-z][^A-Za-z\s]+\s+|[OoQi]\s+(?=[A-Z]))/,'');
+    const pre=c.match(/^(pick\s*-?\s*up|pickup|recoger|origen|origin|shipper|drop\s*-?\s*off|drop|delivery|entrega|destino|destination|consignee)\b(?!\s*#\s*\d)/i);
+    if(pre&&c.length<40){ pend=/^(pick|recog|orig|ship)/i.test(pre[1])?'pickup':'delivery'; cur=null; return; }
+    const p=c.match(placeRx);
+    if(p&&(p[3]||pend)){ cur={type:pend,num:null,city:p[1].trim(),st:p[2],zip:p[3]||'',when:[]}; if(p[4]!=null) cur.dh=num(p[4]); R.stops.push(cur); pend=''; return; }
     if(!cur) return;
-    const lab=l.match(/(PICK\s*-?\s*UP|DELIVERY)\s*#?\s*(\d+)/i);
+    const lab=c.match(/(PICK\s*-?\s*UP|DELIVERY)\s*#?\s*(\d+)/i);
     if(lab){ cur.type=/PICK/i.test(lab[1])?'pickup':'delivery'; cur.num=+lab[2]; cur=null; return; }
-    if(/\d{1,2}\/\d{1,2}|\b\d{1,2}:\d{2}\b|DIRECT|\(today\)|\(tomorrow\)|\bAM\b|\bPM\b/i.test(l) && !/view route|weight|pieces|truck types|drivers|trailer|miles|notes|required|liftgate|post id|\$/i.test(l)) cur.when.push(l);
+    let w=l;
+    const mn=l.match(/\b([A-Za-zé]{3,10})\.?,?\s+(\d{1,2})\b(?:,?\s*(20\d\d))?/);
+    const isDate=/\d{1,2}\/\d{1,2}|\b\d{1,2}:\d{2}\b|DIRECT|ASAP|\(today\)|\(tomorrow\)|\bAM\b|\bPM\b/i.test(l)||(mn&&MES[mn[1].toLowerCase()]);
+    if(isDate && !/view route|weight|pieces|truck types|drivers|trailer|miles|notes|required|liftgate|post id|\$|expires|offer/i.test(l)){
+      if(mn&&MES[mn[1].toLowerCase()]&&!/\d{1,2}\/\d{1,2}/.test(l)) w=MES[mn[1].toLowerCase()]+'/'+mn[2]+' '+l;
+      cur.when.push(w); }
   });
-  R.stops.forEach((s,i)=>{ if(!s.type) s.type=i===0?'pickup':'delivery'; s.when=s.when.join(' ').replace(/\s+/g,' ').replace(/\s*-\s*/g,' – ').trim(); });
+  R.stops.forEach((s,i)=>{ if(!s.type) s.type=i===0?'pickup':'delivery'; s.when=s.when.join(' ').replace(/\s+/g,' ').replace(/\s*[-«•*]\s*(?=\d)/g,' – ').trim(); });
+  if(R.empty==null){ const p0=R.stops.find(s=>s.type==='pickup'); if(p0&&p0.dh!=null) R.empty=p0.dh; }
   return R;
 }
 let _pq=null, _pqImg='';
@@ -6364,8 +6389,8 @@ function renderPQ(){
   const R=_pq;
   box.innerHTML=`
   <div class="card" style="background:var(--card,#fff);border:1px solid var(--border,#ddd);border-radius:16px;padding:14px;margin-bottom:12px;">
-    <div style="font-size:17px;font-weight:900;">${_pqMode==='tql'?pqT('Carga de TQL','TQL load'):pqT('Negociar carga de Premium','Premium load quote')}</div>
-    <div style="font-size:13px;color:var(--text3);margin:2px 0 12px;">${_pqMode==='tql'?pqT('Toma la captura de la carga de TQL y súbela. La app la lee, te dice cuánto tardas al pick up y el precio, y se la mandas a la oficina.','Take a screenshot of the TQL load and upload it. The app reads it, shows the time to pick up and the price, and you send it to the office.'):pqT('Toma la captura de la carga en la app de Premium (Auction) y súbela aquí. La app llena los datos sola.','Take a screenshot of the load in the Premium app (Auction) and upload it here. The app fills in the data.')}</div>
+    <div style="font-size:17px;font-weight:900;">${_pqMode==='tql'?pqT('Carga de TQL · DAT · C.H. Robinson','TQL · DAT · C.H. Robinson load'):pqT('Negociar carga de Premium','Premium load quote')}</div>
+    <div style="font-size:13px;color:var(--text3);margin:2px 0 12px;">${_pqMode==='tql'?pqT('Toma la captura de la carga (TQL, DAT One o C.H. Robinson) y súbela. La app la lee, te dice cuánto tardas al pick up y el precio, y se la mandas a la oficina.','Take a screenshot of the load (TQL, DAT One or C.H. Robinson) and upload it. The app reads it, shows the time to pick up and the price, and you send it to the office.'):pqT('Toma la captura de la carga en la app de Premium (Auction) y súbela aquí. La app llena los datos sola.','Take a screenshot of the load in the Premium app (Auction) and upload it here. The app fills in the data.')}</div>
     <button type="button" onclick="document.getElementById('pq-file').click()" style="width:100%;padding:14px;border:none;border-radius:12px;background:#1E3A8A;color:#fff;font-size:16px;font-weight:800;cursor:pointer;font-family:inherit;">📷 ${_pqMode==='tql'?pqT('Subir captura de TQL','Upload TQL screenshot'):pqT('Subir captura de Premium','Upload Premium screenshot')}</button>
     <input type="file" id="pq-file" accept="image/*" style="display:none" onchange="pqPicked(this)"/>
     <div id="pq-msg" style="font-size:13px;margin-top:8px;color:var(--text3);"></div>
@@ -6557,7 +6582,7 @@ let _pqWxKey='', _pqWx=null;
 const PQ_WX_RX=/winter|blizzard|ice|snow|freez|wind|fog|flood|tornado|hurricane|tropical|storm|dust|smoke|heat|avalanche/i;
 const PQ_WX_ES={'Winter Storm Warning':'Tormenta de invierno','Winter Storm Watch':'Posible tormenta de invierno','Winter Weather Advisory':'Nieve / hielo en el camino','Blizzard Warning':'Ventisca (blizzard)','Ice Storm Warning':'Tormenta de hielo','High Wind Warning':'Vientos muy fuertes','Wind Advisory':'Viento fuerte','High Wind Watch':'Posibles vientos muy fuertes','Dense Fog Advisory':'Neblina densa','Flood Warning':'Inundación','Flash Flood Warning':'Inundación repentina','Flood Watch':'Posible inundación','Tornado Warning':'Tornado','Tornado Watch':'Posible tornado','Severe Thunderstorm Warning':'Tormenta fuerte','Severe Thunderstorm Watch':'Posible tormenta fuerte','Freeze Warning':'Helada','Extreme Cold Warning':'Frío extremo','Cold Weather Advisory':'Mucho frío','Dust Storm Warning':'Tormenta de polvo','Blowing Dust Advisory':'Polvo en el aire','Lake Effect Snow Warning':'Nieve fuerte (lago)','Heat Advisory':'Mucho calor','Excessive Heat Warning':'Calor extremo','Extreme Heat Warning':'Calor extremo','Red Flag Warning':'Riesgo de incendio','Air Quality Alert':'Mala calidad del aire'};
 function pqZips(){ const R=_pq; if(!R) return null; const P=R.stops.find(s=>s.type==='pickup')||R.stops[0]||{}, D=[...R.stops].reverse().find(s=>s.type==='delivery')||{};
-  const a=String(P.zip||'').match(/\d{5}/), b=String(D.zip||'').match(/\d{5}/); return a&&b?[a[0],b[0]]:null; }
+  const q=s=>{ const z=String(s.zip||'').match(/\d{5}/); return z?z[0]:(s.city&&s.st?s.city+', '+s.st:''); }; const a=q(P), b=q(D); return a&&b?[a,b]:null; }
 function pqWxCheck(force){
   const z=pqZips(); const box=document.getElementById('pq-wx'); if(!box) return;
   if(!z){ box.innerHTML=''; return; }
@@ -6565,7 +6590,8 @@ function pqWxCheck(force){
   _pqWxKey=key; _pqWx={loading:true,z}; box.innerHTML=pqWxHTML();
   (async()=>{
     try{
-      const [A,B]=await Promise.all([fetchZip(z[0]),fetchZip(z[1])]); if(!A||!B) throw new Error('ZIP');
+      const st=_pq.stops, P=st.find(s=>s.type==='pickup')||st[0], D=[...st].reverse().find(s=>s.type==='delivery')||st[st.length-1];
+      const [A,B]=await Promise.all([pqGeoStop(P),pqGeoStop(D)]); if(!A||!B) throw new Error('ZIP');
       let pts=[[A.lat,A.lon],[B.lat,B.lon]];
       try{ const r=await fetch('https://router.project-osrm.org/route/v1/driving/'+A.lon+','+A.lat+';'+B.lon+','+B.lat+'?overview=simplified&geometries=geojson');
         const d=await r.json(); const c=d.routes&&d.routes[0]&&d.routes[0].geometry.coordinates; if(c&&c.length>1){ const n=Math.min(14,c.length); pts=[]; for(let i=0;i<n;i++){ const p=c[Math.round(i*(c.length-1)/(n-1))]; pts.push([p[1],p[0]]); } } }catch(e){}
@@ -6581,7 +6607,7 @@ function pqWxCheck(force){
 }
 function pqWxHTML(){
   const W=_pqWx; if(!W) return ''; const z=W.z;
-  const gm='https://www.google.com/maps/dir/?api=1&origin='+z[0]+'&destination='+z[1]+'&travelmode=driving';
+  const gm='https://www.google.com/maps/dir/?api=1&origin='+encodeURIComponent(z[0])+'&destination='+encodeURIComponent(z[1])+'&travelmode=driving';
   let body='';
   if(W.loading) body=`<div style="font-size:13px;color:var(--text3);margin-top:6px;">⏳ ${pqT('Revisando el clima en la ruta…','Checking weather on the route…')}</div>`;
   else if(W.err||!W.ok) body=`<div style="font-size:13px;color:var(--text3);margin-top:6px;">${pqT('No se pudo revisar el clima ahora.','Could not check the weather now.')} <a href="#" onclick="pqWxCheck(true);return false;">${pqT('Reintentar','Retry')}</a></div>`;
@@ -6606,7 +6632,9 @@ function pqSetMode(m){ if(m===_pqMode) return; _pqStore[_pqMode]={pq:_pq,img:_pq
 function pqMount(m){ pqSetMode(m); const body=document.getElementById('pq-body'), host=document.getElementById(m==='tql'?'page-tql':'page-pq'); if(body&&host&&body.parentNode!==host) host.appendChild(body); renderPQ(); }
 // En TQL el orden es: captura → datos → cuánto tarda al pick up → negociación → lo que ofrezco + enviar
 function pqArrange(){
-  if(_pqMode!=='tql') return; const box=document.getElementById('pq-body'), d=document.getElementById('pq-datos'), a=document.getElementById('pq-alert'); if(!box||!d||!a) return;
+  const box0=document.getElementById('pq-body'), a0=document.getElementById('pq-alert');
+  if(_pqMode!=='tql'){ if(box0&&a0&&_pq){ const pu=document.createElement('div'); pu.id='pq-pu'; box0.insertBefore(pu,a0); pqPuCheck(); } return; }
+  const box=document.getElementById('pq-body'), d=document.getElementById('pq-datos'), a=document.getElementById('pq-alert'); if(!box||!d||!a) return;
   box.insertBefore(d,a);
   const pu=document.createElement('div'); pu.id='pq-pu'; box.insertBefore(pu,a);
   const sb=document.getElementById('pq-savebox'), wx=document.getElementById('pq-wx'), admin=currentUser&&currentUser.role==='admin';
@@ -6634,7 +6662,7 @@ function pqDecide(id,st){
 function pqPuHTML(R,busy){
   if(busy) return `<div class="card" style="background:var(--card,#fff);border:1px solid var(--border,#ddd);border-radius:16px;padding:14px;margin-bottom:12px;"><div style="font-size:16px;font-weight:900;">⏱️ ${pqT('¿Cuánto tardas al pick up?','Time to pick up')}</div><div style="font-size:13px;color:var(--text3);margin-top:6px;">⏳ ${pqT('Buscando dónde estás…','Finding your location…')}</div></div>`;
   const U=R&&R.pu; if(!U) return '';
-  if(U.err) return `<div class="card" style="background:var(--card,#fff);border:1px solid var(--border,#ddd);border-radius:16px;padding:14px;margin-bottom:12px;"><div style="font-size:16px;font-weight:900;">⏱️ ${pqT('¿Cuánto tardas al pick up?','Time to pick up')}</div><div style="font-size:13px;color:#B91C1C;margin-top:6px;">${pqT('No se pudo ver tu ubicación. Activa la ubicación del celular.','Could not get your location. Turn on location.')} <a href="#" onclick="pqPuCheck(true);return false;">${pqT('Reintentar','Retry')}</a></div></div>`;
+  if(U.err) return `<div class="card" style="background:var(--card,#fff);border:1px solid var(--border,#ddd);border-radius:16px;padding:14px;margin-bottom:12px;"><div style="font-size:16px;font-weight:900;">⏱️ ${pqT('¿Cuánto tardas al pick up?','Time to pick up')}</div><div style="font-size:13px;color:#B91C1C;margin-top:6px;">${currentUser&&currentUser.role==='admin'?pqT('No hay ubicación en vivo del driver. Pídele que abra la app.','No live location for the driver. Ask them to open the app.'):pqT('No se pudo ver tu ubicación. Activa la ubicación del celular.','Could not get your location. Turn on location.')} <a href="#" onclick="pqPuCheck(true);return false;">${pqT('Reintentar','Retry')}</a></div></div>`;
   const P=(R.stops||[]).find(s=>s.type==='pickup')||(R.stops||[])[0]||{};
   const eta=new Date(U.eta), lang=window.TL_LANG==='en'?'en-US':'es-US';
   const etaTxt=eta.toLocaleString(lang,{weekday:'short',month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'});
@@ -6648,28 +6676,52 @@ function pqPuHTML(R,busy){
   const tile=(lab,val)=>`<div style="background:var(--bg2,#F3F4F6);border-radius:12px;padding:10px;text-align:center;"><div style="font-size:24px;font-weight:900;line-height:1.1;">${val}</div><div style="font-size:11px;font-weight:800;color:var(--text3);text-transform:uppercase;margin-top:2px;">${lab}</div></div>`;
   return `<div class="card" style="background:var(--card,#fff);border:${lvl==='r'?'2px solid #B91C1C':'1px solid var(--border,#ddd)'};border-radius:16px;padding:14px;margin-bottom:12px;">
     <div style="font-size:16px;font-weight:900;">⏱️ ${pqT('¿Cuánto tardas al pick up?','Time to pick up')}</div>
-    <div style="font-size:13px;color:var(--text3);margin-top:2px;">📍 ${pqT('Estás en','You are in')} <b style="color:var(--text);">${pqEsc(U.from||'—')}</b> → ${pqEsc((P.city||'')+(P.st?', '+P.st:''))}</div>
+    <div style="font-size:13px;color:var(--text3);margin-top:2px;">📍 ${currentUser&&currentUser.role==='admin'?pqEsc(R.byName||R.by||'Driver')+' '+pqT('está en','is in'):pqT('Estás en','You are in')} <b style="color:var(--text);">${pqEsc(U.from||'—')}</b> → ${pqEsc((P.city||'')+(P.st?', '+P.st:''))}</div>
+    <div style="font-size:12px;font-weight:800;margin-top:2px;color:${U.src==='live'&&U.ago>60||U.stale?'#B45309':'#16A34A'};">● ${U.src==='gps'?pqT('GPS del celular, en vivo','Phone GPS, live'):U.src==='live'?pqT('En vivo · hace ','Live · ')+(U.ago<1?pqT('menos de 1 min','under 1 min'):U.ago<60?U.ago+' min':Math.round(U.ago/60)+' h')+(U.ago>60?' · '+pqT('señal vieja','old signal'):''):pqT('Ubicación guardada','Saved location')}${U.moving==='driving'?' · '+pqT('manejando','driving')+(U.speed?' '+Math.round(U.speed)+' mph':''):U.moving==='stopped'?' · '+pqT('parado','stopped'):''}${U.stale?' · '+pqT('no se pudo actualizar','could not refresh'):''}</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;">${tile(pqT('millas vacías','empty miles'),Math.round(U.mi).toLocaleString('en-US'))}${tile(pqT('manejando','driving'),hTxt)}</div>
     <div style="font-size:15px;font-weight:900;margin-top:10px;">🕐 ${pqT('Llegas','You arrive')}: ${pqEsc(etaTxt)}</div>
     ${note?`<div style="font-size:14px;font-weight:800;color:${C};margin-top:4px;">${lvl==='r'?'🔴':'🟢'} ${pqEsc(note)}</div>`:''}
-    <div style="font-size:11px;color:var(--text3);margin-top:6px;">${pqT('Calculado a 55 mph con descanso de 30 min cada 8 h, sin el descanso de 10 h.','At 55 mph with a 30-min break every 8 h, without the 10-h rest.')}${U.at?' · '+new Date(U.at).toLocaleTimeString(lang,{hour:'numeric',minute:'2-digit'}):''}${currentUser&&currentUser.role!=='admin'?` · <a href="#" onclick="pqPuCheck(true);return false;">${pqT('Actualizar','Refresh')}</a>`:''}</div>
+    <div style="font-size:11px;color:var(--text3);margin-top:6px;">${pqT('Calculado a 55 mph con descanso de 30 min cada 8 h, sin el descanso de 10 h.','At 55 mph with a 30-min break every 8 h, without the 10-h rest.')}${U.at?' · '+new Date(U.at).toLocaleTimeString(lang,{hour:'numeric',minute:'2-digit'}):''} · <a href="#" onclick="pqPuCheck(true);return false;">${pqT('Actualizar','Refresh')}</a></div>
   </div>`;
 }
-async function pqPuCheck(force){
-  const box=document.getElementById('pq-pu'); if(!box||_pqMode!=='tql') return; const R=_pq; if(!R){ box.innerHTML=''; return; }
-  const P=R.stops.find(s=>s.type==='pickup')||R.stops[0]||{}, zip=(String(P.zip||'').match(/\d{5}/)||[])[0];
+// Ubicación de una parada: por ZIP, o por "Ciudad, ST" (DAT y C.H. Robinson no ponen ZIP)
+const _pqGeoCache={};
+async function pqGeoStop(s){
+  if(!s) return null; const zip=(String(s.zip||'').match(/\d{5}/)||[])[0];
+  if(zip){ try{ const z=await fetchZip(zip); if(z&&z.lat!=null) return {lat:+z.lat,lon:+z.lon}; }catch(e){} }
+  if(!s.city||!s.st) return null; const k=(s.city+','+s.st).toLowerCase(); if(_pqGeoCache[k]) return _pqGeoCache[k];
+  try{ const r=await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=us&q='+encodeURIComponent(s.city+', '+s.st+', USA')); const j=await r.json();
+    if(j&&j[0]) return (_pqGeoCache[k]={lat:+j[0].lat,lon:+j[0].lon}); }catch(e){}
+  return null; }
+function pqHours(mi){ const d=mi/55; return d+Math.floor(d/8)*0.5; }
+async function pqRoadMi(a,b){
+  try{ const r=await fetch('https://router.project-osrm.org/route/v1/driving/'+a.lon+','+a.lat+';'+b.lon+','+b.lat+'?overview=false'); const j=await r.json(); const d=j.routes&&j.routes[0]&&j.routes[0].distance; if(d) return d/1609.34; }catch(e){}
+  const R=6371, t=x=>x*Math.PI/180, dl=t(b.lat-a.lat), dn=t(b.lon-a.lon), h=Math.sin(dl/2)**2+Math.cos(t(a.lat))*Math.cos(t(b.lat))*Math.sin(dn/2)**2; return 2*R*Math.asin(Math.sqrt(h))*0.621371*1.2; }
+async function pqRevGeo(lat,lon){ try{ const r=await fetch('https://nominatim.openstreetmap.org/reverse?format=json&zoom=10&lat='+lat+'&lon='+lon); const j=await r.json(); const a=j.address||{};
+  return {city:a.city||a.town||a.village||a.county||'',st:((a['ISO3166-2-lvl4']||'').split('-')[1])||''}; }catch(e){ return {}; } }
+// Driver: GPS del celular en vivo. Admin: la ubicación en vivo que manda el celular del driver (colección locations)
+async function pqWhereNow(R){
   const admin=currentUser&&currentUser.role==='admin';
-  if(!zip||admin||typeof deMyPosition!=='function'||(!force&&R.pu&&R.pu.zip===zip&&!R.pu.err)){ box.innerHTML=pqPuHTML(R); return; }
+  if(!admin){ return await new Promise(res=>{ if(!navigator.geolocation) return res(null);
+    navigator.geolocation.getCurrentPosition(p=>res({lat:p.coords.latitude,lon:p.coords.longitude,src:'gps',ago:0}),()=>res(null),{enableHighAccuracy:true,timeout:12000,maximumAge:60000}); }); }
+  const who=R&&R.by; if(!who||!(typeof fbReady!=='undefined'&&fbReady&&db)) return null;
+  try{ const sn=await db.collection('locations').doc(who).get(); if(!sn.exists) return null; const d=sn.data(); const tm=typeof d.time==='number'?d.time:Date.parse(d.time);
+    if(d.lat==null||isNaN(tm)) return null; return {lat:+d.lat,lon:+d.lon,src:'live',ago:Math.round((Date.now()-tm)/60000),moving:d.movingStatus,speed:d.speedMph}; }catch(e){ return null; } }
+async function pqPuCheck(force){
+  const box=document.getElementById('pq-pu'); if(!box) return; const R=_pq; if(!R){ box.innerHTML=''; return; }
+  const P=R.stops.find(s=>s.type==='pickup')||R.stops[0]; if(!P||!P.city){ box.innerHTML=''; return; }
+  const key=(P.zip||P.city+P.st);
+  if(!force&&R.pu&&R.pu.key===key&&!R.pu.err&&(Date.now()-(R.pu.at||0))<10*60000){ box.innerHTML=pqPuHTML(R); return; }
   box.innerHTML=pqPuHTML(R,true);
   try{
-    const [me,pu]=await Promise.all([deMyPosition(),fetchZip(zip)]); if(!me||!pu) throw new Error('loc');
-    const g=await deRevGeo(me.lat,me.lon)||{};
-    const r=await fetchRoadRoute(me.lat,me.lon,pu.lat,pu.lon); const mi=r?r.miles:haversineKm(me.lat,me.lon,pu.lat,pu.lon)*0.621371*1.2;
-    const h=deDriveHours(mi/DE_MPH,11);
+    const [me,pu]=await Promise.all([pqWhereNow(R),pqGeoStop(P)]);
     if(_pq!==R) return;
-    R.pu={zip,from:(g.city||'')+(g.st?', '+g.st:''),mi,h,eta:Date.now()+h*3600000,at:Date.now()};
-    if(!(+R.empty)){ R.empty=Math.round(mi); const e=document.getElementById('pq-empty'); if(e){ e.value=R.empty; pqSync(); } }
-  }catch(e){ if(_pq!==R) return; R.pu={zip,err:true}; }
+    if(!pu) throw new Error('pu');
+    if(!me){ if(R.pu&&!R.pu.err){ R.pu.stale=true; } else R.pu={key,err:true}; }
+    else { const g=await pqRevGeo(me.lat,me.lon); const mi=await pqRoadMi(me,pu); const h=pqHours(mi); if(_pq!==R) return;
+      R.pu={key,zip:P.zip||'',from:(g.city||'')+(g.st?', '+g.st:''),mi,h,eta:Date.now()+h*3600000,at:Date.now(),src:me.src,ago:me.ago,moving:me.moving,speed:me.speed};
+      if(currentUser&&currentUser.role!=='admin'&&!(+R.empty)){ R.empty=Math.round(mi); const e=document.getElementById('pq-empty'); if(e){ e.value=R.empty; pqSync(); } } }
+  }catch(e){ if(_pq!==R) return; if(!R.pu||R.pu.err) R.pu={key,err:true}; }
   const b=document.getElementById('pq-pu'); if(b) b.innerHTML=pqPuHTML(R);
 }
 // ===== COTIZACIONES: el driver guarda la carga + el precio que le mandó al broker → aviso al admin (campanita y Telegram) =====

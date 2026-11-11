@@ -7151,55 +7151,41 @@ function homeMenuHTML(){
   const T=(es,en)=>window.TL_LANG==='en'?en:es;
   const go=id=>`onclick="sidebarNav('${id}')"`;
   const css=`<style>
-    .hm-wrap{margin-bottom:16px;}
-    .hm-tap{transition:transform .12s ease, box-shadow .12s ease;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+    .hm{background:#0B1022;border-radius:22px;padding:16px 14px;margin-bottom:16px;color:#fff;}
+    .hm-tap{transition:transform .12s ease;cursor:pointer;-webkit-tap-highlight-color:transparent;font-family:inherit;color:#fff;text-align:left;}
     .hm-tap:active{transform:scale(.96);}
-    .hm-hero{position:relative;overflow:hidden;border-radius:22px;padding:18px 16px 16px;background:linear-gradient(135deg,#065F46 0%,#16A34A 55%,#22C55E 100%);box-shadow:0 10px 28px rgba(22,163,74,.35);color:#fff;margin-bottom:12px;}
-    .hm-hero:before{content:"";position:absolute;right:-40px;top:-40px;width:170px;height:170px;border-radius:50%;background:rgba(255,255,255,.12);}
-    .hm-hero:after{content:"";position:absolute;right:40px;bottom:-60px;width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,.08);}
-    .hm-kicker{font-size:11px;font-weight:900;letter-spacing:1.4px;text-transform:uppercase;opacity:.85;}
-    .hm-title{font-size:24px;font-weight:900;line-height:1.1;margin-top:2px;}
-    .hm-sub{font-size:13px;opacity:.9;margin-top:4px;}
-    .hm-big{position:relative;z-index:1;display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px;}
-    .hm-btn{border:none;border-radius:18px;padding:14px 12px;text-align:left;background:#fff;color:#064E3B;box-shadow:0 6px 16px rgba(0,0,0,.15);font-family:inherit;}
-    .hm-btn .i{font-size:28px;line-height:1;}
-    .hm-btn .t{font-size:19px;font-weight:900;margin-top:8px;}
-    .hm-btn .d{font-size:11.5px;font-weight:700;color:#047857;margin-top:2px;line-height:1.3;}
-    .hm-pills{position:relative;z-index:1;display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;}
-    .hm-pill{border:1.5px solid rgba(255,255,255,.55);background:rgba(255,255,255,.14);color:#fff;border-radius:14px;padding:10px;font-size:13.5px;font-weight:800;font-family:inherit;display:flex;align-items:center;gap:7px;}
-    .hm-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
-    .hm-cat{border-radius:20px;padding:14px 10px 12px;color:#fff;text-align:center;box-shadow:0 8px 20px rgba(0,0,0,.18);position:relative;overflow:hidden;}
-    .hm-cat:before{content:"";position:absolute;right:-25px;top:-25px;width:80px;height:80px;border-radius:50%;background:rgba(255,255,255,.15);}
-    .hm-cat .i{font-size:30px;line-height:1;position:relative;}
-    .hm-cat .t{font-size:14px;font-weight:900;margin-top:6px;position:relative;}
-    .hm-cat .s{display:flex;flex-direction:column;gap:5px;margin-top:9px;position:relative;}
-    .hm-cat .s button{border:none;border-radius:10px;padding:7px 4px;background:rgba(255,255,255,.2);color:#fff;font-size:11.5px;font-weight:800;font-family:inherit;}
+    .hm-h{font-size:12px;letter-spacing:1.5px;color:#7C8BC4;font-weight:800;margin:2px 2px 10px;text-transform:uppercase;}
+    .hm-big{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+    .hm-card{border-radius:20px;padding:16px;background:#141B38;border:none;position:relative;overflow:hidden;width:100%;}
+    .hm-g{box-shadow:0 0 0 1.5px #22C55E inset,0 10px 30px rgba(34,197,94,.28);}
+    .hm-b{box-shadow:0 0 0 1.5px #38BDF8 inset,0 10px 30px rgba(56,189,248,.28);}
+    .hm-card .i{font-size:30px;line-height:1;}
+    .hm-card .t{font-size:22px;font-weight:900;margin-top:10px;}
+    .hm-card .d{font-size:12px;color:#9AA6D1;margin-top:3px;}
+    .hm-tag{position:absolute;top:12px;right:12px;font-size:10px;font-weight:900;padding:3px 8px;border-radius:20px;background:#22C55E;color:#052e16;}
+    .hm-bar{height:4px;border-radius:4px;margin-top:10px;}
+    .hm-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px;}
+    .hm-sm{border-radius:16px;padding:12px;background:#141B38;border:1px solid #26305C;display:flex;align-items:center;gap:8px;font-weight:800;font-size:14px;width:100%;}
+    .hm-g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
+    .hm-c3{border-radius:16px;padding:14px 8px 10px;background:#141B38;border:1px solid #26305C;text-align:center !important;font-weight:800;font-size:13px;width:100%;}
+    .hm-c3 .i{font-size:26px;margin-bottom:6px;line-height:1;}
   </style>`;
-  const cats=[
-    {ic:'🚚',es:'Mi viaje',en:'My trip',g:'linear-gradient(160deg,#1E3A8A,#3B82F6)',items:[['miviaje','Mi viaje','My trip'],['new','Nuevo','New'],['gas','Diésel','Fuel']]},
-    {ic:'💰',es:'Mi dinero',en:'My money',g:'linear-gradient(160deg,#B45309,#F59E0B)',items:[['misganancias','Ganancias','Earnings']]},
-    {ic:'📁',es:'Mis papeles',en:'My papers',g:'linear-gradient(160deg,#5B21B6,#A855F7)',items:[['misdocs','Documentos','Documents'],['mytruck','Mi camión','My truck']]}];
-  return css+`<div class="hm-wrap" data-no-tr="1">
-    <div class="hm-hero">
-      <div style="position:relative;z-index:1;">
-        <div class="hm-kicker">🤝 ${T('Negociar cargas','Negotiate loads')}</div>
-        <div class="hm-title">${T('Gana más en cada carga','Earn more on every load')}</div>
-        <div class="hm-sub">${T('Sube la captura y la app te dice cuánto pedir.','Upload the screenshot and the app tells you what to ask.')}</div>
-      </div>
-      <div class="hm-big">
-        <button type="button" class="hm-btn hm-tap" ${go('pq')}><div class="i">💵</div><div class="t">Premium</div><div class="d">${T('Cotiza en el Auction','Quote in the Auction')}</div></button>
-        <button type="button" class="hm-btn hm-tap" ${go('tql')}><div class="i">📞</div><div class="t">TQL</div><div class="d">${T('Mándala a la oficina','Send it to the office')}</div></button>
-      </div>
-      <div class="hm-pills">
-        <button type="button" class="hm-pill hm-tap" ${go('eta')}>⏱️ ${T('ETA al pick up','ETA to pick up')}</button>
-        <button type="button" class="hm-pill hm-tap" ${go('dmk')}>📊 ${T('Mi mercado','My market')}</button>
-      </div>
+  return css+`<div class="hm" data-no-tr="1">
+    <div class="hm-h">🤝 ${T('Negociar cargas','Negotiate loads')}</div>
+    <div class="hm-big">
+      <button type="button" class="hm-card hm-g hm-tap" ${go('pq')}><span class="hm-tag">${T('PRINCIPAL','MAIN')}</span><div class="i">💵</div><div class="t">Premium</div><div class="d">${T('Cotiza en el Auction','Quote in the Auction')}</div><div class="hm-bar" style="background:linear-gradient(90deg,#22C55E,transparent);"></div></button>
+      <button type="button" class="hm-card hm-b hm-tap" ${go('tql')}><div class="i">📞</div><div class="t">TQL</div><div class="d">${T('Mándala a la oficina','Send it to the office')}</div><div class="hm-bar" style="background:linear-gradient(90deg,#38BDF8,transparent);"></div></button>
     </div>
-    <div class="hm-grid">${cats.map(c=>`
-      <div class="hm-cat hm-tap" style="background:${c.g};" ${go(c.items[0][0])}>
-        <div class="i">${c.ic}</div><div class="t">${T(c.es,c.en)}</div>
-        <div class="s">${c.items.map(x=>`<button type="button" class="hm-tap" onclick="event.stopPropagation();sidebarNav('${x[0]}')">${T(x[1],x[2])}</button>`).join('')}</div>
-      </div>`).join('')}</div>
+    <div class="hm-row">
+      <button type="button" class="hm-sm hm-tap" ${go('eta')}>⏱️ ${T('ETA al pick up','ETA to pick up')}</button>
+      <button type="button" class="hm-sm hm-tap" ${go('dmk')}>📊 ${T('Mi mercado','My market')}</button>
+    </div>
+    <div class="hm-h" style="margin-top:20px;">${T('Lo demás','Everything else')}</div>
+    <div class="hm-g3">
+      <button type="button" class="hm-c3 hm-tap" ${go('miviaje')}><div class="i">🚚</div>${T('Mi viaje','My trip')}<div class="hm-bar" style="background:#3B82F6;"></div></button>
+      <button type="button" class="hm-c3 hm-tap" ${go('misganancias')}><div class="i">💰</div>${T('Mi dinero','My money')}<div class="hm-bar" style="background:#F59E0B;"></div></button>
+      <button type="button" class="hm-c3 hm-tap" ${go('misdocs')}><div class="i">📁</div>${T('Mis papeles','My papers')}<div class="hm-bar" style="background:#A855F7;"></div></button>
+    </div>
   </div>`;
 }
 function renderHomeMenu(){ if(!currentUser||currentUser.role==='admin') return; let m=document.getElementById('home-menu');

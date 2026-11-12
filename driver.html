@@ -4570,6 +4570,7 @@ async function doLogin(){
   btn.textContent='Entrar';
   if(!found){document.getElementById('l-err').style.display='block';document.getElementById('l-err').textContent='Usuario o contraseña incorrectos.';return;}
   if(!found.role) found.role='driver';
+  if(found.role==='contador'){ setSession(found); location.replace('index.html'); return; }
   if(found.role==='admin'){
     document.getElementById('l-err').style.display='block';
     document.getElementById('l-err').textContent='Esta es la app del driver. Usa la versión web para entrar como admin.';

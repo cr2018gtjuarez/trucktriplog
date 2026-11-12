@@ -289,6 +289,7 @@
     .role-badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700;}
     .role-badge.admin{background:var(--accent);color:#fff;}
     .role-badge.driver{background:var(--accent-bg);color:var(--accent);border:1px solid #1e3a6e;}
+    .role-badge.contador{background:#ECFDF5;color:#047857;border:1px solid #6EE7B7;}
 
     /* ── FILTERS ── */
     .filter-bar{background:var(--card);border:1px solid var(--border2);border-radius:13px;padding:1rem;margin-bottom:12px;}
@@ -2338,6 +2339,15 @@ label.dead-lock-lbl{color:#B91C1C!important;font-weight:800;}
     </div>
 
     <div id="reportes-hub-cards" style="display:flex;flex-direction:column;gap:12px;">
+      <div class="card" style="cursor:pointer;display:flex;align-items:center;gap:14px;transition:all .2s;border:1.5px solid var(--accent);" onclick="sidebarNav('contabilidad')">
+        <div style="width:48px;height:48px;border-radius:8px;background:var(--accent-bg);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;">📚</div>
+        <div style="flex:1;">
+          <div style="font-size:14px;font-weight:700;color:var(--text);">Libros para el contador</div>
+          <div style="font-size:12px;color:var(--text3);margin-top:2px;">Cargas con RC, gastos con recibo y reparto entre socios</div>
+        </div>
+        <div style="font-size:20px;color:var(--text3);">›</div>
+      </div>
+
       <div class="card" style="cursor:pointer;display:flex;align-items:center;gap:14px;transition:all .2s;border:1.5px solid var(--accent);" onclick="sidebarNav('impuestos')">
         <div style="width:48px;height:48px;border-radius:8px;background:var(--accent-bg);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;">🧾</div>
         <div style="flex:1;">
@@ -2420,6 +2430,32 @@ label.dead-lock-lbl{color:#B91C1C!important;font-weight:800;}
       </div>
       <div id="tx-ifta"></div>
     </div>
+  </div>
+
+
+  <!-- CONTABILIDAD: LIBROS PARA EL CONTADOR (solo lectura) -->
+  <div class="page" id="page-contabilidad">
+    <button class="btn-sm ct-admin-only" onclick="sidebarNav('reportes')" style="margin-bottom:12px;">&#x2190; Volver a Reportes</button>
+    <div class="card" style="margin-bottom:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+        <div>
+          <div style="font-size:16px;font-weight:800;color:var(--text);">📚 Libros de la compañía</div>
+          <div style="font-size:12px;color:var(--text3);margin-top:2px;">Cargas, gastos con recibo y reparto entre socios</div>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+          <select id="ct-year" onchange="renderContabilidad()" style="padding:8px 10px;border-radius:10px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-weight:700;"></select>
+          <select id="ct-month" onchange="renderContabilidad()" style="padding:8px 10px;border-radius:10px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-weight:700;">
+            <option value="">Todo el año</option><option value="01">Enero</option><option value="02">Febrero</option><option value="03">Marzo</option><option value="04">Abril</option><option value="05">Mayo</option><option value="06">Junio</option><option value="07">Julio</option><option value="08">Agosto</option><option value="09">Septiembre</option><option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option>
+          </select>
+        </div>
+      </div>
+      <div id="ct-tabs" style="display:flex;gap:6px;margin-top:12px;flex-wrap:wrap;">
+        <button class="btn-sm ct-tab" data-t="cargas" onclick="ctTab('cargas')">🚚 Cargas</button>
+        <button class="btn-sm ct-tab" data-t="gastos" onclick="ctTab('gastos')">🧾 Gastos</button>
+        <button class="btn-sm ct-tab" data-t="socios" onclick="ctTab('socios')">🤝 Socios</button>
+      </div>
+    </div>
+    <div class="card" id="ct-body"></div>
   </div>
 
   <!-- BROKER / DISPATCH REPORT -->
@@ -3099,7 +3135,7 @@ label.dead-lock-lbl{color:#B91C1C!important;font-weight:800;}
       </div>
       <div class="g2" style="margin-bottom:10px;">
         <div class="field"><label>Teléfono</label><input type="text" id="nu-phone" placeholder="(000)000-0000" maxlength="13" oninput="fmtPhone(this)"/></div>
-        <div class="field"><label>Rol</label><select id="nu-role"><option value="driver">Driver</option><option value="dispatch">Dispatch (solo ETA)</option><option value="admin">Admin</option></select></div>
+        <div class="field"><label>Rol</label><select id="nu-role"><option value="driver">Driver</option><option value="dispatch">Dispatch (solo ETA)</option><option value="contador">Contador (solo libros, sin editar)</option><option value="admin">Admin</option></select></div>
       </div>
       <div class="g3">
         <div class="field"><label>Usuario (login)</label><input type="text" id="nu-user" placeholder="Ej. juan01"/></div>
@@ -4869,7 +4905,7 @@ let _imagesCache = {}; // cache de imágenes en memoria
 
 function rerenderTripsPage(){
   const id=_currentSidebarId;
-  const map={home:'renderHome',log:'renderLog',summary:'renderSummary',pagos:'renderPagos',business:'renderBusiness',miviaje:'renderMiViaje',misganancias:'renderMisGanancias',reporte:'renderReporte',brokerreport:'renderBrokerReport',brokernamereport:'renderBrokerNameReport',impuestos:'renderImpuestos',dispatcherpay:'renderDispatcherPay',mercado:'renderMercado',dashboard:'renderWeekDash',balance:'renderBalance',semana:'renderSemana',gastos:'renderGastosReport'};
+  const map={home:'renderHome',log:'renderLog',summary:'renderSummary',pagos:'renderPagos',business:'renderBusiness',miviaje:'renderMiViaje',misganancias:'renderMisGanancias',reporte:'renderReporte',brokerreport:'renderBrokerReport',brokernamereport:'renderBrokerNameReport',impuestos:'renderImpuestos',contabilidad:'renderContabilidad',dispatcherpay:'renderDispatcherPay',mercado:'renderMercado',dashboard:'renderWeekDash',balance:'renderBalance',semana:'renderSemana',gastos:'renderGastosReport'};
   try{ if(map[id] && typeof window[map[id]]==='function') window[map[id]](); }catch(e){ console.warn(e); }
 }
 function startRealtimeSync(){
@@ -5314,7 +5350,7 @@ function startApp(user){
   document.getElementById('login-screen').style.display='none';
   document.getElementById('app-screen').style.display='block';
   document.getElementById('hdr-name').textContent=user.name;
-  document.getElementById('hdr-role').textContent=user.role==='admin'?'Administrador':user.role==='dispatch'?'Dispatch':'Driver';
+  document.getElementById('hdr-role').textContent=user.role==='admin'?'Administrador':user.role==='dispatch'?'Dispatch':user.role==='contador'?'Contador':'Driver';
   const av=document.getElementById('hdr-avatar');
   av.textContent=(user.name||'U').charAt(0).toUpperCase();
   av.className='user-avatar '+(user.role==='admin'?'admin':'driver');
@@ -5323,7 +5359,7 @@ function startApp(user){
 
   // Build sidebar
   document.getElementById('sb-name').textContent = user.name||'Usuario';
-  document.getElementById('sb-role').textContent = user.role==='admin'?'Administrador':user.role==='dispatch'?'Dispatch':'Driver';
+  document.getElementById('sb-role').textContent = user.role==='admin'?'Administrador':user.role==='dispatch'?'Dispatch':user.role==='contador'?'Contador':'Driver';
   document.getElementById('sb-avatar').textContent = (user.name||'U').charAt(0).toUpperCase();
   _currentSidebarId = 'home';
   buildSidebar(user.role);
@@ -5354,6 +5390,8 @@ function startApp(user){
 
   // Dispatch: entra directo al ETA (solo ve eso)
   if(user.role === 'dispatch' || ETA_APP){ setTimeout(()=>sidebarNav('eta'),60); }
+  // Contador: entra directo a los libros (solo lectura)
+  if(user.role === 'contador'){ setTimeout(()=>sidebarNav('contabilidad'),60); }
 
   // Show tutorial for drivers on first login
   if(user.role === 'driver' && !localStorage.getItem(TUTORIAL_KEY)){
@@ -5388,7 +5426,7 @@ function renderUsers(){
   el.innerHTML=users.map(u=>`
     <div class="user-list-item">
       <div style="flex:1;min-width:0;">
-        <div class="user-list-name">${u.name||'Sin nombre'} &nbsp;<span class="role-badge ${u.role||'driver'}">${u.role==='admin'?'Admin':u.role==='dispatch'?'Dispatch':'Driver'}</span></div>
+        <div class="user-list-name">${u.name||'Sin nombre'} &nbsp;<span class="role-badge ${u.role||'driver'}">${u.role==='admin'?'Admin':u.role==='dispatch'?'Dispatch':u.role==='contador'?'Contador':'Driver'}</span></div>
         <div class="user-list-role">@${u.username||'—'}${u.phone?' &nbsp;·&nbsp; 📞 '+u.phone:''}</div>
         ${u.firstName||u.lastName?`<div style="font-size:11px;color:var(--text2);margin-top:2px;">👤 ${[u.firstName,u.lastName].filter(Boolean).join(' ')}</div>`:''}
         ${u.mpg||u.dieselPrice||u.payPct||u.truckId!=null?`<div style="display:flex;gap:8px;margin-top:5px;flex-wrap:wrap;">
@@ -6112,7 +6150,7 @@ function etaChips(){
 function etaPickDrv(id){
   _etaDrv=String(id||''); etaChips();
   if(_etaLast) etaPaint(); else etaPaintFleet();
-  try{ const sel=document.getElementById('dl-driver'); if(sel){ dlFillSel(); const u=_etaDrv?getUsers().find(x=>x.role!=='admin'&&x.role!=='dispatch'&&String(x.truckId)===_etaDrv):null; sel.value=u?u.username:''; dlRun(); } }catch(e){}
+  try{ const sel=document.getElementById('dl-driver'); if(sel){ dlFillSel(); const u=_etaDrv?getUsers().find(x=>x.role!=='admin'&&x.role!=='dispatch'&&x.role!=='contador'&&String(x.truckId)===_etaDrv):null; sel.value=u?u.username:''; dlRun(); } }catch(e){}
 }
 
 // Simula el manejo: 30 min de descanso cada 8 h manejando. NO se cuenta el descanso de 10 h (así lo pidió Leonardo)
@@ -6273,7 +6311,7 @@ async function etaLoadFleet(){
   if(!_etaFleet) res.innerHTML='<div style="font-size:13px;color:var(--text3);padding:6px 0;">⏳ '+TR('Buscando la ubicación de cada camión…','Locating each truck…')+'</div>';
   const trips=loadTrips(), trucks=loadTrucks()||[], users=getUsers(), live=await etaLiveLocations(), now=Date.now(); const rows=[];
   for(const tr of trucks){
-    const drivers=users.filter(u=>u.role!=='admin'&&u.role!=='dispatch'&&String(u.truckId)===String(tr.id));
+    const drivers=users.filter(u=>u.role!=='admin'&&u.role!=='dispatch'&&u.role!=='contador'&&String(u.truckId)===String(tr.id));
     const mine=trips.filter(t=>tripTruckId(t)===String(tr.id));
     const active=mine.filter(t=>t.tripStatus==='active').sort((a,b)=>mlTripTime(b)-mlTripTime(a))[0]||null;
     const lastDone=lastDoneTripOfTruck(tr.id);
@@ -6313,7 +6351,7 @@ async function etaCalc(target){
   const trips=loadTrips(), trucks=loadTrucks()||[], users=getUsers(), live=await etaLiveLocations(), now=Date.now();
   const rows=[];
   for(const tr of trucks){
-    const drivers=users.filter(u=>u.role!=='admin'&&u.role!=='dispatch'&&String(u.truckId)===String(tr.id));
+    const drivers=users.filter(u=>u.role!=='admin'&&u.role!=='dispatch'&&u.role!=='contador'&&String(u.truckId)===String(tr.id));
     const mine=trips.filter(t=>tripTruckId(t)===String(tr.id));
     const active=mine.filter(t=>t.tripStatus==='active').sort((a,b)=>mlTripTime(b)-mlTripTime(a))[0]||null;
     const sched=mine.filter(t=>t.tripStatus==='scheduled').sort((a,b)=>String(a.date||'').localeCompare(String(b.date||'')));
@@ -7050,7 +7088,7 @@ function ddGroups(u){ return u===DD_CO?['c']:ddIsTruck(u)?['t']:['p','s']; }
 let _ddSel='', _ddData={};
 function ddPeople(){
   const out=[{username:DD_CO,name:'🏢 YENAVI FREIGHT LLC (compañía)'}]; const seen={};
-  getUsers().filter(u=>u.role!=='admin'&&u.role!=='dispatch').forEach(u=>{ seen[u.username]=1; out.push({username:u.username,name:(u.firstName&&u.lastName)?u.firstName+' '+u.lastName:(u.name||u.username)}); });
+  getUsers().filter(u=>u.role!=='admin'&&u.role!=='dispatch'&&u.role!=='contador').forEach(u=>{ seen[u.username]=1; out.push({username:u.username,name:(u.firstName&&u.lastName)?u.firstName+' '+u.lastName:(u.name||u.username)}); });
   // Leonardo maneja también: su carpeta de driver
   const nm=(currentUser&&(currentUser.firstName||currentUser.name))||'Leonardo'; const me=String(nm).split(' ')[0].toLowerCase().normalize('NFD').replace(/[^a-z0-9]/g,'')||'leonardo';
   (loadTrucks()||[]).forEach(t=>out.push({username:'truck:'+t.id,name:'🚚 '+t.name+(t.plate?' · '+t.plate:'')}));
@@ -7159,7 +7197,7 @@ async function renderAdminDocs(force){
   const esc=x=>String(x==null?'':x).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   const cell=(it,lbl)=>{ const s=st(it); const f=(it&&it.files||[]).find(x=>x.link); const rd=it&&it.read?Object.keys(it.read).filter(k=>k!=='at').map(k=>k.replace('_',' ')+': '+it.read[k]).join(' · '):'';
     return `<div style="display:flex;justify-content:space-between;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px;"><span>${lbl}${rd?`<div style="font-size:10px;color:var(--text3);">${esc(rd)}</div>`:''}</span><span style="white-space:nowrap;"><b style="color:${s.c};">${s.k==='none'?'⚠️ Falta':esc(s.t)}</b>${f?` <a href="${esc(f.link)}" target="_blank" style="font-size:11px;">ver</a>`:''}</span></div>`; };
-  const users=getUsers().filter(u=>u.role!=='admin'&&u.role!=='dispatch'), trucks=loadTrucks()||[];
+  const users=getUsers().filter(u=>u.role!=='admin'&&u.role!=='dispatch'&&u.role!=='contador'), trucks=loadTrucks()||[];
   let bad=0, soon=0; const blocks=[];
   users.forEach(u=>{ const D=(_adocs['drv_'+u.username]||{}).items||{}; ['cdl','medical'].forEach(t=>{ const k=st(D[t]).k; if(k==='exp'||k==='none') bad++; else if(k==='soon') soon++; });
     blocks.push(`<div style="border:1px solid var(--border);border-radius:10px;padding:8px 10px;"><div style="font-size:13px;font-weight:800;">👤 ${esc(u.firstName&&u.lastName?u.firstName+' '+u.lastName:(u.name||u.username))}</div>${cell(D.cdl,ADOC.cdl)}${cell(D.medical,ADOC.medical)}</div>`); });
@@ -7198,7 +7236,7 @@ async function dlRevGeo(lat,lon){
   try{ const r=await fetch('https://nominatim.openstreetmap.org/reverse?format=json&zoom=16&addressdetails=1&lat='+lat+'&lon='+lon); if(!r.ok) return null; const j=await r.json(); const a=j.address||{};
     const o={city:a.city||a.town||a.village||a.hamlet||a.county||'', st:((a['ISO3166-2-lvl4']||'').split('-')[1]||''), zip:String(a.postcode||'').slice(0,5)}; _dlGeo[k]=o; return o; }catch(e){ return null; }
 }
-function dlDrivers(){ return getUsers().filter(u=>u.role!=='admin'&&u.role!=='dispatch').map(u=>({u,label:(u.firstName&&u.lastName?u.firstName+' '+u.lastName:(u.name||u.username))})).sort((a,b)=>a.label.localeCompare(b.label)); }
+function dlDrivers(){ return getUsers().filter(u=>u.role!=='admin'&&u.role!=='dispatch'&&u.role!=='contador').map(u=>({u,label:(u.firstName&&u.lastName?u.firstName+' '+u.lastName:(u.name||u.username))})).sort((a,b)=>a.label.localeCompare(b.label)); }
 function dlFillSel(){
   const sel=document.getElementById('dl-driver'); if(!sel) return; const keep=sel.value; const trucks=loadTrucks()||[];
   sel.innerHTML='<option value="">'+TR('— Elige un driver —','— Pick a driver —')+'</option>'+dlDrivers().map(x=>{ const tk=trucks.find(t=>String(t.id)===String(x.u.truckId)); return '<option value="'+String(x.u.username).replace(/"/g,'&quot;')+'">'+x.label.replace(/</g,'&lt;')+(tk?' · '+tk.name:'')+'</option>'; }).join('');
@@ -12097,7 +12135,7 @@ function renderAdminReport(){
   const pendingDispatch=trips.filter(t=>t.profitSet && (t.dispatchPayStatus||'pending')!=='paid' && (t.fee||0)>0);
   const pendingDriver=trips.filter(t=>t.profitSet && t.driverPayStatus && t.driverPayStatus!=='paid');
   const activeTrips=trips.filter(t=>t.tripStatus==='active');
-  const overdueInsp=getUsers().filter(u=>u.role!=='admin'&&u.role!=='dispatch').filter(u=>{ const l=getLastInspection(u.username); return (l?daysSince(l.date):Infinity)>7; });
+  const overdueInsp=getUsers().filter(u=>u.role!=='admin'&&u.role!=='dispatch'&&u.role!=='contador').filter(u=>{ const l=getLastInspection(u.username); return (l?daysSince(l.date):Infinity)>7; });
   const oilTrucks=loadTrucks().filter(t=>getOilChangeStatus(t).status!=='ok');
   const sumF=(a,f)=>a.reduce((x,t)=>x+(parseFloat(f(t))||0),0);
   const items=[];
@@ -15245,7 +15283,7 @@ function applyLang(){
   const logoutBtn=document.getElementById('btn-logout');
   if(logoutBtn)logoutBtn.textContent=t('logout');
   const hdrRole=document.getElementById('hdr-role');
-  if(hdrRole&&currentUser)hdrRole.textContent=currentUser.role==='admin'?t('roleAdmin'):t('roleDriver');
+  if(hdrRole&&currentUser)hdrRole.textContent=currentUser.role==='admin'?t('roleAdmin'):currentUser.role==='contador'?(window.TL_LANG==='en'?'Accountant':'Contador'):currentUser.role==='dispatch'?'Dispatch':t('roleDriver');
 
   // rebuild tabs with new language
   if(currentUser){
@@ -17913,7 +17951,7 @@ async function autoBackupTrips(){
 }
 function matchTripUser(name){
   const n=(name||'').trim().toLowerCase(); if(!n) return null;
-  const us=getUsers().filter(u=>u.role!=='admin'&&u.role!=='dispatch');
+  const us=getUsers().filter(u=>u.role!=='admin'&&u.role!=='dispatch'&&u.role!=='contador');
   const full=u=>((u.firstName&&u.lastName)?(u.firstName+' '+u.lastName):(u.name||'')).trim();
   return us.find(u=>(u.username||'').toLowerCase()===n || full(u).toLowerCase()===n || (u.name||'').toLowerCase()===n)
       || us.find(u=>{ const f=n.split(' ')[0]; return f.length>2 && (full(u).toLowerCase().split(' ')[0]===f || (u.username||'').toLowerCase()===f); })
@@ -19041,6 +19079,7 @@ const DRIVER_SIDEBAR_ITEMS = [
 // ===== BARRA DE ABAJO (celular): lo más usado a un toque, y "Menú" abre el menú completo =====
 function bottomNavItems(role){
   if(role==='dispatch'||ETA_APP) return ETA_APP_MENU;
+  if(role==='contador') return CT_MENU;
   return role==='admin'
     ? [{id:'home',icon:'🏠',es:'Inicio',en:'Home'},{id:'new',icon:'➕',es:'Nuevo',en:'New'},{id:'entransito',icon:'🚚',es:'En Tránsito',en:'In transit'},{id:'log',icon:'📋',es:'Historial',en:'History'}]
     : [{id:'home',icon:'🏠',es:'Inicio',en:'Home'},{id:'miviaje',icon:'🚚',es:'Mi Viaje',en:'My trip'},{id:'misganancias',icon:'💰',es:'Ganancias',en:'Earnings'},{id:'gas',icon:'⛽',es:'Gasolineras',en:'Fuel'}];
@@ -19059,7 +19098,7 @@ function markBottomNav(id){ document.querySelectorAll('#bottom-nav .bn-item[data
 function hideBottomNav(){ const b=document.getElementById('bottom-nav'); if(b) b.classList.remove('on'); document.body.classList.remove('has-bottom-nav'); }
 
 function buildSidebar(role){
-  const items = (role==='dispatch'||ETA_APP) ? ETA_APP_MENU : role==='admin' ? ADMIN_SIDEBAR_ITEMS : DRIVER_SIDEBAR_ITEMS;
+  const items = (role==='dispatch'||ETA_APP) ? ETA_APP_MENU : role==='contador' ? CT_MENU : role==='admin' ? ADMIN_SIDEBAR_ITEMS : DRIVER_SIDEBAR_ITEMS;
   const nav = document.getElementById('sidebar-nav');
   let lastSection = null;
   nav.innerHTML = items.map(item=>{
@@ -19087,6 +19126,7 @@ function buildSidebar(role){
 
 function sidebarNav(id){
   if(currentUser&&etaOnlyMode()&&!ETA_APP_PAGES.includes(id)) id='eta';
+  if(isContador()&&!CT_PAGES.includes(id)) id='contabilidad';
   _currentSidebarId = id;
   try{ markBottomNav(id); window.scrollTo(0,0); }catch(e){}
   updateDriverAlertStrip();
@@ -19123,6 +19163,7 @@ function sidebarNav(id){
   if(id==='eta'){ if(!currentUser||(currentUser.role!=='admin'&&currentUser.role!=='dispatch')) return sidebarNav('home'); renderEtaPage(); setTimeout(etaShotMount,50); }
   if(id==='brokerreport') renderBrokerReport();
   if(id==='impuestos') renderImpuestos();
+  if(id==='contabilidad') renderContabilidad();
   if(id==='brokernamereport') renderBrokerNameReport();
   if(id==='dispatcherpay') renderDispatcherPay();
   if(id==='mercado') renderMercado();
@@ -19406,7 +19447,8 @@ function txPerDiem(year){
 }
 
 function renderImpuestos(){
-  if(!currentUser||currentUser.role!=='admin'){ sidebarNav('home'); return; }
+  if(!ctCanSee()){ sidebarNav('home'); return; }
+  { const bb=document.querySelector('#page-impuestos > button.btn-sm'); if(bb) bb.style.display=isContador()?'none':''; }
   const sel=document.getElementById('tx-year');
   const years=[...new Set(loadTrips().map(t=>String(txTripDay(t)).slice(0,4)).filter(y=>/^\d{4}$/.test(y)))].sort().reverse();
   const cy=String(new Date().getFullYear()); if(!years.includes(cy)) years.unshift(cy);
@@ -19565,6 +19607,101 @@ function txExportCSV(){
   C.done.forEach(t=>R.push(['',txTripDay(t),t.rc||'',t.brokerName||t.broker||'',t.driverName||'',[t.city1,t.state1].filter(Boolean).join(', '),[t.city2,t.state2].filter(Boolean).join(', '),(tripDistance(t).mi||0),txNum(t.loadVal).toFixed(2),txNum(t.totalCost).toFixed(2),txNum(t.driver).toFixed(2),txNum(t.fee).toFixed(2),txNum(t.factoringFee).toFixed(2),txNum(t.extrasTotal).toFixed(2),t.payStatus==='paid'?'Sí':'No']));
   const csv='﻿'+R.map(r=>r.map(v=>`"${String(v==null?'':v).replace(/"/g,'""')}"`).join(',')).join('\n');
   const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'})); a.download='impuestos-'+year+'-YENAVI.csv'; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },1000);
+}
+
+</script>
+<script>
+// ===== LIBROS PARA EL CONTADOR (rol "contador": solo lectura) =====
+const CT_PAGES=['contabilidad','impuestos'];
+const CT_MENU=[{id:'contabilidad',icon:'📚',label:'Libros',es:'Libros',en:'Books'},{id:'impuestos',icon:'🧾',label:'Reporte de impuestos',es:'Impuestos',en:'Taxes'}];
+let _ctTab='cargas';
+function isContador(){ return typeof currentUser!=='undefined'&&currentUser&&currentUser.role==='contador'; }
+function ctCanSee(){ return currentUser&&(currentUser.role==='admin'||currentUser.role==='contador'); }
+function ctE(v){ return txE(v); }
+function ctLink(url,txt){ return url?`<a href="${ctE(url)}" target="_blank" rel="noopener" style="color:var(--accent);font-weight:700;white-space:nowrap;">${txt}</a>`:'<span style="color:var(--text3);">—</span>'; }
+function ctPeriod(){ const y=(document.getElementById('ct-year')||{}).value||String(new Date().getFullYear()); const m=(document.getElementById('ct-month')||{}).value||''; return {y,m,pref:m?y+'-'+m:y}; }
+function ctIn(d,p){ return String(d||'').startsWith(p.pref); }
+
+function ctCargas(p){
+  return loadTrips().filter(t=>t.tripStatus==='completed'&&ctIn(txTripDay(t),p)).sort((a,b)=>String(txTripDay(b)).localeCompare(String(txTripDay(a))));
+}
+function ctGastos(p){
+  const out=[]; const trucks=loadTrucks(); const tn=id=>{ const t=trucks.find(x=>String(x.id)===String(id)); return t?t.name:''; };
+  loadTrips().forEach(t=>{
+    (t.fuelLoads||[]).forEach(l=>{ const d=l.date||txTripDay(t); if(!ctIn(d,p)) return; const c=txNum(l.cost); if(!c) return;
+      out.push({date:d,type:(l.tipo||l.type)==='def'?'DEF':'Diésel',desc:(l.station||'')+(txNum(l.gal)?' · '+txNum(l.gal).toFixed(1)+' gal':''),who:t.driverName||'',truck:tn(t.truckId),amount:c,link:l.driveLink||null}); });
+    if(t.tripStatus==='completed'&&ctIn(txTripDay(t),p)) (t.extras||[]).forEach(x=>{ const c=txNum(x.monto); if(!c) return; out.push({date:txTripDay(t),type:'Gasto de viaje',desc:[x.tipo,x.desc].filter(Boolean).join(' · ')+' (RC '+(t.rc||'—')+')',who:t.driverName||'',truck:tn(t.truckId),amount:c,link:null}); });
+  });
+  loadMaintenance().filter(m=>ctIn(m.date,p)).forEach(m=>out.push({date:m.date,type:'Mantenimiento',desc:[m.category,m.description,m.vendor].filter(Boolean).join(' · '),who:'',truck:tn(m.truckId),amount:txNum(m.cost),link:m.receiptDriveLink}));
+  loadCompanyExpenses().filter(e=>ctIn(e.date,p)).forEach(e=>out.push({date:e.date,type:e.category||'Otro',desc:e.description||'',who:'',truck:tn(e.truckId),amount:txNum(e.amount),link:e.receiptDriveLink}));
+  loadExtras().filter(e=>ctIn(e.date,p)).forEach(e=>out.push({date:e.date,type:'Extra: '+(e.cat||e.category||''),desc:e.desc||e.description||'',who:'',truck:'',amount:txNum(e.amount),link:e.receiptDriveLink}));
+  return out.sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+}
+function ctSocios(){ const c=(typeof loadCompany==='function'?loadCompany():{})||{}; return Array.isArray(c.socios)&&c.socios.length?c.socios:[{name:'',pct:50},{name:'',pct:50}]; }
+
+function renderContabilidad(){
+  if(!ctCanSee()){ sidebarNav('home'); return; }
+  document.querySelectorAll('#page-contabilidad .ct-admin-only').forEach(b=>b.style.display=isContador()?'none':'');
+  const sel=document.getElementById('ct-year');
+  const years=[...new Set(loadTrips().map(t=>String(txTripDay(t)).slice(0,4)).filter(y=>/^\d{4}$/.test(y)))].sort().reverse();
+  const cy=String(new Date().getFullYear()); if(!years.includes(cy)) years.unshift(cy);
+  const keep=sel.value||cy; sel.innerHTML=years.map(y=>`<option value="${y}">${y}</option>`).join(''); sel.value=years.includes(keep)?keep:cy;
+  document.querySelectorAll('#ct-tabs .ct-tab').forEach(b=>{ const on=b.dataset.t===_ctTab; b.style.background=on?'var(--accent)':''; b.style.color=on?'#fff':''; b.style.borderColor=on?'var(--accent)':''; });
+  document.getElementById('ct-month').style.display=_ctTab==='socios'?'none':'';
+  const p=ctPeriod(), body=document.getElementById('ct-body'), td='padding:7px 8px;border-bottom:1px solid var(--border);';
+  if(_ctTab==='cargas'){
+    const C=ctCargas(p), tot=C.reduce((s,t)=>s+txNum(t.loadVal),0), paid=C.filter(t=>t.payStatus==='paid').reduce((s,t)=>s+txNum(t.loadVal),0), noRc=C.filter(t=>!t.rcDriveFileId).length;
+    body.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+        <div style="font-size:13px;color:var(--text2);"><b>${C.length}</b> cargas · <b style="color:var(--green);">${txM(tot)}</b> · cobrado ${txM(paid)}${noRc?` · <span style="color:var(--red);">${noRc} sin RC</span>`:''}</div>
+        <button class="btn-sm" onclick="ctCSV('cargas')">⬇️ Excel</button></div>`+
+      (!C.length?'<div class="empty">Sin cargas en este periodo.</div>':`<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:12.5px;min-width:560px;">
+        <tr style="color:var(--text3);font-size:11px;text-align:left;"><th style="${td}">Fecha</th><th style="${td}">Ruta</th><th style="${td}">Broker · RC</th><th style="${td}text-align:right;">Monto</th><th style="${td}">Cobrado</th><th style="${td}">Docs</th></tr>
+        ${C.map(t=>`<tr><td style="${td}white-space:nowrap;">${ctE(txTripDay(t))}</td><td style="${td}">${ctE(t.city1||'')}${t.state1?', '+ctE(t.state1):''} → ${ctE(t.city2||'')}${t.state2?', '+ctE(t.state2):''}<div style="font-size:11px;color:var(--text3);">${ctE(t.driverName||'')}</div></td>
+          <td style="${td}">${ctE(t.brokerName||t.broker||'')}<div style="font-size:11px;color:var(--text3);">${t.rc?'#'+ctE(t.rc):'sin número'}</div></td>
+          <td style="${td}text-align:right;font-weight:700;">${txM(txNum(t.loadVal))}</td><td style="${td}">${t.payStatus==='paid'?'<span style="color:var(--green);font-weight:700;">Sí</span>':'<span style="color:var(--red);">No</span>'}</td>
+          <td style="${td}">${ctLink(t.rcDriveLink,'RC')} ${ctLink(t.podDriveLink,'POD')}</td></tr>`).join('')}
+      </table></div>`);
+  } else if(_ctTab==='gastos'){
+    const G=ctGastos(p), tot=G.reduce((s,g)=>s+g.amount,0), noRec=G.filter(g=>!g.link&&g.type!=='Gasto de viaje').length, by={};
+    G.forEach(g=>{ const k=g.type.startsWith('Extra')?'Extras':g.type; by[k]=(by[k]||0)+g.amount; });
+    body.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+        <div style="font-size:13px;color:var(--text2);"><b>${G.length}</b> gastos · <b style="color:var(--red);">${txM(tot)}</b>${noRec?` · <span style="color:#B45309;">${noRec} sin foto de recibo</span>`:''}</div>
+        <button class="btn-sm" onclick="ctCSV('gastos')">⬇️ Excel</button></div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">${Object.entries(by).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<span style="font-size:11.5px;background:var(--bg3);border:1px solid var(--border);border-radius:999px;padding:3px 9px;">${ctE(k)} <b>${txM(v)}</b></span>`).join('')}</div>`+
+      (!G.length?'<div class="empty">Sin gastos en este periodo.</div>':`<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:12.5px;min-width:520px;">
+        <tr style="color:var(--text3);font-size:11px;text-align:left;"><th style="${td}">Fecha</th><th style="${td}">Tipo</th><th style="${td}">Detalle</th><th style="${td}text-align:right;">Monto</th><th style="${td}">Recibo</th></tr>
+        ${G.map(g=>`<tr><td style="${td}white-space:nowrap;">${ctE(g.date)}</td><td style="${td}white-space:nowrap;">${ctE(g.type)}</td><td style="${td}">${ctE(g.desc)}${(g.truck||g.who)?`<div style="font-size:11px;color:var(--text3);">${ctE([g.truck,g.who].filter(Boolean).join(' · '))}</div>`:''}</td><td style="${td}text-align:right;font-weight:700;">${txM(g.amount)}</td><td style="${td}">${ctLink(g.link,'Ver')}</td></tr>`).join('')}
+      </table></div>`);
+  } else {
+    const S=ctSocios(), C=txCompute(p.y), sum=S.reduce((s,x)=>s+txNum(x.pct),0), admin=currentUser.role==='admin';
+    body.innerHTML=`<div style="font-size:13px;color:var(--text2);margin-bottom:10px;line-height:1.5;">Ganancia de ${p.y} antes de impuestos: <b style="color:${C.net>=0?'var(--green)':'var(--red)'};">${txM(C.net)}</b>. Así se reparte entre los socios según su porcentaje (va en el K-1 de cada uno).</div>
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <tr style="color:var(--text3);font-size:11px;text-align:left;"><th style="${td}">Socio</th><th style="${td}text-align:right;">%</th><th style="${td}text-align:right;">Su parte</th></tr>
+        ${S.map((s,i)=>`<tr><td style="${td}">${admin?`<input id="ct-sn-${i}" value="${ctE(s.name)}" placeholder="Nombre del socio ${i+1}" style="width:100%;padding:7px 9px;border:1px solid var(--border);border-radius:8px;background:var(--bg2);color:var(--text);">`:`<b>${ctE(s.name||'Socio '+(i+1))}</b>`}</td>
+          <td style="${td}text-align:right;width:90px;">${admin?`<input id="ct-sp-${i}" type="number" min="0" max="100" step="0.01" value="${txNum(s.pct)}" style="width:70px;padding:7px 6px;border:1px solid var(--border);border-radius:8px;background:var(--bg2);color:var(--text);text-align:right;">`:txNum(s.pct)+'%'}</td>
+          <td style="${td}text-align:right;font-weight:800;">${txM(C.net*txNum(s.pct)/100)}</td></tr>`).join('')}
+      </table>
+      ${Math.abs(sum-100)>0.01?`<div style="font-size:12px;color:var(--red);margin-top:8px;">Los porcentajes suman ${sum}%, deben sumar 100%.</div>`:''}
+      ${admin?`<div style="display:flex;gap:8px;margin-top:10px;"><button class="btn-sm" onclick="ctSaveSocios()">Guardar socios</button></div>`:''}
+      <div style="font-size:11px;color:var(--text3);margin-top:10px;line-height:1.45;">Los porcentajes deben ser los del acuerdo de la LLC (operating agreement). Si un socio cobra un pago fijo por manejar o trabajar, díselo al contador: va aparte en su K-1.</div>`;
+  }
+}
+function ctTab(t){ _ctTab=t; renderContabilidad(); }
+function ctSaveSocios(){
+  if(!currentUser||currentUser.role!=='admin') return;
+  const S=ctSocios().map((s,i)=>({name:String((document.getElementById('ct-sn-'+i)||{}).value||'').trim(),pct:txNum((document.getElementById('ct-sp-'+i)||{}).value)}));
+  const sum=S.reduce((s,x)=>s+x.pct,0);
+  if(Math.abs(sum-100)>0.01){ alertMsg('Los porcentajes deben sumar 100% (ahora suman '+sum+'%).'); return; }
+  saveCompanyData(Object.assign({},loadCompany()||{},{socios:S}));
+  renderContabilidad(); alertMsg('Socios guardados.');
+}
+function alertMsg(m){ try{ if(typeof showToast==='function'){ showToast(m); return; } }catch(e){} const d=document.createElement('div'); d.textContent=m; d.style.cssText='position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#111827;color:#fff;padding:10px 16px;border-radius:10px;font-size:13px;z-index:100000;'; document.body.appendChild(d); setTimeout(()=>d.remove(),2200); }
+function ctCSV(kind){
+  const p=ctPeriod(); let R;
+  if(kind==='cargas') R=[['Fecha','Origen','Destino','Driver','Broker','RC','Monto','Cobrado','Link RC','Link POD']].concat(ctCargas(p).map(t=>[txTripDay(t),[t.city1,t.state1].filter(Boolean).join(', '),[t.city2,t.state2].filter(Boolean).join(', '),t.driverName||'',t.brokerName||t.broker||'',t.rc||'',txNum(t.loadVal).toFixed(2),t.payStatus==='paid'?'Sí':'No',t.rcDriveLink||'',t.podDriveLink||'']));
+  else R=[['Fecha','Tipo','Detalle','Camión','Driver','Monto','Link recibo']].concat(ctGastos(p).map(g=>[g.date,g.type,g.desc,g.truck,g.who,g.amount.toFixed(2),g.link||'']));
+  const csv='﻿'+R.map(r=>r.map(v=>`"${String(v==null?'':v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'})); a.download=kind+'-'+p.pref+'-YENAVI.csv'; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },1000);
 }
 
 </script>

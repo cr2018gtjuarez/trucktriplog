@@ -2480,6 +2480,16 @@ label.dead-lock-lbl{color:#B91C1C!important;font-weight:800;}
     <div class="card" id="bd-body"></div>
   </div>
 
+
+  <!-- AUDITORÍA FMCSA -->
+  <div class="page" id="page-auditoria">
+    <div class="card" style="margin-bottom:12px;">
+      <div style="font-size:16px;font-weight:800;color:var(--text);">🛡️ Lista para la auditoría de FMCSA</div>
+      <div style="font-size:12px;color:var(--text3);margin-top:4px;line-height:1.45;">Lo que te piden en la auditoría de empresa nueva, y qué le falta a la compañía, a cada driver y a cada camión.</div>
+    </div>
+    <div id="aud-body"></div>
+  </div>
+
   <!-- BROKER / DISPATCH REPORT -->
   <div class="page" id="page-brokerreport">
     <button class="btn-sm" onclick="sidebarNav('reportes')" style="margin-bottom:12px;">&#x2190; Volver a Reportes</button>
@@ -7075,6 +7085,10 @@ const DRV_DOCS={
   cdl:{g:'p',es:'Licencia de manejo',kw:/licen[cs]e|licencia|\bcdl\b|driver.?s?\s*lic/i,exp:true},
   medical:{g:'p',es:'Certificado médico DOT',kw:/medic|dot\s*card|med\s*card/i,exp:true},
   mvr:{g:'p',es:'Récord de manejo (MVR)',kw:/driving\s*record|record|mvr/i,exp:false},
+  d_app:{g:'p',es:'Solicitud de empleo (application)',kw:/application|solicitud|employment\s*app/i,exp:false},
+  d_prevemp:{g:'p',es:'Verificación de empleadores anteriores',kw:/previous\s*employ|prior\s*employ|employment\s*verif|verificaci/i,exp:false},
+  d_roadtest:{g:'p',es:'Road test / certificado de road test',kw:/road\s*test/i,exp:false},
+  d_review:{g:'p',es:'Revisión anual del récord',kw:/annual\s*review|revisi[oó]n\s*anual/i,exp:true},
   ssn:{g:'s',es:'Seguro social',kw:/social|ssn|\bss\b/i,exp:false},
   passport:{g:'s',es:'Pasaporte / Green card / permiso de trabajo',kw:/pass?aport|passport|green\s*card|work\s*permit|\bead\b/i,exp:true},
   deposit:{g:'s',es:'Depósito directo / cheque anulado',kw:/deposit|void|cheque|check/i,exp:false},
@@ -7086,6 +7100,9 @@ const DRV_DOCS={
   weight:{g:'c',es:'Ticket de báscula (CAT scale)',kw:/weight|cat\s*scale|scale/i,exp:false},
   ucr:{g:'c',es:'UCR / IFTA / IRP / permisos',kw:/\bucr\b|ifta|\birp\b|permit|permiso/i,exp:true},
   boc3:{g:'c',es:'BOC-3 / Clearinghouse / otros FMCSA',kw:/boc|clearinghouse|fmcsa/i,exp:false},
+  accidents:{g:'c',es:'Registro de accidentes',kw:/accident|accidente/i,exp:false},
+  eld:{g:'c',es:'Logs del ELD exportados',kw:/\beld\b|log\s*book|logs|hos|hours\s*of\s*service/i,exp:false},
+  drugs:{g:'c',es:'Programa de drogas y alcohol (consorcio)',kw:/drug|alcohol|consorti|random/i,exp:false},
   bank:{g:'c',es:'Banco / factoring (cuenta de la compañía)',kw:/bank|banco|factoring|noa|letter\s*of\s*assignment/i,exp:false},
   broker:{g:'c',es:'Contratos con brokers',kw:/agreement|contract|contrato|setup|carrier\s*packet/i,exp:false},
   other:{g:'c',es:'Otros',kw:/$^/,exp:false},
@@ -7093,6 +7110,7 @@ const DRV_DOCS={
   t_dims:{g:'t',es:'Fotos de las medidas (cinta)',kw:/width|height|length|ancho|alto|largo|measure|medida|tape|cinta|door.*(open|height|width)/i,exp:false},
   registration:{g:'t',es:'Registro (cab card)',kw:/regist|registro|cab\s*card/i,exp:true},
   annual:{g:'t',es:'Inspección anual DOT',kw:/annual|inspec/i,exp:true},
+  t_maint:{g:'t',es:'Registro de mantenimiento',kw:/maintenance|mantenimiento|repair|reparaci/i,exp:false},
   t_label:{g:'t',es:'Etiqueta del fabricante (VIN y GVWR)',kw:/label|etiqueta|manufactur|gvwr|sticker/i,exp:false},
   t_scale:{g:'t',es:'Ticket de báscula (CAT scale)',kw:/weight|scale|bascula|báscula/i,exp:false},
   insurance:{g:'t',es:'Seguro del camión (ID card)',kw:/insurance|id\s*card|seguro|coi|certificate/i,exp:true},
@@ -19075,6 +19093,7 @@ const ADMIN_SIDEBAR_ITEMS = [
   {id:'pq',        icon:'💵', label:'Negociar carga', section:'Operaciones'},
   {id:'tql',       icon:'📞', label:'Cargas TQL', section:'Operaciones'},
   {id:'drvdocs',   icon:'📁', label:'Documentos drivers', section:'Operaciones'},
+  {id:'auditoria', icon:'🛡️', label:'Auditoría FMCSA', section:'Operaciones'},
   {id:'log',       icon:'📋', label:'Historial', section:'Operaciones'},
   {id:'ubicacion', icon:'📍', label:'Ubicación', section:'Operaciones'},
   {id:'gastos',    icon:'⛽', label:'Gastos', section:'Finanzas'},
@@ -19187,6 +19206,7 @@ function sidebarNav(id){
   if(id==='impuestos') renderImpuestos();
   if(id==='contabilidad') renderContabilidad();
   if(id==='bulkdocs') renderBulkDocs();
+  if(id==='auditoria') renderAuditoria();
   if(id==='brokernamereport') renderBrokerNameReport();
   if(id==='dispatcherpay') renderDispatcherPay();
   if(id==='mercado') renderMercado();
@@ -19277,6 +19297,7 @@ const PRO_ICONS={
   tql:'<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/>',
   pq:'<path d="M12 2v20"/><path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',
   drvdocs:'<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+  auditoria:'<path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z"/><path d="M9 12l2 2 4-4"/>',
   eta:'<path d="M12 21s-7-6.5-7-12a7 7 0 0 1 14 0c0 5.5-7 12-7 12z"/><path d="M12 6v3.5l2 1.5"/>',
   home:'<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M10 21v-6h4v6"/>',
   dashboard:'<path d="M3 3v18h18"/><path d="M8 17v-5"/><path d="M13 17V8"/><path d="M18 17v-8"/>',
@@ -19850,6 +19871,69 @@ async function bdUpload(){
   renderBulkDocs();
   try{ await processUploadQueue({silent:false,force:true}); }catch(e){ console.warn(e); }
 }
+
+</script>
+<script>
+// ===== LISTA PARA LA AUDITORÍA DE FMCSA (New Entrant Safety Audit) =====
+let _audDocs=null, _audAt=0;
+function audGoDocs(u){ _ddSel=u; sidebarNav('drvdocs'); }
+function audCdlNeeded(){ return (loadTrucks()||[]).some(t=>parseFloat(t.gvwr)>26000); }
+async function renderAuditoria(force){
+  if(!currentUser||currentUser.role!=='admin'){ sidebarNav('home'); return; }
+  const box=document.getElementById('aud-body'); if(!box) return;
+  if(!(typeof fbReady!=='undefined'&&fbReady&&db)){ box.innerHTML='<div class="empty">Necesitas internet para revisar los documentos.</div>'; return; }
+  if(!_audDocs||force||Date.now()-_audAt>60000){ box.innerHTML='<div class="empty">Revisando documentos…</div>'; try{ const sn=await db.collection('docs').get(); _audDocs={}; sn.forEach(d=>{ _audDocs[d.id]=d.data(); }); _audAt=Date.now(); }catch(e){ box.innerHTML='<div class="empty">No se pudieron leer los documentos.</div>'; return; } }
+  const today=rpLocalISO(new Date()), E=txE;
+  const st=(it,needExp)=>{ if(!it||!((it.files||[]).length)) return {k:'none',t:'Falta'};
+    if(!it.exp) return needExp?{k:'nodate',t:'Sin fecha de vencimiento'}:{k:'ok',t:'Listo'};
+    const d=Math.round((Date.parse(it.exp+'T12:00:00')-Date.parse(today+'T12:00:00'))/864e5);
+    return d<0?{k:'exp',t:'Vencido '+fmtDate(it.exp)}:d<=30?{k:'soon',t:'Vence en '+d+' días'}:{k:'ok',t:'Vence '+fmtDate(it.exp)}; };
+  const col={none:'#B91C1C',exp:'#B91C1C',nodate:'#B45309',soon:'#B45309',ok:'#16A34A',na:'#64748B'};
+  const ico={none:'❌',exp:'❌',nodate:'⚠️',soon:'⚠️',ok:'✅',na:'➖'};
+  const cdl=audCdlNeeded(); let total=0, okN=0, fails=0;
+  const row=(lbl,s,auto,u,note)=>{ if(s.k!=='na'){ total++; if(s.k==='ok'||s.k==='soon') okN++; if(auto&&(s.k==='none'||s.k==='exp')) fails++; }
+    return `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px;">
+      <div style="flex:1;min-width:0;"><span>${ico[s.k]}</span> ${lbl}${auto?' <span style="font-size:10px;font-weight:800;color:#B91C1C;border:1px solid #FECACA;border-radius:6px;padding:0 4px;">reprueba</span>':''}${note?`<div style="font-size:11px;color:var(--text3);margin-top:2px;">${note}</div>`:''}</div>
+      <div style="text-align:right;white-space:nowrap;"><div style="font-size:11.5px;font-weight:700;color:${col[s.k]};">${E(s.t)}</div>${u&&s.k!=='ok'&&s.k!=='na'?`<button class="btn-sm" style="margin-top:3px;padding:3px 8px;font-size:11px;" onclick="audGoDocs('${E(u)}')">Subir</button>`:''}</div></div>`; };
+  const card=(title,inner)=>`<div style="border:1px solid var(--border);border-radius:12px;padding:10px 12px;margin-bottom:10px;"><div style="font-size:14px;font-weight:800;margin-bottom:2px;">${title}</div>${inner}</div>`;
+  const C=(_audDocs['company_docs']||{}).items||{};
+  let html='';
+  html+=card('🏢 Compañía',
+    row('Autoridad MC / USDOT',st(C.authority),false,DD_CO)+
+    row('Seguro: certificado (COI) con la cobertura mínima',st(C.coi,true),true,DD_CO,'Operar sin el seguro mínimo es reprobación automática.')+
+    row('BOC-3',st(C.boc3),false,DD_CO)+
+    row('UCR del año',st(C.ucr,true),false,DD_CO)+
+    row('Registro de accidentes (aunque sea en ceros)',st(C.accidents),false,DD_CO)+
+    row('Logs del ELD de los últimos 6 meses (exportados)',st(C.eld),true,DD_CO,'Sin registro de horas en 51% o más de los días revisados = reprueba.')+
+    row('Programa de drogas y alcohol (consorcio, pruebas aleatorias, Clearinghouse)',cdl?st(C.drugs):{k:'na',t:'No aplica (sin CDL)'},true,DD_CO,cdl?'Algún camión pasa de 26,000 lb: los drivers necesitan CDL y entran al programa.':'Solo si algún camión pasa de 26,000 lb (CDL).'));
+  const users=getUsers().filter(u=>u.role!=='admin'&&u.role!=='dispatch'&&u.role!=='contador');
+  users.forEach(u=>{ const D=(_audDocs['drv_'+u.username]||{}).items||{}; const nm=u.firstName&&u.lastName?u.firstName+' '+u.lastName:(u.name||u.username);
+    html+=card('👤 '+E(nm),
+      row(cdl?'CDL vigente':'Licencia de manejo vigente',st(D.cdl,true),cdl,u.username)+
+      row('Certificado médico DOT',st(D.medical,true),true,u.username,'Driver sin medical card vigente = reprueba.')+
+      row('Récord de manejo (MVR) de cada estado',st(D.mvr),false,u.username)+
+      row('Solicitud de empleo firmada',st(D.d_app),false,u.username)+
+      row('Verificación de empleadores anteriores (3 años)',st(D.d_prevemp),false,u.username)+
+      row('Road test o licencia equivalente',st(D.d_roadtest),false,u.username)+
+      row('Revisión anual del récord',st(D.d_review,true),false,u.username)); });
+  (loadTrucks()||[]).forEach(t=>{ const D=(_audDocs['truck_'+t.id]||{}).items||{}; const maint=loadMaintenance().some(m=>String(m.truckId)===String(t.id));
+    const an2=st(D.annual,true);
+    html+=card('🚚 '+E(t.name)+(t.plate?' · '+E(t.plate):''),
+      `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;"><span style="flex:1;">Peso bruto (GVWR) de la etiqueta de la puerta</span><input type="number" value="${E(t.gvwr||'')}" placeholder="lb" onchange="audSetGvwr('${t.id}',this.value)" style="width:90px;padding:5px 6px;border:1px solid var(--border);border-radius:8px;background:var(--bg2);color:var(--text);text-align:right;"> lb</div>`+
+      row('Inspección anual DOT (últimos 12 meses)',an2,true,'truck:'+t.id,'Camión sin inspección periódica = reprueba.')+
+      row('Registro (cab card)',st(D.registration,true),false,'truck:'+t.id)+
+      row('Seguro del camión (ID card)',st(D.insurance,true),false,'truck:'+t.id)+
+      row('Etiqueta del fabricante (VIN y GVWR)',st(D.t_label),false,'truck:'+t.id)+
+      row('Registro de mantenimiento',maint||(D.t_maint&&(D.t_maint.files||[]).length)?{k:'ok',t:maint?'En la app':'Listo'}:{k:'none',t:'Falta'},false,'truck:'+t.id)+
+      (t.gvwr?'':`<div style="font-size:11px;color:#B45309;margin-top:4px;">Escribe el GVWR: si pasa de 26,000 lb el driver necesita CDL y entra el programa de drogas.</div>`)); });
+  const pct=total?Math.round(okN*100/total):0;
+  box.innerHTML=`<div style="border-radius:14px;padding:12px 14px;margin-bottom:12px;background:${fails?'#FEF2F2':'#F0FDF4'};border:1px solid ${fails?'#FECACA':'#BBF7D0'};">
+      <div style="font-size:15px;font-weight:800;color:${fails?'#991B1B':'#166534'};">${fails?`❌ Hoy reprobarías: ${fails} punto${fails!==1?'s':''} de reprobación automática`:'✅ Sin puntos de reprobación automática'}</div>
+      <div style="font-size:12.5px;color:var(--text2);margin-top:3px;">${okN} de ${total} listos (${pct}%). Arregla primero lo que dice <b>reprueba</b>.</div>
+      <div style="height:8px;background:#fff;border-radius:6px;margin-top:8px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:${fails?'#EF4444':'#22C55E'};"></div></div></div>`+html+
+    `<div style="font-size:11px;color:var(--text3);line-height:1.45;margin-top:4px;">La auditoría de empresa nueva (New Entrant) es en línea: subes los documentos en el sistema NEWS de FMCSA. Los documentos se suben en Menú → Documentos; aquí solo se revisa qué falta. <button class="btn-sm" style="padding:3px 8px;font-size:11px;" onclick="renderAuditoria(true)">Actualizar</button></div>`;
+}
+function audSetGvwr(id,v){ const T=loadTrucks(); const t=T.find(x=>String(x.id)===String(id)); if(!t) return; t.gvwr=parseFloat(v)||''; saveTrucks(T); renderAuditoria(); }
 
 </script>
 </body>

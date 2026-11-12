@@ -4828,7 +4828,7 @@ async function writeArchive(archSet){
 function promoteScheduled(trips){
   const promoted=[];
   (trips||[]).forEach(t=>{
-    if(!t||t.tripStatus!=='scheduled') return;
+    if(!t||t.tripStatus!=='scheduled'||t.unassigned) return;
     const prev=t.afterTripId!=null?trips.find(x=>String(x.id)===String(t.afterTripId)):null;
     if(!prev || prev.tripStatus==='completed'){ t.tripStatus='active'; t.startTime=new Date().toISOString(); t.promotedAt=t.startTime; promoted.push(t); }
   });
@@ -8043,7 +8043,9 @@ async function adminStartTrip(){
   const deadMilesSrc = document.getElementById('f-dead-admin')?.dataset.manual==='1' ? 'manual' : 'calculado';
   const mpg = parseFloat(document.getElementById('f-mpg-admin').value)||8;
   const driverSel = document.getElementById('f-driver-select');
-  const driverUsername = driverSel ? driverSel.value : '';
+  const _drvRaw = driverSel ? driverSel.value : '';
+  const unassigned = _drvRaw==='__none__';
+  const driverUsername = unassigned ? '' : _drvRaw;
   const payPct = parseFloat(document.getElementById('f-pay-pct')?.value)||0;
   const broker = (document.getElementById('f-broker-admin').value||'').trim() || 'LA TI SERVICES LLC';
   const brokerFeePct = parseFloat(document.getElementById('f-broker-fee-admin').value);
@@ -8059,22 +8061,22 @@ async function adminStartTrip(){
 
   function showErr(t){ msg.className='msg err'; msg.textContent=t; msg.style.display='block'; }
 
-  if(!driverUsername){ showErr('Selecciona un driver.'); return; }
+  if(!driverUsername && !unassigned){ showErr('Selecciona un driver (o "Sin asignar").'); return; }
   if(zStart && zStart.length!==5){ showErr('El ZIP de origen debe tener 5 dígitos.'); return; }
   if(!z1||z1.length<5){ showErr('Ingresa el ZIP de pick up (5 dígitos).'); return; }
   if(!z2||z2.length<5){ showErr('Ingresa el ZIP de destino (5 dígitos).'); return; }
   { const tv=document.getElementById('f-truck-admin')?.value;
-    if(!tv){ showErr('Selecciona el camión (se usa para las millas muertas).'); return; }
+    if(!tv && !unassigned){ showErr('Selecciona el camión (se usa para las millas muertas).'); return; }
     }
 
-  { const du=getUsers().find(u=>u.username===driverUsername)||{};
+  if(!unassigned){ const du=getUsers().find(u=>u.username===driverUsername)||{};
     const twin=findSimilarTrip({id:'nuevo',driverUser:driverUsername,driverName:(du.firstName&&du.lastName)?du.firstName+' '+du.lastName:(du.name||driverUsername),z1,z2,date});
     if(twin && !confirm('Ya existe un viaje de este chofer con la misma ruta ('+(twin.city1||twin.z1)+' → '+(twin.city2||twin.z2)+', '+fmtDate(tripPickupDate(twin))+', '+(twin.tripStatus==='active'?'en tránsito':'terminado')+').\n\n¿Seguro que es una carga nueva y no la misma?')) return; }
   if(btn){ btn.disabled=true; btn.textContent='⏳ Iniciando...'; }
 
   try{
     const selectedDriver = getUsers().find(u => u.username === driverUsername);
-    const driverName = selectedDriver ? ((selectedDriver.firstName && selectedDriver.lastName) ? `${selectedDriver.firstName} ${selectedDriver.lastName}` : selectedDriver.name) : driverUsername;
+    const driverName = unassigned ? 'Sin asignar' : (selectedDriver ? ((selectedDriver.firstName && selectedDriver.lastName) ? `${selectedDriver.firstName} ${selectedDriver.lastName}` : selectedDriver.name) : driverUsername);
 
     const p1 = ZC[z1] || await fetchZip(z1);
     const p2 = ZC[z2] || await fetchZip(z2);
@@ -8112,7 +8114,7 @@ async function adminStartTrip(){
     if(rcP && rcP.stops.length>2 && rcP.pickup && rcP.delivery && rcP.pickup.zip===z1 && rcP.delivery.zip===z2){
       try{ if(btn) btn.textContent='⏳ '+TR('Calculando ruta con todas las paradas...','Calculating route with all stops...'); const sm=await rcStopsMiles(rcP.stops); if(sm){ routeMiles=sm; } }catch(e){} }
     // Viaje programado
-    const schedAfter=schedSelected();
+    const schedAfter=unassigned?null:schedSelected();
     // Viaje parcial
     const parentTrip=partialParentSelected();
     const isPartial=document.getElementById('f-loadtype-admin')?.value==='partial';
@@ -8185,8 +8187,9 @@ async function adminStartTrip(){
       desvioFuelEst: (function(){ if(!parentTrip||desvioMiles==null) return null; const x=deadFuelCost(desvioMiles, mpg); return x?parseFloat(x.cost.toFixed(2)):null; })(),
       deadFuelEst: (function(){ const x=deadFinal==null?null:deadFuelCost(deadFinal, mpg); return x?parseFloat(x.cost.toFixed(2)):null; })(),
       accessorials: readAcc('f-acc', payPct),
-      tripStatus: schedAfter?'scheduled':'active',
-      startTime: schedAfter?null:new Date().toISOString(),
+      tripStatus: (schedAfter||unassigned)?'scheduled':'active',
+      startTime: (schedAfter||unassigned)?null:new Date().toISOString(),
+      unassigned: unassigned||undefined,
       afterTripId: schedAfter?schedAfter.id:null,
       fuelLoads:[], totalGal:0, totalCost:0,
       payStatus:'unpaid', payNotes:'',
@@ -8205,7 +8208,7 @@ async function adminStartTrip(){
     // Formulario listo para iniciar el siguiente viaje
     adminResetForm();
     msg.className='msg ok';
-    msg.textContent=schedAfter?TR(`✓ Viaje de ${driverName} programado: empieza al terminar su viaje actual`,`✓ ${driverName}'s trip scheduled: starts when the current trip ends`):`✓ Viaje de ${driverName} enviado a En Tránsito`;
+    msg.textContent=unassigned?TR('✓ Viaje guardado SIN driver. Ábrelo en Editar para asignar driver y camión; ahí empieza.','✓ Trip saved WITHOUT a driver. Open it in Edit to assign driver and truck; it starts then.'):schedAfter?TR(`✓ Viaje de ${driverName} programado: empieza al terminar su viaje actual`,`✓ ${driverName}'s trip scheduled: starts when the current trip ends`):`✓ Viaje de ${driverName} enviado a En Tránsito`;
     msg.style.display='block';
     setTimeout(()=>{ msg.style.display='none'; }, 4000);
   }catch(e){
@@ -8999,6 +9002,7 @@ async function saveEditModal(){
     z1:newZ1, z2:newZ2,
     truckId:(function(){ const v=document.getElementById('edit-truck')?.value; return v?parseFloat(v):(t.truckId!=null?t.truckId:null); })(),
     ...(zipChanged?{roadMiles:null,routeMiles:null}:{}),
+    ...((t.unassigned&&driverUsername)?{unassigned:false, tripStatus:'active', startTime:new Date().toISOString()}:{}),
     date:newDate,
     deliveryDate:newDeliveryDate,
     city1:newCity1, state1:newState1,
@@ -11201,7 +11205,7 @@ function populateDriverSelects(){
   const sel = document.getElementById('f-driver-select');
   if(!sel) return;
   const current = sel.value;
-  sel.innerHTML = '<option value="">— Selecciona un driver —</option>';
+  sel.innerHTML = '<option value="">— Selecciona un driver —</option><option value="__none__">📝 Sin asignar (se completa después)</option>';
   drivers.forEach(d => {
     const opt = document.createElement('option');
     opt.value = d.username;

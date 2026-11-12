@@ -2339,6 +2339,15 @@ label.dead-lock-lbl{color:#B91C1C!important;font-weight:800;}
     </div>
 
     <div id="reportes-hub-cards" style="display:flex;flex-direction:column;gap:12px;">
+      <div class="card" style="cursor:pointer;display:flex;align-items:center;gap:14px;transition:all .2s;" onclick="sidebarNav('bulkdocs')">
+        <div style="width:48px;height:48px;border-radius:8px;background:var(--accent-bg);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;">📎</div>
+        <div style="flex:1;">
+          <div style="font-size:14px;font-weight:700;color:var(--text);">Subir BOL, POD y recibos en lote</div>
+          <div style="font-size:12px;color:var(--text3);margin-top:2px;">Muchos archivos a la vez; cada uno va a su viaje</div>
+        </div>
+        <div style="font-size:20px;color:var(--text3);">›</div>
+      </div>
+
       <div class="card" style="cursor:pointer;display:flex;align-items:center;gap:14px;transition:all .2s;border:1.5px solid var(--accent);" onclick="sidebarNav('contabilidad')">
         <div style="width:48px;height:48px;border-radius:8px;background:var(--accent-bg);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;">📚</div>
         <div style="flex:1;">
@@ -2456,6 +2465,19 @@ label.dead-lock-lbl{color:#B91C1C!important;font-weight:800;}
       </div>
     </div>
     <div class="card" id="ct-body"></div>
+  </div>
+
+
+  <!-- SUBIR DOCUMENTOS EN LOTE -->
+  <div class="page" id="page-bulkdocs">
+    <button class="btn-sm" onclick="sidebarNav('reportes')" style="margin-bottom:12px;">&#x2190; Volver a Reportes</button>
+    <div class="card" style="margin-bottom:12px;">
+      <div style="font-size:16px;font-weight:800;color:var(--text);">📎 Subir BOL, POD y recibos en lote</div>
+      <div style="font-size:12px;color:var(--text3);margin-top:4px;line-height:1.45;">Elige varios archivos a la vez. Cada uno se acomoda en su viaje por el nombre (driver y fecha). Antes de subir puedes revisar y cambiar.</div>
+      <label class="btn-primary" style="display:inline-block;width:auto;margin-top:12px;padding:11px 18px;cursor:pointer;">Elegir archivos
+        <input type="file" multiple accept="image/*,application/pdf" style="display:none" onchange="bdPicked(this)"></label>
+    </div>
+    <div class="card" id="bd-body"></div>
   </div>
 
   <!-- BROKER / DISPATCH REPORT -->
@@ -19164,6 +19186,7 @@ function sidebarNav(id){
   if(id==='brokerreport') renderBrokerReport();
   if(id==='impuestos') renderImpuestos();
   if(id==='contabilidad') renderContabilidad();
+  if(id==='bulkdocs') renderBulkDocs();
   if(id==='brokernamereport') renderBrokerNameReport();
   if(id==='dispatcherpay') renderDispatcherPay();
   if(id==='mercado') renderMercado();
@@ -19756,6 +19779,76 @@ function ctCSV(kind){
   else R=[['Fecha','Tipo','Detalle','Camión','Driver','Monto','Link recibo']].concat(ctGastos(p).map(g=>[g.date,g.type,g.desc,g.truck,g.who,g.amount.toFixed(2),g.link||'']));
   const csv='﻿'+R.map(r=>r.map(v=>`"${String(v==null?'':v).replace(/"/g,'""')}"`).join(',')).join('\n');
   const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'})); a.download=kind+'-'+p.pref+'-YENAVI.csv'; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },1000);
+}
+
+</script>
+<script>
+// ===== SUBIR DOCUMENTOS EN LOTE (BOL / POD / recibos de diésel) por nombre de archivo =====
+// Nombres: BOL_<DRIVER>_<YYYY-MM-DD>[_HHMM].pdf|jpg   POD_<DRIVER>_<fecha>...   DIESEL_<DRIVER>_<fecha>[_HHMM]_<monto>.jpg
+let _bdRows=[];
+function bdNorm(s){ return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase(); }
+function bdDays(a,b){ return Math.round((new Date(a+'T12:00:00')-new Date(b+'T12:00:00'))/864e5); }
+function bdTripsOf(key){ const k=bdNorm(key); return loadTrips().filter(t=>bdNorm(t.driverName).includes(k)||bdNorm(t.driverUser)===k); }
+function bdParse(name){
+  const m=String(name).match(/^(BOL|POD|DIESEL)_([A-Za-z]+)_(\d{4}-\d{2}-\d{2})(?:_(\d{4}))?(?:_([\d.]+))?\.(pdf|jpe?g|png|heic)$/i);
+  if(!m) return null; return {kind:m[1].toLowerCase(),drv:m[2],date:m[3],amount:m[5]?parseFloat(m[5]):null};
+}
+function bdGuess(p){
+  const trips=bdTripsOf(p.drv);
+  if(p.kind==='diesel'){
+    const c=[]; trips.forEach(t=>(t.fuelLoads||[]).forEach(l=>{ const d=l.date||t.date; if(!d) return; const dd=Math.abs(bdDays(d,p.date)); if(dd>1) return; const diff=Math.abs((parseFloat(l.cost)||0)-(p.amount||0)); if(p.amount!=null&&diff>1.5) return; c.push({t,l,score:dd+diff}); }));
+    c.sort((a,b)=>a.score-b.score);
+    return {cands:c.map(x=>({tripId:x.t.id,loadId:x.l.loadId,label:(x.l.date||'')+' · $'+(parseFloat(x.l.cost)||0).toFixed(2)+' · '+String(x.l.station||'').slice(0,28)+(x.l.driveFileId?' (ya tiene foto)':''),has:!!x.l.driveFileId})),kind:'diesel'};
+  }
+  const c=trips.map(t=>{ const pu=String(t.date||'').slice(0,10), de=String(t.deliveryDate||t.date||'').slice(0,10); if(!pu) return null;
+    const inside=p.date>=bdAdd(pu,-1)&&p.date<=bdAdd(de,1); if(!inside) return null;
+    const dp=Math.abs(bdDays(p.date,pu)), dd=Math.abs(bdDays(p.date,de)); return {t,dp,dd,score:Math.min(dp,dd)}; }).filter(Boolean).sort((a,b)=>a.score-b.score);
+  const near=trips.filter(t=>t.date&&Math.abs(bdDays(p.date,String(t.date).slice(0,10)))<=5).sort((a,b)=>Math.abs(bdDays(p.date,a.date))-Math.abs(bdDays(p.date,b.date)));
+  let kind=p.kind; if(kind==='bol'&&c[0]&&c[0].dd<c[0].dp&&p.date>=String(c[0].t.deliveryDate||'')) kind='pod';
+  const list=[...c.map(x=>x.t),...near.filter(t=>!c.some(x=>x.t.id===t.id))];
+  return {inside:c.length,cands:list.map(t=>({tripId:t.id,label:(t.date||'')+' → '+(t.deliveryDate||'')+' · '+(t.city1||'')+' → '+(t.city2||'')+(t.rc?' · RC '+t.rc:''),has:{bol:!!t.bolDriveFileId,pod:!!t.podDriveFileId}})),kind};
+}
+function bdAdd(d,n){ const x=new Date(d+'T12:00:00'); x.setDate(x.getDate()+n); return rpLocalISO(x); }
+function renderBulkDocs(){
+  if(!currentUser||currentUser.role!=='admin'){ sidebarNav('home'); return; }
+  const box=document.getElementById('bd-body'); if(!box) return;
+  if(!_bdRows.length){ box.innerHTML='<div class="empty" style="padding:14px;">Elige los archivos (BOL_…, POD_…, DIESEL_…) y te muestro a qué viaje va cada uno antes de subirlo.</div>'; return; }
+  const td='padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:top;';
+  const ok=_bdRows.filter(r=>r.on&&r.sel!=='').length;
+  box.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;"><div style="font-size:13px;color:var(--text2);"><b>${_bdRows.length}</b> archivos · <b>${ok}</b> listos para subir</div><button class="btn-primary" style="width:auto;padding:10px 18px;" onclick="bdUpload()" ${ok?'':'disabled'}>⬆️ Subir ${ok}</button></div>
+  <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:12.5px;min-width:560px;">
+  <tr style="color:var(--text3);font-size:11px;text-align:left;"><th style="${td}"></th><th style="${td}">Archivo</th><th style="${td}">Tipo</th><th style="${td}">Va en</th></tr>
+  ${_bdRows.map((r,i)=>`<tr style="${r.done?'opacity:.55;':''}"><td style="${td}"><input type="checkbox" ${r.on?'checked':''} ${r.done?'disabled':''} onchange="_bdRows[${i}].on=this.checked;renderBulkDocs()"></td>
+    <td style="${td}"><b>${txE(r.file.name)}</b><div style="font-size:11px;color:${r.done?'var(--green)':r.err?'var(--red)':'var(--text3)'};">${r.done?'✓ en la cola de subida':r.err?txE(r.err):(r.p?r.p.date:'nombre no reconocido')}</div></td>
+    <td style="${td}">${r.p&&r.p.kind!=='diesel'?`<select onchange="_bdRows[${i}].kind=this.value;renderBulkDocs()"><option value="bol" ${r.kind==='bol'?'selected':''}>BOL</option><option value="pod" ${r.kind==='pod'?'selected':''}>POD</option></select>`:(r.p?'Recibo diésel':'—')}</td>
+    <td style="${td}">${r.g&&r.g.cands.length?`<select style="max-width:330px;" onchange="_bdRows[${i}].sel=this.value;_bdRows[${i}].on=this.value!=='';renderBulkDocs()"><option value="">— no subir —</option>${r.g.cands.map((c,j)=>`<option value="${j}" ${String(r.sel)===String(j)?'selected':''}>${txE(c.label)}${r.kind!=='diesel'&&c.has&&c.has[r.kind]?' (ya tiene '+r.kind.toUpperCase()+')':''}</option>`).join('')}</select>`:'<span style="color:var(--red);font-size:12px;">No encontré viaje</span>'}</td></tr>`).join('')}
+  </table></div>
+  <div style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.45;">Revisa cada fila: el viaje se escogió por la fecha de la foto y el driver. Si un viaje ya tiene ese documento, el nuevo lo reemplaza.</div>`;
+}
+function bdPicked(input){
+  const fs=[...input.files]; input.value='';
+  _bdRows=fs.map(f=>{ const p=bdParse(f.name); const g=p?bdGuess(p):null; let sel='';
+    if(g&&g.cands.length){ const k=g.kind; const j=g.cands.findIndex(c=>k==='diesel'?!c.has:true); sel=(j>=0&&(k==='diesel'||j<g.inside))?String(j):''; }
+    return {file:f,p,g,kind:g?g.kind:null,sel,on:sel!==''}; });
+  // Si dos archivos caen en el mismo viaje y tipo, el segundo se marca como POD (o se deja para que lo escojas)
+  const used={};
+  _bdRows.forEach(r=>{ if(r.sel===''||!r.g) return; const c=r.g.cands[+r.sel]; let key=c.tripId+':'+r.kind+(c.loadId?':'+c.loadId:'');
+    if(used[key]&&r.kind==='bol'){ r.kind='pod'; key=c.tripId+':pod'; }
+    if(used[key]){ r.sel=''; r.on=false; r.err='Otro archivo ya va a ese viaje; escoge a cuál va este'; return; }
+    used[key]=1; });
+  renderBulkDocs();
+}
+async function bdUpload(){
+  const rows=_bdRows.filter(r=>r.on&&r.sel!==''&&!r.done);
+  for(const r of rows){
+    try{
+      const c=r.g.cands[+r.sel]; const dataUrl=await new Promise((res,rej)=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result); fr.onerror=rej; fr.readAsDataURL(r.file); });
+      const item={tripId:c.tripId,kind:r.kind,dataUrl}; if(r.kind==='diesel') item.loadId=c.loadId; else item.checklist={admin:true};
+      upqAdd(item); r.done=true;
+    }catch(e){ r.err='No se pudo leer: '+(e&&e.message||e); }
+  }
+  renderBulkDocs();
+  try{ await processUploadQueue({silent:false,force:true}); }catch(e){ console.warn(e); }
 }
 
 </script>

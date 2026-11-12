@@ -19632,6 +19632,17 @@ function txSaveBought(remove){
   }
   saveTrucks(T); renderImpuestos(); alertMsg(remove?'Compra quitada.':'Compra guardada.');
 }
+// Una sola vez: registrar la compra del Camión 2 (contrato del 31 jul 2026, International 2018, $20,000)
+function txMigrateTruck2(){
+  try{
+    if(!currentUser||currentUser.role!=='admin') return;
+    const T=loadTrucks(), t=T.find(x=>String(x.id)==='1784253416317'); if(!t||t.purchase) return;
+    t.purchase={date:'2026-07-31',price:20000,down:6000,year:'2018',make:'International',vin:'1HTMMMMNXJH002203',updatedAt:new Date().toISOString()};
+    t.makeModel='2018 INTERNATIONAL';
+    saveTrucks(T);
+  }catch(e){ console.warn('txMigrateTruck2',e); }
+}
+setTimeout(function tryMig(){ if(typeof currentUser!=='undefined'&&currentUser&&loadTrucks().length){ txMigrateTruck2(); } else setTimeout(tryMig,3000); },4000);
 function txExportCSV(){
   const year=txYear(), C=txCompute(year), D=txDrivers(year), P=txPerDiem(year), I=window._txIftaLast;
   const R=[];

@@ -2338,6 +2338,15 @@ label.dead-lock-lbl{color:#B91C1C!important;font-weight:800;}
     </div>
 
     <div id="reportes-hub-cards" style="display:flex;flex-direction:column;gap:12px;">
+      <div class="card" style="cursor:pointer;display:flex;align-items:center;gap:14px;transition:all .2s;border:1.5px solid var(--accent);" onclick="sidebarNav('impuestos')">
+        <div style="width:48px;height:48px;border-radius:8px;background:var(--accent-bg);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;">🧾</div>
+        <div style="flex:1;">
+          <div style="font-size:14px;font-weight:700;color:var(--text);">Reporte de impuestos</div>
+          <div style="font-size:12px;color:var(--text3);margin-top:2px;">Resumen del año, pagos para 1099, per diem y millas IFTA por estado</div>
+        </div>
+        <div style="font-size:20px;color:var(--text3);">›</div>
+      </div>
+
       <div class="card" style="cursor:pointer;display:flex;align-items:center;gap:14px;transition:all .2s;" onclick="sidebarNav('reporte')">
         <div style="width:48px;height:48px;border-radius:8px;background:var(--accent-bg);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6"/></svg></div>
         <div style="flex:1;">
@@ -2364,6 +2373,52 @@ label.dead-lock-lbl{color:#B91C1C!important;font-weight:800;}
         </div>
         <div style="font-size:20px;color:var(--text3);">›</div>
       </div>
+    </div>
+  </div>
+
+
+  <!-- IMPUESTOS: REPORTE ANUAL PARA EL CONTADOR -->
+  <div class="page" id="page-impuestos">
+    <button class="btn-sm" onclick="sidebarNav('reportes')" style="margin-bottom:12px;">&#x2190; Volver a Reportes</button>
+    <div class="card" style="margin-bottom:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+        <div>
+          <div style="font-size:16px;font-weight:800;color:var(--text);">🧾 Reporte de impuestos</div>
+          <div style="font-size:12px;color:var(--text3);margin-top:2px;">Todo el año en un lugar, listo para tu contador</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <select id="tx-year" onchange="renderImpuestos()" style="padding:8px 10px;border-radius:10px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-weight:700;"></select>
+          <button class="btn-sm" onclick="txExportCSV()">⬇️ Descargar (Excel)</button>
+        </div>
+      </div>
+      <div id="tx-alert" style="margin-top:10px;"></div>
+    </div>
+
+    <div class="card" style="margin-bottom:12px;">
+      <div class="card-title">1 · Resumen del año</div>
+      <div id="tx-summary"></div>
+    </div>
+
+    <div class="card" style="margin-bottom:12px;">
+      <div class="card-title">2 · Pagos a drivers (para el 1099)</div>
+      <div id="tx-drivers"></div>
+    </div>
+
+    <div class="card" style="margin-bottom:12px;">
+      <div class="card-title">3 · Per diem (días fuera de casa)</div>
+      <div id="tx-perdiem"></div>
+    </div>
+
+    <div class="card" style="margin-bottom:12px;">
+      <div class="card-title">4 · IFTA · millas y galones por estado</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px;">
+        <div class="field" style="flex:1;min-width:110px;margin:0;"><label>Trimestre</label>
+          <select id="tx-q" onchange="txIftaRender()"><option value="1">Ene – Mar</option><option value="2">Abr – Jun</option><option value="3">Jul – Sep</option><option value="4">Oct – Dic</option></select></div>
+        <div class="field" style="flex:1;min-width:140px;margin:0;"><label>Camión</label>
+          <select id="tx-truck" onchange="txIftaRender()"></select></div>
+        <button class="btn-sm" id="tx-ifta-go" onclick="txIftaCalc()" style="margin-bottom:2px;">Calcular millas</button>
+      </div>
+      <div id="tx-ifta"></div>
     </div>
   </div>
 
@@ -4814,7 +4869,7 @@ let _imagesCache = {}; // cache de imágenes en memoria
 
 function rerenderTripsPage(){
   const id=_currentSidebarId;
-  const map={home:'renderHome',log:'renderLog',summary:'renderSummary',pagos:'renderPagos',business:'renderBusiness',miviaje:'renderMiViaje',misganancias:'renderMisGanancias',reporte:'renderReporte',brokerreport:'renderBrokerReport',brokernamereport:'renderBrokerNameReport',dispatcherpay:'renderDispatcherPay',mercado:'renderMercado',dashboard:'renderWeekDash',balance:'renderBalance',semana:'renderSemana',gastos:'renderGastosReport'};
+  const map={home:'renderHome',log:'renderLog',summary:'renderSummary',pagos:'renderPagos',business:'renderBusiness',miviaje:'renderMiViaje',misganancias:'renderMisGanancias',reporte:'renderReporte',brokerreport:'renderBrokerReport',brokernamereport:'renderBrokerNameReport',impuestos:'renderImpuestos',dispatcherpay:'renderDispatcherPay',mercado:'renderMercado',dashboard:'renderWeekDash',balance:'renderBalance',semana:'renderSemana',gastos:'renderGastosReport'};
   try{ if(map[id] && typeof window[map[id]]==='function') window[map[id]](); }catch(e){ console.warn(e); }
 }
 function startRealtimeSync(){
@@ -19067,6 +19122,7 @@ function sidebarNav(id){
   if(id==='drvdocs'){ if(!currentUser||currentUser.role!=='admin') return sidebarNav('home'); renderDrvDocsPage(); }
   if(id==='eta'){ if(!currentUser||(currentUser.role!=='admin'&&currentUser.role!=='dispatch')) return sidebarNav('home'); renderEtaPage(); setTimeout(etaShotMount,50); }
   if(id==='brokerreport') renderBrokerReport();
+  if(id==='impuestos') renderImpuestos();
   if(id==='brokernamereport') renderBrokerNameReport();
   if(id==='dispatcherpay') renderDispatcherPay();
   if(id==='mercado') renderMercado();
@@ -19280,6 +19336,237 @@ function proIcon(id){ return '<svg viewBox="0 0 24 24" fill="none" stroke="curre
   window.addEventListener('load',()=>setTimeout(showInstall,1500));
   document.addEventListener('click',()=>setTimeout(showInstall,300),{passive:true});
 })();
+</script>
+<script>
+// ===== REPORTE DE IMPUESTOS (anual, para el contador) =====
+const TX_PERDIEM=80, TX_PERDIEM_PCT=0.8, TX_1099_MIN=2000;
+const TX_ST=['AL','AK','AZ','AR','CA','CO','CT','DE','DC','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'];
+function txNum(v){ const n=parseFloat(v); return isFinite(n)?n:0; }
+function txM(v){ return (v<0?'-$':'$')+Math.abs(v||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function txE(v){ return (typeof rpEsc==='function')?rpEsc(v):String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function txYear(){ const s=document.getElementById('tx-year'); return (s&&s.value)||String(new Date().getFullYear()); }
+function txTripDay(t){ try{ return repTripDate(t)||t.date||''; }catch(e){ return t.deliveryDate||t.date||''; } }
+function txDone(year){ return loadTrips().filter(t=>t.tripStatus==='completed' && String(txTripDay(t)).slice(0,4)===year); }
+function txIsOwner(name){ return /administrador|leonardo/i.test(String(name||'')); }
+
+function txCompute(year){
+  const inY=d=>String(d||'').slice(0,4)===year;
+  const done=txDone(year);
+  const sum=(a,f)=>a.reduce((s,x)=>s+txNum(f(x)),0);
+  const cexp=loadCompanyExpenses().filter(e=>inY(e.date));
+  const cat=c=>sum(cexp.filter(e=>(e.category||'Otro')===c),e=>e.amount);
+  const known=['Pago de camión','Seguro','Comida','Hotel','Tollways','Gastos de Oficina','Trámites'];
+  const income=sum(done,t=>t.loadVal);
+  const paid=sum(done.filter(t=>t.payStatus==='paid'),t=>t.loadVal);
+  const rows=[
+    ['Diésel y DEF (recibos de los viajes)', sum(done,t=>t.totalCost)],
+    ['Pago a drivers', sum(done,t=>t.driver)],
+    ['Dispatcher fee', sum(done,t=>t.fee)],
+    ['Factoring fee', sum(done,t=>t.factoringFee)],
+    ['Gastos dentro de los viajes (tolls, lumper, etc.)', sum(done,t=>t.extrasTotal)],
+    ['Gastos extras', sum(loadExtras().filter(e=>inY(e.date)),e=>e.amount)],
+    ['Mantenimiento y reparaciones', sum(loadMaintenance().filter(m=>inY(m.date)),m=>m.cost)],
+    ['Seguro', cat('Seguro')],
+    ['Pagos de camión (financiamiento) *', cat('Pago de camión')],
+    ['Tollways', cat('Tollways')],
+    ['Comida', cat('Comida')],
+    ['Hotel', cat('Hotel')],
+    ['Oficina', cat('Gastos de Oficina')],
+    ['Trámites y permisos', cat('Trámites')],
+    ['Otros', sum(cexp.filter(e=>!known.includes(e.category||'Otro')),e=>e.amount)]
+  ];
+  const expenses=rows.reduce((s,r)=>s+r[1],0);
+  return {done,income,paid,unpaid:income-paid,rows,expenses,net:income-expenses};
+}
+
+function txDrivers(year){
+  const done=txDone(year), by={};
+  done.forEach(t=>{ const n=t.driverName||'(sin driver)'; const d=by[n]||(by[n]={name:n,trips:0,pay:0,bono:0,reemb:0,adel:0,desc:0}); d.trips++; d.pay+=txNum(t.driver); });
+  (typeof loadAdj==='function'?loadAdj():[]).filter(a=>String(a.date||'').slice(0,4)===year).forEach(a=>{
+    const n=a.driverName||'(sin driver)'; const d=by[n]||(by[n]={name:n,trips:0,pay:0,bono:0,reemb:0,adel:0,desc:0}); const v=Math.abs(txNum(a.amount));
+    if(a.type==='bono') d.bono+=v; else if(a.type==='diesel') d.reemb+=v; else if(a.type==='adelanto') d.adel+=v; else if(a.type==='descuento') d.desc+=v;
+  });
+  return Object.values(by).map(d=>({...d,total1099:d.pay+d.bono-d.desc,owner:txIsOwner(d.name)})).sort((a,b)=>b.total1099-a.total1099);
+}
+
+function txDayList(a,b){ const out=[]; if(!a) return out; let d=new Date(a+'T12:00:00'), e=new Date((b&&b>=a?b:a)+'T12:00:00'); let n=0; while(d<=e && n<15){ out.push(rpLocalISO(d)); d.setDate(d.getDate()+1); n++; } return out; }
+function txIso(ts){ if(!ts) return ''; const ms=Date.parse(ts); return isNaN(ms)?'':rpLocalISO(new Date(ms)); }
+function txPerDiem(year){
+  const by={};
+  txDone(year).forEach(t=>{
+    const n=t.driverName||'(sin driver)';
+    const s=[t.date,txIso(t.startTime)].filter(Boolean).sort()[0]||'';
+    const e=[t.deliveryDate,txIso(t.endTime),s].filter(Boolean).sort().pop()||'';
+    const days=txDayList(s,e).filter(d=>d.slice(0,4)===year);
+    const p=by[n]||(by[n]={name:n,days:new Set(),oneDay:0,trips:0});
+    p.trips++; if(days.length===1) p.oneDay++;
+    days.forEach(d=>p.days.add(d));
+  });
+  return Object.values(by).map(p=>({name:p.name,trips:p.trips,days:p.days.size,oneDay:p.oneDay,est:p.days.size*TX_PERDIEM*TX_PERDIEM_PCT,owner:txIsOwner(p.name)})).sort((a,b)=>b.days-a.days);
+}
+
+function renderImpuestos(){
+  if(!currentUser||currentUser.role!=='admin'){ sidebarNav('home'); return; }
+  const sel=document.getElementById('tx-year');
+  const years=[...new Set(loadTrips().map(t=>String(txTripDay(t)).slice(0,4)).filter(y=>/^\d{4}$/.test(y)))].sort().reverse();
+  const cy=String(new Date().getFullYear()); if(!years.includes(cy)) years.unshift(cy);
+  const keep=sel.value||cy; sel.innerHTML=years.map(y=>`<option value="${y}">${y}</option>`).join(''); sel.value=years.includes(keep)?keep:cy;
+  const year=txYear(), C=txCompute(year);
+  const noRc=C.done.filter(t=>!t.rcDriveFileId).length, unpaidN=C.done.filter(t=>t.payStatus!=='paid').length;
+  document.getElementById('tx-alert').innerHTML=(noRc||unpaidN)?`<div style="background:#FFF7ED;border:1px solid #FDBA74;color:#9A3412;border-radius:10px;padding:8px 10px;font-size:12px;line-height:1.45;">${noRc?`⚠️ <b>${noRc}</b> viaje${noRc!==1?'s':''} de ${year} sin RC.`:''} ${unpaidN?`💵 <b>${unpaidN}</b> carga${unpaidN!==1?'s':''} marcada${unpaidN!==1?'s':''} como no cobrada${unpaidN!==1?'s':''} (${txM(C.unpaid)}).`:''}</div>`:'';
+  const td='padding:7px 10px;border-bottom:1px solid var(--border);';
+  document.getElementById('tx-summary').innerHTML=`
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px;">
+      <div class="tile"><div class="tile-lbl">Ingresos</div><div class="tile-val" style="font-size:18px;color:var(--green);">${txM(C.income)}</div><div class="tile-unit">${C.done.length} cargas</div></div>
+      <div class="tile"><div class="tile-lbl">Gastos</div><div class="tile-val" style="font-size:18px;color:var(--red);">${txM(C.expenses)}</div><div class="tile-unit">registrados en la app</div></div>
+      <div class="tile"><div class="tile-lbl">Ganancia</div><div class="tile-val" style="font-size:18px;color:${C.net>=0?'var(--green)':'var(--red)'};">${txM(C.net)}</div><div class="tile-unit">antes de impuestos</div></div>
+    </div>
+    <table style="width:100%;border-collapse:collapse;font-size:13px;">
+      <tr><td style="${td}color:var(--text2);">Ingresos por cargas</td><td style="${td}text-align:right;font-weight:700;color:var(--green);">${txM(C.income)}</td></tr>
+      <tr><td style="${td}color:var(--text3);font-size:12px;padding-left:22px;">Cobrado / por cobrar</td><td style="${td}text-align:right;font-size:12px;color:var(--text3);">${txM(C.paid)} / ${txM(C.unpaid)}</td></tr>
+      ${C.rows.filter(r=>r[1]).map(r=>`<tr><td style="${td}color:var(--text2);">${r[0]}</td><td style="${td}text-align:right;color:var(--red);">-${txM(r[1]).replace('-','')}</td></tr>`).join('')}
+      <tr><td style="${td}font-weight:800;">Ganancia antes de impuestos</td><td style="${td}text-align:right;font-weight:800;color:${C.net>=0?'var(--green)':'var(--red)'};">${txM(C.net)}</td></tr>
+    </table>
+    <div style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.45;">* Del pago del camión solo se deduce el interés; el capital va por depreciación. Tu contador lo separa. Gastos que no estén en la app (ELD, teléfono, load boards, placas) agrégalos aparte.</div>`;
+
+  const D=txDrivers(year);
+  document.getElementById('tx-drivers').innerHTML=!D.length?'<div class="empty">Sin pagos este año.</div>':`
+    <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:12.5px;min-width:520px;">
+      <tr style="color:var(--text3);font-size:11px;text-align:right;"><th style="${td}text-align:left;">Driver</th><th style="${td}">Cargas</th><th style="${td}">Pago cargas</th><th style="${td}">Bonos</th><th style="${td}">Deducc.</th><th style="${td}">Total 1099</th></tr>
+      ${D.map(d=>`<tr><td style="${td}font-weight:700;">${txE(d.name)}${d.owner?'<div style="font-size:10.5px;color:var(--text3);font-weight:500;">Dueño · no lleva 1099</div>':(d.total1099>=TX_1099_MIN?'<div style="font-size:10.5px;color:var(--green);font-weight:700;">Necesita 1099-NEC</div>':'')}</td>
+        <td style="${td}text-align:right;">${d.trips}</td><td style="${td}text-align:right;">${txM(d.pay)}</td><td style="${td}text-align:right;">${d.bono?txM(d.bono):'—'}</td><td style="${td}text-align:right;">${d.desc?'-'+txM(d.desc):'—'}</td>
+        <td style="${td}text-align:right;font-weight:800;">${txM(d.total1099)}</td></tr>`).join('')}
+    </table></div>
+    <div style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.45;">Los 1099-NEC se entregan antes del 31 de enero. Para pagos de 2026 el mínimo subió a ${txM(TX_1099_MIN).replace('.00','')} — confírmalo con tu contador. Anticipos no restan (son parte del pago); reembolsos de combustible no cuentan. Pide W-9 a cada driver (no lo guardes en la app).</div>`;
+
+  const P=txPerDiem(year);
+  document.getElementById('tx-perdiem').innerHTML=!P.length?'<div class="empty">Sin viajes este año.</div>':`
+    <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:12.5px;min-width:440px;">
+      <tr style="color:var(--text3);font-size:11px;text-align:right;"><th style="${td}text-align:left;">Persona</th><th style="${td}">Viajes</th><th style="${td}">Días en viaje</th><th style="${td}">Viajes de 1 día</th><th style="${td}">Deducción aprox.</th></tr>
+      ${P.map(p=>`<tr${p.owner?' style="background:var(--accent-bg);"':''}><td style="${td}font-weight:700;">${txE(p.name)}${p.owner?'<div style="font-size:10.5px;color:var(--green);font-weight:700;">Tú · va en tus impuestos</div>':''}</td><td style="${td}text-align:right;">${p.trips}</td><td style="${td}text-align:right;font-weight:800;">${p.days}</td><td style="${td}text-align:right;">${p.oneDay}</td><td style="${td}text-align:right;">${txM(p.est)}</td></tr>`).join('')}
+    </table></div>
+    <div style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.45;">Cuenta los días entre pick up y entrega de cada viaje. Solo cuentan los días que se durmió fuera de casa: los viajes de 1 día normalmente no cuentan. Tarifa 2026: $${TX_PERDIEM}/día, deducible al ${TX_PERDIEM_PCT*100}%. Confírmalo con tu bitácora o ELD. El per diem de los drivers 1099 lo deducen ellos, no la compañía.</div>`;
+
+  const ts=document.getElementById('tx-truck'), kt=ts.value;
+  const trucks=loadTrucks();
+  ts.innerHTML='<option value="all">Todos los camiones</option>'+trucks.map(t=>`<option value="${t.id}">${txE(t.name)}</option>`).join('');
+  ts.value=kt&&[...ts.options].some(o=>o.value===kt)?kt:'all';
+  const q=document.getElementById('tx-q'); if(!q.dataset.init){ q.dataset.init='1'; const m=new Date().getMonth(); q.value=String(year===cy?Math.max(1,Math.floor(m/3)):4); }
+  txIftaRender();
+}
+
+// ---- IFTA ----
+let _txStates=null, _txIftaBusy=false;
+const TX_IFTA_KEY='trucklog_ifta_cache';
+function txCache(){ try{ return JSON.parse(localStorage.getItem(TX_IFTA_KEY)||'{}'); }catch(e){ return {}; } }
+function txCacheSet(c){ try{ localStorage.setItem(TX_IFTA_KEY,JSON.stringify(c)); }catch(e){} }
+async function txLoadStates(){
+  if(_txStates) return _txStates;
+  const r=await fetch('us-states.min.json'); const raw=await r.json(); const S=[];
+  for(const [st,polys] of Object.entries(raw)){ let b=[180,90,-180,-90]; polys.forEach(p=>p[0].forEach(([x,y])=>{ if(x<b[0])b[0]=x; if(y<b[1])b[1]=y; if(x>b[2])b[2]=x; if(y>b[3])b[3]=y; })); S.push({st,polys,b}); }
+  _txStates=S; return S;
+}
+function txInRing(x,y,ring){ let c=false; for(let i=0,j=ring.length-1;i<ring.length;j=i++){ const [xi,yi]=ring[i],[xj,yj]=ring[j]; if(((yi>y)!==(yj>y)) && (x<(xj-xi)*(y-yi)/(yj-yi)+xi)) c=!c; } return c; }
+function txStateAt(lon,lat,hint){
+  const S=_txStates||[]; const test=s=>lon>=s.b[0]&&lon<=s.b[2]&&lat>=s.b[1]&&lat<=s.b[3]&&s.polys.some(p=>{ let inside=txInRing(lon,lat,p[0]); for(let k=1;k<p.length&&inside;k++) if(txInRing(lon,lat,p[k])) inside=false; return inside; });
+  if(hint){ const h=S.find(s=>s.st===hint); if(h&&test(h)) return h.st; }
+  const f=S.find(test); return f?f.st:null;
+}
+function txHav(a,b){ const R=3958.8, r=Math.PI/180; const dLat=(b[1]-a[1])*r, dLon=(b[0]-a[0])*r; const h=Math.sin(dLat/2)**2+Math.cos(a[1]*r)*Math.cos(b[1]*r)*Math.sin(dLon/2)**2; return 2*R*Math.asin(Math.sqrt(h)); }
+async function txRouteStates(a,b){
+  const key=[a,b].map(p=>p[0].toFixed(3)+','+p[1].toFixed(3)).join(';');
+  const C=txCache(); if(C[key]) return C[key];
+  const r=await fetch('https://router.project-osrm.org/route/v1/driving/'+a[0]+','+a[1]+';'+b[0]+','+b[1]+'?overview=full&geometries=geojson');
+  if(!r.ok) throw new Error('ruta '+r.status);
+  const j=await r.json(); const rt=j.routes&&j.routes[0]; if(!rt) throw new Error('sin ruta');
+  const total=rt.distance/1609.344, pts=rt.geometry.coordinates, acc={}; let geo=0, last=null;
+  for(let i=1;i<pts.length;i++){ const d=txHav(pts[i-1],pts[i]); if(!d) continue; const m=[(pts[i-1][0]+pts[i][0])/2,(pts[i-1][1]+pts[i][1])/2]; const st=txStateAt(m[0],m[1],last)||last||'??'; last=st; acc[st]=(acc[st]||0)+d; geo+=d; }
+  const out={}; Object.keys(acc).forEach(k=>out[k]=Math.round(acc[k]*(geo?total/geo:1)*10)/10);
+  C[key]=out; txCacheSet(C); return out;
+}
+function txQRange(year,q){ const m0=(q-1)*3+1, m1=m0+2; return [year+'-'+String(m0).padStart(2,'0')+'-01', year+'-'+String(m1).padStart(2,'0')+'-31']; }
+function txTruckOf(t){ try{ return tripTruckId(t)||(t.truckId!=null?String(t.truckId):null); }catch(e){ return t.truckId!=null?String(t.truckId):null; } }
+function txIftaLegs(year,q,truck){
+  const [f,to]=txQRange(year,q);
+  const all=loadTrips().filter(t=>t.tripStatus==='completed').sort((a,b)=>String(txTripDay(a)).localeCompare(String(txTripDay(b))));
+  const legs=[], lastByTruck={};
+  all.forEach(t=>{
+    const tk=txTruckOf(t)||'—', d=String(txTripDay(t)), inQ=d>=f&&d<=to&&(truck==='all'||tk===truck);
+    const o=[txNum(t.origLon),txNum(t.origLat)], de=[txNum(t.destLon),txNum(t.destLat)], prev=lastByTruck[tk];
+    if(inQ){
+      if(prev && txNum(t.deadMiles)>0 && o[0] && prev[0]) legs.push({t,kind:'vacío',a:prev,b:o});
+      if(o[0]&&de[0]) legs.push({t,kind:'cargado',a:o,b:de}); else legs.push({t,kind:'cargado',miss:true});
+    }
+    if(de[0]) lastByTruck[tk]=de;
+  });
+  return legs;
+}
+function txFuelByState(year,q,truck){
+  const [f,to]=txQRange(year,q), out={}; let gal=0;
+  loadTrips().forEach(t=>{ const tk=txTruckOf(t)||'—'; if(truck!=='all'&&tk!==truck) return;
+    (t.fuelLoads||[]).forEach(l=>{ const d=String(l.date||txTripDay(t)); if(d<f||d>to) return; if((l.tipo||l.type)==='def') return;
+      const g=txNum(l.gal); if(!g) return; const mm=[...String(l.station||'').toUpperCase().matchAll(/\b([A-Z]{2})[\s,]+\d{5}\b/g)].filter(x=>TX_ST.includes(x[1])); const st=mm.length?mm[mm.length-1][1]:'??';
+      out[st]=(out[st]||0)+g; gal+=g; }); });
+  return {by:out,gal};
+}
+function txIftaRender(res){
+  const box=document.getElementById('tx-ifta'); if(!box) return;
+  const year=txYear(), q=parseInt(document.getElementById('tx-q').value)||1, truck=document.getElementById('tx-truck').value||'all';
+  const legs=txIftaLegs(year,q,truck), F=txFuelByState(year,q,truck), C=txCache();
+  const miles={}; let missing=0, pending=0;
+  legs.forEach(L=>{ if(L.miss){ missing++; return; } const key=[L.a,L.b].map(p=>p[0].toFixed(3)+','+p[1].toFixed(3)).join(';'); const s=C[key]; if(!s){ pending++; return; } Object.entries(s).forEach(([k,v])=>miles[k]=(miles[k]||0)+v); });
+  const sts=[...new Set([...Object.keys(miles),...Object.keys(F.by)])].sort();
+  const totMi=Object.values(miles).reduce((a,b)=>a+b,0);
+  const td='padding:6px 10px;border-bottom:1px solid var(--border);';
+  window._txIftaLast={year,q,truck,miles,fuel:F.by,totMi,gal:F.gal};
+  box.innerHTML=(pending?`<div style="font-size:12px;color:var(--text2);margin-bottom:8px;">Faltan <b>${pending}</b> tramo${pending!==1?'s':''} por calcular. Toca <b>Calcular millas</b> (tarda unos segundos por viaje y se guarda).</div>`:'')+
+    (res?`<div style="font-size:12px;color:var(--text3);margin-bottom:8px;">${res}</div>`:'')+
+    (!sts.length?'<div class="empty">Sin viajes en este trimestre.</div>':`<table style="width:100%;border-collapse:collapse;font-size:13px;">
+      <tr style="color:var(--text3);font-size:11px;text-align:right;"><th style="${td}text-align:left;">Estado</th><th style="${td}">Millas</th><th style="${td}">Galones comprados</th></tr>
+      ${sts.map(s=>`<tr><td style="${td}font-weight:700;">${s==='??'?'Sin estado':s}</td><td style="${td}text-align:right;">${miles[s]?Math.round(miles[s]).toLocaleString('en-US'):'—'}</td><td style="${td}text-align:right;">${F.by[s]?F.by[s].toFixed(1):'—'}</td></tr>`).join('')}
+      <tr><td style="${td}font-weight:800;">Total</td><td style="${td}text-align:right;font-weight:800;">${Math.round(totMi).toLocaleString('en-US')}</td><td style="${td}text-align:right;font-weight:800;">${F.gal.toFixed(1)}</td></tr>
+    </table>
+    <div style="font-size:12px;color:var(--text2);margin-top:6px;">MPG del trimestre: <b>${F.gal&&totMi?(totMi/F.gal).toFixed(2):'—'}</b></div>`)+
+    `<div style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.45;">Millas calculadas por la ruta de cada viaje (cargado y vacío) y partidas por estado. Es un estimado: si tu ELD da millas por estado, esas son las oficiales. ${missing?missing+' viaje(s) sin ubicación no se pudieron contar. ':''}IFTA aplica a camiones de más de 26,000 lb o con 3+ ejes.</div>`;
+}
+async function txIftaCalc(){
+  if(_txIftaBusy) return; _txIftaBusy=true;
+  const btn=document.getElementById('tx-ifta-go'); if(btn){ btn.disabled=true; }
+  let ok=0, fail=0;
+  try{
+    await txLoadStates();
+    const year=txYear(), q=parseInt(document.getElementById('tx-q').value)||1, truck=document.getElementById('tx-truck').value||'all';
+    const legs=txIftaLegs(year,q,truck).filter(L=>!L.miss), C=txCache();
+    const todo=legs.filter(L=>!C[[L.a,L.b].map(p=>p[0].toFixed(3)+','+p[1].toFixed(3)).join(';')]);
+    for(let i=0;i<todo.length;i++){
+      if(btn) btn.textContent='Calculando '+(i+1)+' de '+todo.length+'…';
+      try{ await txRouteStates(todo[i].a,todo[i].b); ok++; }catch(e){ fail++; }
+      await new Promise(r=>setTimeout(r,350));
+    }
+    txIftaRender(todo.length?`Listo: ${ok} tramo${ok!==1?'s':''} calculado${ok!==1?'s':''}${fail?', '+fail+' no se pudieron (intenta otra vez)':''}.`:'');
+  }catch(e){ txIftaRender('No se pudo calcular: '+((e&&e.message)||e)); }
+  finally{ _txIftaBusy=false; if(btn){ btn.disabled=false; btn.textContent='Calcular millas'; } }
+}
+
+function txExportCSV(){
+  const year=txYear(), C=txCompute(year), D=txDrivers(year), P=txPerDiem(year), I=window._txIftaLast;
+  const R=[];
+  R.push(['YENAVI FREIGHT LLC — Reporte de impuestos '+year]); R.push([]);
+  R.push(['RESUMEN DEL AÑO','Monto']); R.push(['Ingresos por cargas',C.income.toFixed(2)]); R.push(['  Cobrado',C.paid.toFixed(2)]); R.push(['  Por cobrar',C.unpaid.toFixed(2)]);
+  C.rows.forEach(r=>R.push([r[0],(-r[1]).toFixed(2)])); R.push(['Ganancia antes de impuestos',C.net.toFixed(2)]); R.push([]);
+  R.push(['PAGOS A DRIVERS (1099)','Cargas','Pago por cargas','Bonos','Deducciones','Reembolsos combustible','Anticipos','Total 1099','Nota']);
+  D.forEach(d=>R.push([d.name,d.trips,d.pay.toFixed(2),d.bono.toFixed(2),d.desc.toFixed(2),d.reemb.toFixed(2),d.adel.toFixed(2),d.total1099.toFixed(2),d.owner?'Dueño - no lleva 1099':(d.total1099>=TX_1099_MIN?'Necesita 1099-NEC':'')])); R.push([]);
+  R.push(['PER DIEM','Viajes','Días en viaje','Viajes de 1 día','Deducción aprox ($'+TX_PERDIEM+' x '+(TX_PERDIEM_PCT*100)+'%)']);
+  P.forEach(p=>R.push([p.name+(p.owner?' (dueño)':''),p.trips,p.days,p.oneDay,p.est.toFixed(2)])); R.push([]);
+  if(I){ R.push(['IFTA '+I.year+' T'+I.q+(I.truck!=='all'?' camión '+((loadTrucks().find(t=>String(t.id)===I.truck)||{}).name||I.truck):''),'Millas','Galones']);
+    [...new Set([...Object.keys(I.miles),...Object.keys(I.fuel)])].sort().forEach(s=>R.push([s,(I.miles[s]||0).toFixed(1),(I.fuel[s]||0).toFixed(2)]));
+    R.push(['Total',I.totMi.toFixed(1),I.gal.toFixed(2)]); R.push([]); }
+  R.push(['CARGAS DEL AÑO','Fecha','RC','Broker','Driver','Origen','Destino','Millas','Load value','Diésel','Pago driver','Dispatcher fee','Factoring','Gastos viaje','Cobrado']);
+  C.done.forEach(t=>R.push(['',txTripDay(t),t.rc||'',t.brokerName||t.broker||'',t.driverName||'',[t.city1,t.state1].filter(Boolean).join(', '),[t.city2,t.state2].filter(Boolean).join(', '),(tripDistance(t).mi||0),txNum(t.loadVal).toFixed(2),txNum(t.totalCost).toFixed(2),txNum(t.driver).toFixed(2),txNum(t.fee).toFixed(2),txNum(t.factoringFee).toFixed(2),txNum(t.extrasTotal).toFixed(2),t.payStatus==='paid'?'Sí':'No']));
+  const csv='﻿'+R.map(r=>r.map(v=>`"${String(v==null?'':v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'})); a.download='impuestos-'+year+'-YENAVI.csv'; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },1000);
+}
+
 </script>
 </body>
 </html>

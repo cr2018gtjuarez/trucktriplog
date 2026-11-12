@@ -19416,10 +19416,10 @@ function renderImpuestos(){
   document.getElementById('tx-alert').innerHTML=(noRc||unpaidN)?`<div style="background:#FFF7ED;border:1px solid #FDBA74;color:#9A3412;border-radius:10px;padding:8px 10px;font-size:12px;line-height:1.45;">${noRc?`⚠️ <b>${noRc}</b> viaje${noRc!==1?'s':''} de ${year} sin RC.`:''} ${unpaidN?`💵 <b>${unpaidN}</b> carga${unpaidN!==1?'s':''} marcada${unpaidN!==1?'s':''} como no cobrada${unpaidN!==1?'s':''} (${txM(C.unpaid)}).`:''}</div>`:'';
   const td='padding:7px 10px;border-bottom:1px solid var(--border);';
   document.getElementById('tx-summary').innerHTML=`
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px;">
-      <div class="tile"><div class="tile-lbl">Ingresos</div><div class="tile-val" style="font-size:18px;color:var(--green);">${txM(C.income)}</div><div class="tile-unit">${C.done.length} cargas</div></div>
-      <div class="tile"><div class="tile-lbl">Gastos</div><div class="tile-val" style="font-size:18px;color:var(--red);">${txM(C.expenses)}</div><div class="tile-unit">registrados en la app</div></div>
-      <div class="tile"><div class="tile-lbl">Ganancia</div><div class="tile-val" style="font-size:18px;color:${C.net>=0?'var(--green)':'var(--red)'};">${txM(C.net)}</div><div class="tile-unit">antes de impuestos</div></div>
+    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-bottom:10px;">
+      <div class="tile"><div class="tile-lbl">Ingresos</div><div class="tile-val" style="font-size:clamp(12px,3.6vw,18px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--green);">${txM(Math.round(C.income)).replace(".00","")}</div><div class="tile-unit">${C.done.length} cargas</div></div>
+      <div class="tile"><div class="tile-lbl">Gastos</div><div class="tile-val" style="font-size:clamp(12px,3.6vw,18px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--red);">${txM(Math.round(C.expenses)).replace(".00","")}</div><div class="tile-unit">registrados en la app</div></div>
+      <div class="tile"><div class="tile-lbl">Ganancia</div><div class="tile-val" style="font-size:clamp(12px,3.6vw,18px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:${C.net>=0?'var(--green)':'var(--red)'};">${txM(Math.round(C.net)).replace(".00","")}</div><div class="tile-unit">antes de impuestos</div></div>
     </div>
     <table style="width:100%;border-collapse:collapse;font-size:13px;">
       <tr><td style="${td}color:var(--text2);">Ingresos por cargas</td><td style="${td}text-align:right;font-weight:700;color:var(--green);">${txM(C.income)}</td></tr>

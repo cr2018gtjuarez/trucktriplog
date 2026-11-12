@@ -19637,7 +19637,7 @@ function ctGastos(p){
   loadExtras().filter(e=>ctIn(e.date,p)).forEach(e=>out.push({date:e.date,type:'Extra: '+(e.cat||e.category||''),desc:e.desc||e.description||'',who:'',truck:'',amount:txNum(e.amount),link:e.receiptDriveLink}));
   return out.sort((a,b)=>String(b.date).localeCompare(String(a.date)));
 }
-function ctSocios(){ const c=(typeof loadCompany==='function'?loadCompany():{})||{}; return Array.isArray(c.socios)&&c.socios.length?c.socios:[{name:'',pct:50},{name:'',pct:50}]; }
+function ctSocios(){ const c=(typeof loadCompany==='function'?loadCompany():{})||{}; return Array.isArray(c.socios)&&c.socios.length?c.socios:[{name:'Leonardo Juarez',pct:50},{name:'Yeimy Najarro',pct:50}]; }
 
 function renderContabilidad(){
   if(!ctCanSee()){ sidebarNav('home'); return; }

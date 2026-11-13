@@ -977,6 +977,7 @@ label.dead-lock-lbl{color:#B91C1C!important;font-weight:800;}
     <div class="login-sub" id="login-sub-txt">Ingresa tus credenciales para continuar</div>
     <div class="login-field"><label>Usuario</label><input type="text" id="l-user" placeholder="Ej. admin" onkeydown="if(event.key==='Enter')doLogin()"/></div>
     <div class="login-field"><label>Contraseña</label><input type="password" id="l-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"/></div>
+    <label style="display:flex;align-items:center;gap:8px;margin:2px 0 12px;font-size:13px;color:#475569;cursor:pointer;"><input type="checkbox" id="l-keep" style="width:16px;height:16px;margin:0;"/> <span id="login-keep-txt">Mantener sesión iniciada en esta computadora</span></label>
     <button class="login-btn" onclick="doLogin()" id="login-btn-txt">Entrar</button>
     <div class="login-err" id="l-err">Usuario o contraseña incorrectos.</div>
     <div class="login-hint" id="login-hint-txt">Contacta al administrador si olvidaste tu contraseña.</div>
@@ -5145,9 +5146,11 @@ async function loadExtrasCloud(){
 // SESSION
 // En la app ETA se entra una sola vez: la sesión se queda guardada en el celular hasta que toque Salir
 const ETA_SESSION_KEY='trucklog_eta_session';
-function getSession(){try{ let s=sessionStorage.getItem(SESSION_KEY); if(!s&&ETA_APP){ s=localStorage.getItem(ETA_SESSION_KEY); if(s) sessionStorage.setItem(SESSION_KEY,s); } return JSON.parse(s);}catch(e){return null;}}
-function setSession(u){sessionStorage.setItem(SESSION_KEY,JSON.stringify(u)); if(ETA_APP){ try{ localStorage.setItem(ETA_SESSION_KEY,JSON.stringify(u)); }catch(e){} }}
-function clearSession(){ try{ if(ETA_APP) localStorage.removeItem(ETA_SESSION_KEY); }catch(e){} sessionStorage.removeItem(SESSION_KEY);}
+// "Mantener sesión iniciada": se guarda solo el usuario (sin contraseña) en esta computadora hasta que toque Salir
+const KEEP_SESSION_KEY='trucklog_keep_session';
+function getSession(){try{ let s=sessionStorage.getItem(SESSION_KEY); if(!s&&ETA_APP){ s=localStorage.getItem(ETA_SESSION_KEY); if(s) sessionStorage.setItem(SESSION_KEY,s); } if(!s){ const k=localStorage.getItem(KEEP_SESSION_KEY); if(k){ s=k; sessionStorage.setItem(SESSION_KEY,s); } } return JSON.parse(s);}catch(e){return null;}}
+function setSession(u,keep){sessionStorage.setItem(SESSION_KEY,JSON.stringify(u)); if(ETA_APP){ try{ localStorage.setItem(ETA_SESSION_KEY,JSON.stringify(u)); }catch(e){} } if(keep){ try{ localStorage.setItem(KEEP_SESSION_KEY,JSON.stringify({username:u.username,role:u.role,name:u.name})); }catch(e){} }}
+function clearSession(){ try{ if(ETA_APP) localStorage.removeItem(ETA_SESSION_KEY); localStorage.removeItem(KEEP_SESSION_KEY); }catch(e){} sessionStorage.removeItem(SESSION_KEY);}
 
 async function doLogin(){
   const uname=document.getElementById('l-user').value.trim();
@@ -5174,7 +5177,7 @@ async function doLogin(){
   if(!found){document.getElementById('l-err').style.display='block';return;}
   if(!found.role) found.role='driver';
   document.getElementById('l-err').style.display='none';
-  setSession(found);startApp(found);applyLang();
+  setSession(found, !!(document.getElementById('l-keep')||{}).checked);startApp(found);applyLang();
   startRealtimeSync();
   if(found.role==='admin'){
     setTimeout(populateDriverSelects, 600);

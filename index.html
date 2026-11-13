@@ -1543,12 +1543,12 @@ label.dead-lock-lbl{color:#B91C1C!important;font-weight:800;}
           <div class="g2" style="margin-top:10px;">
             <div class="field">
               <label>🧑‍💼 Dispatcher</label>
-              <input type="text" id="f-broker-admin" value="LA TI SERVICES LLC" list="broker-list-admin" placeholder="Ej. LA TI SERVICES LLC"/>
+              <input type="text" id="f-broker-admin" value="" list="broker-list-admin" placeholder="Sin dispatcher (déjalo vacío)"/>
               <datalist id="broker-list-admin"></datalist>
             </div>
             <div class="field">
               <label>💵 % Fee del Dispatcher</label>
-              <input type="number" id="f-broker-fee-admin" value="13" min="0" max="100" step="0.5" oninput="calcAll()"/>
+              <input type="number" id="f-broker-fee-admin" value="0" min="0" max="100" step="0.5" oninput="calcAll()"/>
             </div>
           </div>
           <!-- BROKER (solo informativo, sin fee) -->
@@ -8050,10 +8050,10 @@ async function adminStartTrip(){
   const unassigned = _drvRaw==='__none__';
   const driverUsername = unassigned ? '' : _drvRaw;
   const payPct = parseFloat(document.getElementById('f-pay-pct')?.value)||0;
-  const broker = (document.getElementById('f-broker-admin').value||'').trim() || 'LA TI SERVICES LLC';
+  const broker = (document.getElementById('f-broker-admin').value||'').trim() || 'Sin dispatcher';
   const brokerFeePct = parseFloat(document.getElementById('f-broker-fee-admin').value);
   let brokerName = (document.getElementById('f-brokername-admin')?.value||'').trim();
-  if(!brokerName && broker && !bfDispatchLike(broker)) brokerName=bfCanon(broker); // si el dispatcher dice TQL, el broker es TQL
+  if(!brokerName && broker && broker!=='Sin dispatcher' && !bfDispatchLike(broker)) brokerName=bfCanon(broker); // si el dispatcher dice TQL, el broker es TQL
   if(brokerName) brokerName=bfCanon(brokerName);
   const factoringFeePct = parseFloat(document.getElementById('f-factoring-admin')?.value);
   const rc = (document.getElementById('f-rc-admin')?.value||'').trim();
@@ -8155,7 +8155,7 @@ async function adminStartTrip(){
           ...(parentTrip?[['Millas de desvío', desvioMiles==null?'—':desvioMiles.toLocaleString('en-US')+' mi'],['Diésel del desvío', fmtDeadFuel(desvioMiles==null?null:deadFuelCost(desvioMiles, mpg))]]:[]),
           ['Millas totales', totMi?totMi.toLocaleString('en-US')+' mi':'—'],
           ['% pago driver', payPct?payPct+'%':'—'],
-          ['Dispatcher', broker+' ('+(isNaN(brokerFeePct)?13:brokerFeePct)+'%)'],
+          ['Dispatcher', broker+' ('+(isNaN(brokerFeePct)?0:brokerFeePct)+'%)'],
           ['Broker', brokerName||'—'],['RC #', rc||'—'],
           ['RC adjunto', rcAtt?('✔ '+rcAtt.name):TR('— falta —','— missing —')],
           ...(rcP&&rcP.rate!=null?[['Pago del RC', rcMoneyTxt(rcP.rate)]]:[]),
@@ -8173,7 +8173,7 @@ async function adminStartTrip(){
       miStart, mpg, payPct,
       driverName, driverUser: driverUsername,
       truckId: (function(){ const v=document.getElementById('f-truck-admin')?.value; return v?parseFloat(v):null; })(),
-      broker, brokerFeePct: isNaN(brokerFeePct)?13:brokerFeePct,
+      broker, brokerFeePct: isNaN(brokerFeePct)?0:brokerFeePct,
       brokerName,
       factoringFeePct: isNaN(factoringFeePct)?0:factoringFeePct,
       rc,
@@ -8336,8 +8336,8 @@ function adminResetForm(){
   document.getElementById('f-driver-select').value = '';
   document.getElementById('f-pay-pct').value = '';
   document.getElementById('f-pay-pct-select').value = '';
-  document.getElementById('f-broker-admin').value = 'LA TI SERVICES LLC';
-  document.getElementById('f-broker-fee-admin').value = '13';
+  document.getElementById('f-broker-admin').value = '';
+  document.getElementById('f-broker-fee-admin').value = '0';
   document.getElementById('f-factoring-admin').value = '';
   document.getElementById('h1a').textContent='';
   { const h=document.getElementById('hsa'); if(h) h.textContent='Déjalo vacío para usar donde entregó su último viaje. Llénalo solo si el camión sale de otro lugar.'; }

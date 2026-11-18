@@ -15669,10 +15669,11 @@ function pqPuHTML(R,busy){
   const tile=(lab,val)=>`<div style="background:var(--bg2,#F3F4F6);border-radius:12px;padding:10px;text-align:center;"><div style="font-size:24px;font-weight:900;line-height:1.1;">${val}</div><div style="font-size:11px;font-weight:800;color:var(--text3);text-transform:uppercase;margin-top:2px;">${lab}</div></div>`;
   return `<div class="card" style="background:var(--card,#fff);border:${lvl==='r'?'2px solid #B91C1C':'1px solid var(--border,#ddd)'};border-radius:16px;padding:14px;margin-bottom:12px;">
     <div style="font-size:16px;font-weight:900;">⏱️ ${pqT('¿Cuánto tardas al pick up?','Time to pick up')}</div>
-    <div style="font-size:13px;color:var(--text3);margin-top:2px;">📍 ${currentUser&&currentUser.role==='admin'?pqEsc(R.byName||R.by||'Driver')+' '+pqT('está en','is in'):pqT('Estás en','You are in')} <b style="color:var(--text);">${pqEsc(U.from||'—')}</b> → ${pqEsc((P.city||'')+(P.st?', '+P.st:''))}</div>
-    <div style="font-size:12px;font-weight:800;margin-top:2px;color:${U.src==='live'&&U.ago>60||U.stale?'#B45309':'#16A34A'};">● ${U.src==='gps'?pqT('GPS del celular, en vivo','Phone GPS, live'):U.src==='live'?pqT('En vivo · hace ','Live · ')+(U.ago<1?pqT('menos de 1 min','under 1 min'):U.ago<60?U.ago+' min':Math.round(U.ago/60)+' h')+(U.ago>60?' · '+pqT('señal vieja','old signal'):''):pqT('Ubicación guardada','Saved location')}${U.moving==='driving'?' · '+pqT('manejando','driving')+(U.speed?' '+Math.round(U.speed)+' mph':''):U.moving==='stopped'?' · '+pqT('parado','stopped'):''}${U.stale?' · '+pqT('no se pudo actualizar','could not refresh'):''}</div>
+    <div style="font-size:13px;color:var(--text3);margin-top:2px;">📍 ${currentUser&&currentUser.role==='admin'?pqEsc(U.who||R.byName||R.by||'Driver')+' '+(U.busy?pqT('queda libre en','will be free in'):pqT('está en','is in')):pqT('Estás en','You are in')} <b style="color:var(--text);">${pqEsc(U.from||'—')}</b> → ${pqEsc((P.city||'')+(P.st?', '+P.st:''))}</div>
+    <div style="font-size:12px;font-weight:800;margin-top:2px;color:${U.src==='live'&&U.ago>60||U.stale?'#B45309':'#16A34A'};">● ${U.src==='gps'?pqT('GPS del celular, en vivo','Phone GPS, live'):U.src==='live'?(U.eld?'ELD · ':'')+pqT('En vivo · hace ','Live · ')+(U.ago<1?pqT('menos de 1 min','under 1 min'):U.ago<60?U.ago+' min':Math.round(U.ago/60)+' h')+(U.ago>60?' · '+pqT('señal vieja','old signal'):''):pqT('Ubicación guardada','Saved location')}${U.moving==='driving'?' · '+pqT('manejando','driving')+(U.speed?' '+Math.round(U.speed)+' mph':''):U.moving==='stopped'?' · '+pqT('parado','stopped'):''}${U.stale?' · '+pqT('no se pudo actualizar','could not refresh'):''}</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;">${tile(pqT('millas vacías','empty miles'),Math.round(U.mi).toLocaleString('en-US'))}${tile(pqT('manejando','driving'),hTxt)}</div>
-    <div style="font-size:15px;font-weight:900;margin-top:10px;">🕐 ${pqT('Llegas','You arrive')}: ${pqEsc(etaTxt)}</div>
+    <div style="font-size:15px;font-weight:900;margin-top:10px;">🕐 ${pqT('Llega','Arrives')}: ${pqEsc(etaTxt)}</div>
+    ${Array.isArray(U.all)&&U.all.length>1?`<div style="margin-top:8px;border-top:1px solid var(--border,#eee);padding-top:6px;">${U.all.map((d,i)=>d.err?`<div style="font-size:12px;color:var(--text3);padding:3px 0;">${pqEsc(d.name)}: ${pqT('sin ubicación','no location')}</div>`:`<div style="display:flex;justify-content:space-between;gap:8px;font-size:13px;padding:3px 0;${i===0?'font-weight:900;':''}"><span>${i===0?'⭐ ':''}${pqEsc(d.name)} · ${d.busy?pqT('al entregar en ','after delivering in '):''}${pqEsc(d.from||'—')}</span><span style="white-space:nowrap;">${Math.round(d.mi)} mi · ${new Date(d.eta).toLocaleString(lang,{weekday:'short',hour:'numeric',minute:'2-digit'})}</span></div>`).join('')}</div>`:''}
     ${note?`<div style="font-size:14px;font-weight:800;color:${C};margin-top:4px;">${lvl==='r'?'🔴':'🟢'} ${pqEsc(note)}</div>`:''}
     <div style="font-size:11px;color:var(--text3);margin-top:6px;">${pqT('Calculado a 55 mph con descanso de 30 min cada 8 h, sin el descanso de 10 h.','At 55 mph with a 30-min break every 8 h, without the 10-h rest.')}${U.at?' · '+new Date(U.at).toLocaleTimeString(lang,{hour:'numeric',minute:'2-digit'}):''} · <a href="#" onclick="pqPuCheck(true);return false;">${pqT('Actualizar','Refresh')}</a></div>
   </div>`;
@@ -15693,13 +15694,43 @@ async function pqRoadMi(a,b){
 async function pqRevGeo(lat,lon){ try{ const r=await fetch('https://nominatim.openstreetmap.org/reverse?format=json&zoom=10&lat='+lat+'&lon='+lon); const j=await r.json(); const a=j.address||{};
   return {city:a.city||a.town||a.village||a.county||'',st:((a['ISO3166-2-lvl4']||'').split('-')[1])||''}; }catch(e){ return {}; } }
 // Driver: GPS del celular en vivo. Admin: la ubicación en vivo que manda el celular del driver (colección locations)
+// Ubicación más nueva de un driver: celular (locations/<usuario>) o ELD del camión (locations/truck_<id>)
+async function pqLocOf(username, truckId){
+  if(!(typeof fbReady!=='undefined'&&fbReady&&db)) return null;
+  const ids=[username].filter(Boolean); if(truckId!=null&&truckId!=='') ids.push('truck_'+truckId);
+  let best=null;
+  for(const id of ids){ try{ const sn=await db.collection('locations').doc(String(id)).get(); if(!sn.exists) continue; const d=sn.data(); const tm=typeof d.time==='number'?d.time:Date.parse(d.time);
+    if(d.lat==null||d.lon==null||isNaN(tm)) continue; if(!best||tm>best.tm) best={lat:+d.lat,lon:+d.lon,tm,src:'live',eld:id.startsWith('truck_'),ago:Math.round((Date.now()-tm)/60000),moving:d.movingStatus,speed:d.speedMph}; }catch(e){} }
+  return best; }
 async function pqWhereNow(R){
   const admin=currentUser&&currentUser.role==='admin';
-  if(!admin){ return await new Promise(res=>{ if(!navigator.geolocation) return res(null);
-    navigator.geolocation.getCurrentPosition(p=>res({lat:p.coords.latitude,lon:p.coords.longitude,src:'gps',ago:0}),()=>res(null),{enableHighAccuracy:true,timeout:12000,maximumAge:60000}); }); }
-  const who=R&&R.by; if(!who||!(typeof fbReady!=='undefined'&&fbReady&&db)) return null;
-  try{ const sn=await db.collection('locations').doc(who).get(); if(!sn.exists) return null; const d=sn.data(); const tm=typeof d.time==='number'?d.time:Date.parse(d.time);
-    if(d.lat==null||isNaN(tm)) return null; return {lat:+d.lat,lon:+d.lon,src:'live',ago:Math.round((Date.now()-tm)/60000),moving:d.movingStatus,speed:d.speedMph}; }catch(e){ return null; } }
+  if(!admin){ const gps=await new Promise(res=>{ if(!navigator.geolocation) return res(null);
+    navigator.geolocation.getCurrentPosition(p=>res({lat:p.coords.latitude,lon:p.coords.longitude,src:'gps',ago:0}),()=>res(null),{enableHighAccuracy:true,timeout:12000,maximumAge:60000}); });
+    if(gps) return gps;
+    // sin GPS del celular: usa el ELD de su camión
+    return await pqLocOf(currentUser&&currentUser.username, currentUser&&currentUser.truckId); }
+  const who=R&&R.by; if(!who) return null;
+  const u=(typeof getUsers==='function'?getUsers():[]).find(x=>x.username===who)||{};
+  return await pqLocOf(who, u.truckId); }
+// Admin: ETA al pick up de TODOS los drivers con camión (ELD o celular). Si tiene viaje activo, cuenta desde su entrega.
+async function pqAllDrivers(pu){
+  const users=(typeof getUsers==='function'?getUsers():[]).filter(u=>u.role!=='admin'&&u.truckId!=null&&u.truckId!=='');
+  const trips=(typeof loadTrips==='function'?loadTrips():[])||[];
+  const out=await Promise.all(users.map(async u=>{ try{
+    const me=await pqLocOf(u.username,u.truckId);
+    const act=trips.filter(t=>t.tripStatus==='active'&&(t.driverUser===u.username||(t.driverName&&u.name&&String(t.driverName).toLowerCase()===String(u.name).toLowerCase())))
+      .sort((a,b)=>String(b.startTime||'').localeCompare(String(a.startTime||'')))[0];
+    let start=Date.now(), from=null, via='';
+    if(act){ const del=await pqGeoStop({zip:act.z2,city:act.city2,st:act.state2});
+      if(del){ let toDel=0; if(me){ toDel=pqHours(await pqRoadMi(me,del)); }
+        let s0=Date.now()+toDel*3600000; if(act.deliveryDate){ const dd=new Date(act.deliveryDate+'T08:00:00'); if(!isNaN(dd)&&dd.getTime()>s0) s0=dd.getTime(); }
+        start=s0+3600000; from=del; via=(act.city2||'')+(act.state2?', '+act.state2:''); } }
+    if(!from){ if(!me) return {name:u.name||u.username,user:u.username,err:true}; from=me; }
+    const mi=await pqRoadMi(from,pu), h=pqHours(mi);
+    let place=via; if(!via&&me){ const g=await pqRevGeo(me.lat,me.lon); place=(g.city||'')+(g.st?', '+g.st:''); }
+    return {name:(u.name||u.username).split(' ')[0],user:u.username,from:place,mi,h,eta:start+h*3600000,busy:!!via,ago:me?me.ago:null,eld:me?me.eld:false,moving:me?me.moving:null};
+  }catch(e){ return {name:u.name||u.username,user:u.username,err:true}; } }));
+  return out.sort((a,b)=>(a.err?1:0)-(b.err?1:0)||(a.eta||0)-(b.eta||0)); }
 async function pqPuCheck(force){
   const box=document.getElementById('pq-pu'); if(!box) return; const R=_pq; if(!R){ box.innerHTML=''; return; }
   const P=R.stops.find(s=>s.type==='pickup')||R.stops[0]; if(!P||!P.city){ box.innerHTML=''; return; }
@@ -15707,6 +15738,12 @@ async function pqPuCheck(force){
   if(!force&&R.pu&&R.pu.key===key&&!R.pu.err&&(Date.now()-(R.pu.at||0))<10*60000){ box.innerHTML=pqPuHTML(R); return; }
   box.innerHTML=pqPuHTML(R,true);
   try{
+    const admin=currentUser&&currentUser.role==='admin';
+    if(admin){ const pu0=await pqGeoStop(P); if(_pq!==R) return; if(!pu0) throw new Error('pu');
+      const all=await pqAllDrivers(pu0); if(_pq!==R) return; const ok=all.filter(x=>!x.err);
+      if(!ok.length){ R.pu={key,err:true}; }
+      else { const b=ok[0]; R.pu={key,zip:P.zip||'',from:b.from,mi:b.mi,h:b.h,eta:b.eta,at:Date.now(),src:'live',ago:b.ago,moving:b.moving,eld:b.eld,busy:b.busy,who:b.name,all}; }
+      const bx=document.getElementById('pq-pu'); if(bx) bx.innerHTML=pqPuHTML(R); return; }
     const [me,pu]=await Promise.all([pqWhereNow(R),pqGeoStop(P)]);
     if(_pq!==R) return;
     if(!pu) throw new Error('pu');

@@ -51,28 +51,124 @@
   function chicagoNow(){ return new Date().toLocaleString('en-US', { timeZone: 'America/Chicago', weekday: 'long', year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }); }
   function daysAgoISO(n){ var d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10); }
 
+  // ---------- utilidades de datos ----------
+  function f(x){ var n = parseFloat(x); return isFinite(n) ? n : 0; }
+  function call(fn){ try { return (typeof window[fn] === 'function' ? window[fn]() : (eval('typeof ' + fn) === 'function' ? eval(fn + '()') : null)); } catch(e){ return null; } }
+  var HEAVY = /img|image|photo|foto|base64|dataurl|signature|firma|thumb|blob|pdf|svg|^_|password|pass$|^pw$|pin$|token|apikey|^key$|url$|^k$|drive.*id|fileid|html/i;
+  // copia liviana de cualquier registro: sin fotos, firmas, claves ni textos enormes
+  function slim(o, depth){
+    depth = depth || 0;
+    if (o == null) return undefined;
+    if (typeof o === 'number') return isFinite(o) ? Math.round(o * 100) / 100 : undefined;
+    if (typeof o === 'boolean') return o;
+    if (typeof o === 'string') { if (!o || /^data:|^https?:\/\//i.test(o)) return undefined; return o.length > 240 ? o.slice(0, 240) + '…' : o; }
+    if (depth > 3) return undefined;
+    if (Array.isArray(o)) { var arr = o.slice(0, 80).map(function(x){ return slim(x, depth + 1); }).filter(function(x){ return x !== undefined; }); return arr.length ? arr : undefined; }
+    if (typeof o === 'object') { var r = {}, n = 0; Object.keys(o).forEach(function(k){ if (HEAVY.test(k)) return; var v = slim(o[k], depth + 1); if (v !== undefined && !(typeof v === 'object' && !Array.isArray(v) && !Object.keys(v).length)) { r[k] = v; n++; } }); return n ? r : undefined; }
+    return undefined;
+  }
+  function iso(d){ return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
+  function tripDate(t){ try { if (typeof repTripDate === 'function') return repTripDate(t) || ''; } catch(e){} return t.deliveryDate || t.date || ''; }
+  // semana de trabajo: sábado a viernes; la carga cuenta en la semana en que se entregó
+  function weekOf(ds){ if (!ds) return ''; var p = ds.split('-').map(Number); var d = new Date(p[0], p[1] - 1, p[2]); d.setDate(d.getDate() - ((d.getDay() + 1) % 7)); var e = new Date(d); e.setDate(e.getDate() + 6); return iso(d) + ' a ' + iso(e); }
+  function allTrips(){
+    var t = []; try { t = (typeof loadTrips === 'function' ? loadTrips() : []) || []; } catch(e){}
+    try { if (typeof _archiveTrips !== 'undefined' && _archiveTrips && _archiveTrips.length) { var ids = {}; t.forEach(function(x){ ids[String(x.id)] = 1; }); _archiveTrips.forEach(function(x){ if (!ids[String(x.id)]) t.push(x); }); } } catch(e){}
+    return t;
+  }
+  function fuelOf(t){ var v = f(t.totalCost); if (!v && Array.isArray(t.fuelLoads)) t.fuelLoads.forEach(function(x){ v += f(x.total || x.amount || x.cost); }); return v; }
+  function galOf(t){ var v = f(t.totalGal); if (!v && Array.isArray(t.fuelLoads)) t.fuelLoads.forEach(function(x){ v += f(x.gallons || x.gal); }); return v; }
+  function loadedMi(t){ try { if (typeof tripDistance === 'function') { var m = tripDistance(t).mi; if (m) return f(m); } } catch(e){} return f(t.miles); }
+  function deadMi(t){ try { if (typeof tripDeadMiles === 'function') return f(tripDeadMiles(t)); } catch(e){} return f(t.deadMiles); }
+  function accOf(t){ var tot = 0; (t.accessorials || []).forEach(function(a){ tot += f(a.amount); }); return tot; }
+  function extrasOf(t){ if (t.extrasTotal != null) return f(t.extrasTotal); var v = 0; if (Array.isArray(t.extras)) t.extras.forEach(function(e){ v += f(e.monto || e.amount); }); else v = f(t.extras); return v; }
+  function money(t){
+    var load = f(t.loadVal != null ? t.loadVal : t.loadValue), fuel = fuelOf(t), drv = f(t.driver), fee = f(t.fee), fact = f(t.factoringFee), ex = extrasOf(t);
+    var net = (t.net != null && t.net !== '' && isFinite(parseFloat(t.net))) ? f(t.net) : load - fee - drv - fuel - ex - fact;
+    var lm = loadedMi(t), dm = deadMi(t);
+    return { load: load, lineHaul: t.lineHaul != null ? f(t.lineHaul) : load - accOf(t), acc: accOf(t), fuel: fuel, gal: galOf(t), driver: drv, fee: fee, factoring: fact, extras: ex, net: net, loadedMi: lm, deadMi: dm };
+  }
+
   function tripRow(t, forDriver){
-    var fuelUSD = num(t.totalCost);
-    if (fuelUSD === undefined && Array.isArray(t.fuelLoads)) { var s = 0; t.fuelLoads.forEach(function(f){ s += parseFloat(f.total || f.amount || f.cost || 0) || 0; }); fuelUSD = num(s); }
+    var m = money(t), tot = m.loadedMi + m.deadMi;
     var row = {
-      rc: t.rc, broker: t.brokerName || t.broker, driver: t.driverName, truck: t.truck || t.truckId,
-      pickup: place(t.city1, t.state1, t.z1), delivery: place(t.city2, t.state2, t.z2),
-      pickupDate: t.date || t.pickupDate, deliveryDate: t.deliveryDate,
-      status: t.tripStatus, started: t.startTime, finished: t.endTime,
-      loadType: t.loadType, miles: num(t.miles), deadMiles: num(t.deadMiles),
-      fuelGal: num(t.totalGal), fuelUSD: fuelUSD,
-      driverPay: num(t.driver), driverPayPct: num(t.payPct), driverPaid: t.driverPayStatus
+      id: t.id, rc: t.rc, broker: t.brokerName || t.broker, dispatcher: forDriver ? undefined : (t.broker && t.brokerName && t.broker !== t.brokerName ? t.broker : undefined),
+      driver: t.driverName, driverUser: forDriver ? undefined : t.driverUser, truck: t.truck || t.truckId,
+      pickup: place(t.city1, t.state1, t.z1), delivery: place(t.city2, t.state2, t.z2), deadFrom: place(t.cityStart, t.stateStart, t.zStart),
+      pickupAddr: t.addr1 || t.pickupAddress, deliveryAddr: t.addr2 || t.deliveryAddress,
+      pickupDate: t.date || t.pickupDate, deliveryDate: t.deliveryDate, week: weekOf(tripDate(t)),
+      status: t.tripStatus, unassigned: t.unassigned || undefined, started: t.startTime, finished: t.endTime, loadType: t.loadType, partial: t.partial || undefined,
+      loadedMi: num(m.loadedMi), deadMi: num(m.deadMi), totalMi: num(tot), mpg: num(t.mpg) || (m.gal ? num(tot / m.gal) : undefined),
+      fuelUSD: num(m.fuel), fuelGal: num(m.gal),
+      fuelStops: Array.isArray(t.fuelLoads) && t.fuelLoads.length ? t.fuelLoads.map(function(x){ return clean({ date: x.date || x.fecha, gal: num(x.gallons || x.gal), usd: num(x.total || x.amount || x.cost), ppg: num(x.price || x.ppg), place: x.place || x.location || x.station || x.city }); }) : undefined,
+      driverPay: num(m.driver), driverPayPct: num(t.payPct), driverPaid: t.driverPayStatus, accDriver: num(t.accDriver),
+      bolPod: forDriver ? undefined : clean({ bol: t.bolStatus || (t.bol ? 'uploaded' : undefined), pod: t.podStatus || (t.pod ? 'uploaded' : undefined) })
     };
     if (!forDriver) {
-      row.loadValue = num(t.loadVal != null ? t.loadVal : t.loadValue);
-      row.brokerPaid = t.payStatus; row.factoringFee = num(t.factoringFee); row.factoringPct = num(t.factoringFeePct);
-      row.dispatchFeePct = num(t.brokerFeePct); row.netProfit = num(t.net); row.extras = (typeof t.extras === 'number' || typeof t.extras === 'string') ? t.extras : undefined;
-      row.notes = t.payNotes;
-    }
+      row.loadValue = num(m.load); row.lineHaul = num(m.lineHaul);
+      row.accessorials = Array.isArray(t.accessorials) && t.accessorials.length ? t.accessorials.map(function(a){ return clean({ type: a.type || a.label || a.name, usd: num(a.amount), driverPct: num(a.pct) }); }) : undefined;
+      row.ratePerTotalMi = tot ? num(m.load / tot) : undefined; row.ratePerLoadedMi = m.loadedMi ? num(m.load / m.loadedMi) : undefined;
+      row.brokerPaid = t.payStatus; row.paidDate = t.paidDate || t.payDate;
+      row.dispatchFee = num(m.fee); row.dispatchFeePct = num(t.brokerFeePct); row.factoringFee = num(m.factoring); row.factoringPct = num(t.factoringFeePct);
+      row.tripExpenses = Array.isArray(t.extras) && t.extras.length ? t.extras.map(function(e){ return clean({ what: e.tipo || e.type || e.desc || e.label, usd: num(e.monto || e.amount) }); }) : (m.extras ? num(m.extras) : undefined);
+      row.netProfit = num(m.net); row.notes = t.payNotes;
+    } else if (tot && m.load) row.ratePerMi = num(m.load / tot);
+    if (row.bolPod && !Object.keys(row.bolPod).length) delete row.bolPod;
     return clean(row);
   }
 
-  var geoCache = {};
+  // totales ya calculados para que la IA no tenga que sumar
+  function addTo(map, key, t, forDriver){
+    if (!key) return; var m = money(t), a = map[key] = map[key] || { loads: 0, loadValue: 0, lineHaul: 0, accessorials: 0, loadedMi: 0, deadMi: 0, fuelUSD: 0, fuelGal: 0, driverPay: 0, dispatchFee: 0, factoring: 0, tripExpenses: 0, netProfit: 0 };
+    a.loads++; a.loadValue += m.load; a.lineHaul += m.lineHaul; a.accessorials += m.acc; a.loadedMi += m.loadedMi; a.deadMi += m.deadMi; a.fuelUSD += m.fuel; a.fuelGal += m.gal; a.driverPay += m.driver; a.dispatchFee += m.fee; a.factoring += m.factoring; a.tripExpenses += m.extras; a.netProfit += m.net;
+  }
+  function finish(map, forDriver){
+    var out = {};
+    Object.keys(map).sort().reverse().forEach(function(k){
+      var a = map[k], tot = a.loadedMi + a.deadMi, r = {};
+      Object.keys(a).forEach(function(x){ r[x] = num(a[x]); });
+      r.totalMi = num(tot); if (tot && a.loadValue) r.ratePerTotalMi = num(a.loadValue / tot); if (a.loadedMi && a.loadValue) r.ratePerLoadedMi = num(a.loadValue / a.loadedMi);
+      if (a.fuelGal) r.mpg = num(tot / a.fuelGal); if (tot) r.fuelPerMi = num(a.fuelUSD / tot); if (tot && !forDriver) r.netPerMi = num(a.netProfit / tot);
+      if (forDriver) ['loadValue', 'lineHaul', 'accessorials', 'dispatchFee', 'factoring', 'tripExpenses', 'netProfit'].forEach(function(x){ delete r[x]; });
+      out[k] = clean(r);
+    });
+    return out;
+  }
+  function summaries(trips, forDriver){
+    var done = trips.filter(function(t){ return t.tripStatus === 'completed'; });
+    var wk = {}, mo = {}, yr = {}, drv = {}, trk = {}, brk = {}, drvYr = {}, trkYr = {}, brkYr = {}, thisYear = String(new Date().getFullYear());
+    done.forEach(function(t){
+      var d = tripDate(t); if (!d) return; var w = weekOf(d);
+      addTo(wk, w, t, forDriver); addTo(mo, d.slice(0, 7), t, forDriver); addTo(yr, d.slice(0, 4), t, forDriver);
+      if (!forDriver) {
+        var dn = t.driverName || t.driverUser || 'sin driver', tk = 'camión ' + (t.truck || t.truckId || '?'), bk = t.brokerName || t.broker || 'sin broker';
+        addTo(drv, dn, t); addTo(trk, tk, t); addTo(brk, bk, t);
+        if (d.slice(0, 4) === thisYear) { addTo(drvYr, dn, t); addTo(trkYr, tk, t); addTo(brkYr, bk, t); }
+      }
+    });
+    var weeks = finish(wk, forDriver), keep = {}; Object.keys(weeks).slice(0, 60).forEach(function(k){ keep[k] = weeks[k]; });
+    var S = { note: 'Solo viajes terminados. Semanas sábado a viernes por fecha de entrega. Millas totales = cargadas + muertas.', byWeek: keep, byMonth: finish(mo, forDriver), byYear: finish(yr, forDriver) };
+    if (!forDriver) {
+      S.byDriverAllTime = finish(drv); S.byTruckAllTime = finish(trk); S.byBrokerAllTime = finish(brk);
+      S['byDriver' + thisYear] = finish(drvYr); S['byTruck' + thisYear] = finish(trkYr); S['byBroker' + thisYear] = finish(brkYr);
+      var owed = done.filter(function(t){ return t.payStatus && t.payStatus !== 'paid'; });
+      S.receivables = { count: owed.length, total: num(owed.reduce(function(s, t){ return s + money(t).load; }, 0)),
+        loads: owed.map(function(t){ var d = tripDate(t); return clean({ rc: t.rc, broker: t.brokerName || t.broker, route: (t.city1 || '') + ' → ' + (t.city2 || ''), delivered: d, daysSince: d ? Math.round((Date.now() - Date.parse(d)) / 86400000) : undefined, usd: num(money(t).load), status: t.payStatus }); }) };
+    }
+    var unpaidDrv = done.filter(function(t){ return t.driverPayStatus && t.driverPayStatus !== 'paid'; });
+    S.driverPayPending = { count: unpaidDrv.length, total: num(unpaidDrv.reduce(function(s, t){ return s + f(t.driver); }, 0)),
+      byDriver: (function(){ var r = {}; unpaidDrv.forEach(function(t){ var k = t.driverName || t.driverUser || '?'; r[k] = num((r[k] || 0) + f(t.driver)); }); return r; })() };
+    S.inTransit = trips.filter(function(t){ return t.tripStatus === 'active'; }).map(function(t){ return clean({ rc: t.rc, driver: t.driverName, truck: t.truck || t.truckId, route: place(t.city1, t.state1, t.z1) + ' → ' + place(t.city2, t.state2, t.z2), pickupDate: t.date, deliveryDate: t.deliveryDate, started: t.startTime }); });
+    S.scheduled = trips.filter(function(t){ return t.tripStatus === 'scheduled' || t.unassigned; }).map(function(t){ return clean({ rc: t.rc, driver: t.driverName || 'sin asignar', route: place(t.city1, t.state1, t.z1) + ' → ' + place(t.city2, t.state2, t.z2), pickupDate: t.date, deliveryDate: t.deliveryDate }); });
+    return S;
+  }
+  function byMonthSum(list, dateKeys, amtKeys, catKeys){
+    var r = {};
+    (list || []).forEach(function(x){ var d = ''; dateKeys.some(function(k){ if (x && x[k]) { d = String(x[k]).slice(0, 7); return true; } }); var a = 0; amtKeys.some(function(k){ if (x && x[k] != null && x[k] !== '') { a = f(x[k]); return true; } }); var c = 'otro'; catKeys.some(function(k){ if (x && x[k]) { c = String(x[k]); return true; } });
+      if (!d) d = 'sin fecha'; r[d] = r[d] || { total: 0 }; r[d].total = num(r[d].total + a); r[d][c] = num((r[d][c] || 0) + a); });
+    return r;
+  }
+
   async function cityOf(lat, lon){
     var key = (+lat).toFixed(2) + ',' + (+lon).toFixed(2);
     if (geoCache[key]) return geoCache[key];
@@ -102,18 +198,39 @@
   }
 
   async function buildContext(){
-    var u = user(); var trips = [];
-    try { trips = (typeof loadTrips === 'function' ? loadTrips() : []) || []; } catch(e){}
-    var cut = daysAgoISO(IS_DRIVER ? 120 : 150);
+    var u = user(), trips = allTrips();
     var mine = IS_DRIVER ? trips.filter(function(t){ return (t.driverUser && t.driverUser === u.username) || (t.driverName && u.name && String(t.driverName).toLowerCase() === String(u.name).toLowerCase()); }) : trips;
-    var rows = mine.filter(function(t){
-      var d = t.deliveryDate || t.date || '';
-      return t.tripStatus !== 'completed' || !d || d >= cut || (!IS_DRIVER && t.payStatus && t.payStatus !== 'paid');
-    }).sort(function(a, b){ return String(b.date || '').localeCompare(String(a.date || '')); }).slice(0, 220).map(function(t){ return tripRow(t, IS_DRIVER); });
-    var ctx = { now: chicagoNow() + ' (Central Time)', user: { name: u.name, role: u.role }, workWeek: 'Saturday to Friday; a load counts in the week it was delivered', trips: rows };
+    mine = mine.slice().sort(function(a, b){ return String(tripDate(b)).localeCompare(String(tripDate(a))); });
+    var ctx = { now: chicagoNow() + ' (Central Time)', today: iso(new Date()), thisWeek: weekOf(iso(new Date())), user: { name: u.name, role: IS_DRIVER ? 'driver' : 'admin' },
+      rules: 'Semana de trabajo sábado a viernes; la carga cuenta en la semana en que se entregó. Tarifa por milla = valor de la carga ÷ (millas cargadas + muertas). Ganancia neta = carga − fee dispatcher − pago driver − diésel − gastos del viaje − factoring.' };
+    ctx.summaries = summaries(mine, IS_DRIVER);
+    ctx.trips = mine.map(function(t){ return tripRow(t, IS_DRIVER); });
     if (!IS_DRIVER) {
-      try { ctx.drivers = getUsers().filter(function(x){ return x.role !== 'admin'; }).map(function(x){ return clean({ name: x.name, username: x.username, role: x.role, truckId: x.truckId }); }); } catch(e){}
-      try { if (typeof loadTrucks === 'function') ctx.trucks = loadTrucks().map(function(t){ var r = {}; Object.keys(t || {}).forEach(function(k){ var v = t[k]; if ((typeof v === 'number' || typeof v === 'boolean' || (typeof v === 'string' && v.length < 80)) && !/img|image|photo|foto|base64/i.test(k)) r[k] = v; }); return r; }); } catch(e){}
+      try { ctx.drivers = getUsers().filter(function(x){ return x.role !== 'admin'; }).map(function(x){ var s2 = slim(x) || {}; return s2; }); } catch(e){}
+      ctx.trucks = slim(call('loadTrucks'));
+      ctx.maintenance = slim(call('loadMaintenance'));
+      ctx.inspections = slim((call('loadInspections') || []).slice(-40));
+      ctx.otherExpenses = slim(call('loadExtras'));
+      ctx.otherExpensesByMonth = byMonthSum(call('loadExtras'), ['date', 'fecha', 'createdAt'], ['amount', 'monto', 'total'], ['category', 'categoria', 'cat', 'type', 'tipo']);
+      ctx.companyExpenses = slim(call('loadCompanyExpenses'));
+      ctx.companyExpensesByMonth = byMonthSum(call('loadCompanyExpenses'), ['date', 'fecha', 'createdAt'], ['amount', 'monto', 'total'], ['category', 'categoria', 'cat', 'type', 'tipo']);
+      ctx.maintenanceByMonth = byMonthSum(call('loadMaintenance'), ['date', 'fecha'], ['cost', 'costo', 'amount', 'monto', 'total'], ['type', 'tipo', 'service', 'servicio']);
+      ctx.fixedWeeklyCosts = slim(call('loadSemanaGastos'));
+      ctx.weeklyBalanceHistory = slim(call('loadSemanaHistorial'));
+      ctx.driverAdjustments = slim(call('loadAdj'));
+      ctx.scheduledLoads = slim(call('loadScheduled'));
+      ctx.company = slim(call('loadCompany'));
+    } else {
+      try { ctx.myAdjustments = slim((call('loadAdj') || []).filter(function(a){ return a && (a.driverUser === u.username || a.driver === u.username || (a.driverName && u.name && String(a.driverName).toLowerCase() === String(u.name).toLowerCase())); })); } catch(e){}
+      try { ctx.myTruck = slim((call('loadTrucks') || []).filter(function(t){ return String(t.id) === String(u.truckId); })); } catch(e){}
+    }
+    // si es demasiado grande, los viajes viejos se quedan solo con lo esencial (los totales ya los cubren)
+    var LIMIT = 450000, size = JSON.stringify(ctx).length;
+    if (size > LIMIT) {
+      var cut = iso(new Date(Date.now() - 365 * 86400000));
+      ctx.trips = ctx.trips.map(function(r){ if ((r.deliveryDate || r.pickupDate || '') >= cut) return r; return clean({ rc: r.rc, broker: r.broker, driver: r.driver, truck: r.truck, pickup: r.pickup, delivery: r.delivery, deliveryDate: r.deliveryDate, totalMi: r.totalMi, loadValue: r.loadValue, driverPay: r.driverPay, fuelUSD: r.fuelUSD, netProfit: r.netProfit, brokerPaid: r.brokerPaid, driverPaid: r.driverPaid }); });
+      size = JSON.stringify(ctx).length;
+      if (size > LIMIT) { ctx.trips = ctx.trips.slice(0, 400); ctx.note = 'Solo se mandaron los 400 viajes más recientes; para lo anterior usa summaries.'; }
     }
     ctx.liveLocations = await locations(u);
     return ctx;
@@ -127,7 +244,7 @@
     busy = true; show(); addMsg('me', q, opt); var thinking = typing(true);
     try {
       var ctx = await buildContext();
-      var body = JSON.stringify({ k: cfg.k, lang: IS_DRIVER ? 'en' : 'es', role: IS_DRIVER ? 'driver' : 'admin', user: (user() || {}).name, q: q, ctx: ctx, history: history.slice(-6) });
+      var body = JSON.stringify({ k: cfg.k, lang: IS_DRIVER ? 'en' : 'es', role: IS_DRIVER ? 'driver' : 'admin', user: (user() || {}).name, q: q, ctx: ctx, history: history.slice(-8) });
       var r = await fetch(cfg.url, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: body, redirect: 'follow' });
       var txt = await r.text(); var j; try { j = JSON.parse(txt); } catch(e){ throw new Error(T('El asistente no contestó bien. Revisa la URL del Apps Script.', 'The assistant did not answer correctly.')); }
       if (j.error) { if (/clave|key/i.test(j.error) && !IS_DRIVER) { localStorage.removeItem('yvoz_cfg'); cfg = null; } throw new Error(j.error); }

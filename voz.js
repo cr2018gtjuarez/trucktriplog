@@ -203,6 +203,8 @@
     mine = mine.slice().sort(function(a, b){ return String(tripDate(b)).localeCompare(String(tripDate(a))); });
     var ctx = { now: chicagoNow() + ' (Central Time)', today: iso(new Date()), thisWeek: weekOf(iso(new Date())), user: { name: u.name, role: IS_DRIVER ? 'driver' : 'admin' },
       rules: 'Semana de trabajo sábado a viernes; la carga cuenta en la semana en que se entregó. Tarifa por milla = valor de la carga ÷ (millas cargadas + muertas). Ganancia neta = carga − fee dispatcher − pago driver − diésel − gastos del viaje − factoring.' };
+    if (!IS_DRIVER) ctx.rules += ' Pago estándar: TQL y C.H. Robinson → driver 25% y factoring 2.99%; los demás brokers (Premium Logistics, etc.) → driver 30% y sin factoring. Sin dispatcher (fee 0%). Camiones box truck de 26 ft, máximo 8,500 lb de carga. Base: Missouri City / Houston, TX. Tarifas para negociar: $2.00, $2.25 y $2.50 por milla total.';
+    else ctx.rules += ' Box truck 26 ft, max 8,500 lb.';
     ctx.summaries = summaries(mine, IS_DRIVER);
     ctx.trips = mine.map(function(t){ return tripRow(t, IS_DRIVER); });
     if (!IS_DRIVER) {
@@ -238,19 +240,22 @@
 
   // ---------- llamada a la IA ----------
   async function ask(q, opt){
-    if (busy) return; q = (q || '').trim(); if (!q) return; opt = opt || {};
+    if (busy) return; q = (q || '').trim(); opt = opt || {};
+    var imgs = opt.images || [];
+    if (!q && !imgs.length) return;
+    if (!q) q = T('Analiza esta captura.', 'Check this screenshot.');
     await loadCfg();
     if (!cfg || !cfg.url) { var ok = await setupCfg(); if (!ok) return; }
     busy = true; show(); addMsg('me', q, opt); var thinking = typing(true);
     try {
       var ctx = await buildContext();
-      var body = JSON.stringify({ k: cfg.k, lang: IS_DRIVER ? 'en' : 'es', role: IS_DRIVER ? 'driver' : 'admin', user: (user() || {}).name, q: q, ctx: ctx, history: history.slice(-8) });
+      var body = JSON.stringify({ k: cfg.k, lang: IS_DRIVER ? 'en' : 'es', role: IS_DRIVER ? 'driver' : 'admin', user: (user() || {}).name, q: q, ctx: ctx, history: history.slice(-8), images: imgs.map(function(x){ return { media_type: x.type, data: x.data }; }) });
       var r = await fetch(cfg.url, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: body, redirect: 'follow' });
       var txt = await r.text(); var j; try { j = JSON.parse(txt); } catch(e){ throw new Error(T('El asistente no contestó bien. Revisa la URL del Apps Script.', 'The assistant did not answer correctly.')); }
       if (j.error) { if (/clave|key/i.test(j.error) && !IS_DRIVER) { localStorage.removeItem('yvoz_cfg'); cfg = null; } throw new Error(j.error); }
       var a = (j.answer || '').trim() || T('No tengo respuesta.', 'No answer.');
-      typing(false); addMsg('ai', a); history.push({ role: 'user', content: q }, { role: 'assistant', content: a }); history = history.slice(-12);
-      speak(a);
+      typing(false); addMsg('ai', a); history.push({ role: 'user', content: (imgs.length ? '[' + imgs.length + T(' captura(s)] ', ' screenshot(s)] ') : '') + q }, { role: 'assistant', content: a }); history = history.slice(-12);
+      speak(imgs.length ? a.split(/\n/)[0] : a);
     } catch(e){ typing(false); addMsg('ai', '⚠️ ' + (e && e.message ? e.message : e), { err: true }); }
     busy = false;
   }
@@ -290,6 +295,7 @@
     vol: '<svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/></svg>',
     off: '<svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M17 9.5l4.5 4.5M21.5 9.5L17 14"/></svg>',
     gear: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>',
+    clip: '<svg viewBox="0 0 24 24"><path d="M21 11.5l-8.6 8.6a5.5 5.5 0 0 1-7.8-7.8l8.6-8.6a3.7 3.7 0 0 1 5.2 5.2l-8.6 8.6a1.8 1.8 0 0 1-2.6-2.6l7.9-7.9"/></svg>',
     play: '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z" fill="currentColor" stroke="none"/></svg>'
   };
   function css(){
@@ -336,6 +342,13 @@
       '#yvoz-hint:empty{display:none}' +
       '#yvoz-f{display:flex;align-items:flex-end;gap:6px;padding:6px 8px calc(8px + env(safe-area-inset-bottom,0px));background:transparent}' +
       '#yvoz-in{flex:1;border:none;outline:none;border-radius:22px;padding:11px 16px;font-size:16px;background:#fff;color:var(--ink);box-shadow:0 1px .5px rgba(11,20,26,.13);min-width:0}' +
+      '#yvoz-att{width:42px;height:46px;border:none;background:none;color:var(--sub);display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none}' +
+      '#yvoz-att svg{width:24px;height:24px}' +
+      '#yvoz-pend{display:flex;gap:8px;padding:6px 10px 0;overflow-x:auto}#yvoz-pend:empty{display:none}' +
+      '#yvoz-pend .pi{position:relative;flex:none}#yvoz-pend img{width:64px;height:64px;object-fit:cover;border-radius:8px;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.2)}' +
+      '#yvoz-pend .pi button{position:absolute;top:-6px;right:-6px;width:22px;height:22px;border-radius:50%;border:none;background:#111B21;color:#fff;font-size:13px;line-height:22px;padding:0;cursor:pointer}' +
+      '#yvoz-log .shots{display:flex;flex-wrap:wrap;gap:4px;margin:-2px -5px 6px}#yvoz-log .shots img{max-width:220px;max-height:260px;border-radius:6px;display:block;cursor:pointer}' +
+      '#yvoz-panel.drop{outline:3px dashed var(--yb);outline-offset:-8px}' +
       '#yvoz-go{width:46px;height:46px;border-radius:50%;border:none;background:var(--yb);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none}' +
       '#yvoz-go.on{background:#E53935;animation:yvozp 1.1s infinite}' +
       'html.voz-app #yvoz-fab{display:none!important}' +
@@ -365,7 +378,8 @@
       (APP ? '<button type="button" id="yvoz-out">' + T('Salir', 'Log out') + '</button>' : '') + '</div>' +
       '<div id="yvoz-log"><div class="day">' + T('HOY', 'TODAY') + '</div></div>' +
       '<div id="yvoz-chips"></div><div id="yvoz-hint"></div>' +
-      '<form id="yvoz-f"><input id="yvoz-in" autocomplete="off" enterkeyhint="send" placeholder="' + T('Escribe o toca el micrófono', 'Type or tap the mic') + '">' +
+      '<div id="yvoz-pend"></div><input type="file" id="yvoz-file" accept="image/*" multiple hidden>' +
+      '<form id="yvoz-f"><button type="button" id="yvoz-att" aria-label="' + T('Adjuntar captura', 'Attach screenshot') + '">' + IC.clip + '</button><input id="yvoz-in" autocomplete="off" enterkeyhint="send" placeholder="' + T('Escribe o toca el micrófono', 'Type or tap the mic') + '">' +
       '<button type="button" id="yvoz-go" aria-label="' + T('Hablar', 'Talk') + '">' + IC.mic + '</button></form>';
     document.body.appendChild(p);
     $('yvoz-x').onclick = function(){ p.style.display = 'none'; try { if (listening && rec) rec.stop(); speechSynthesis.cancel(); } catch(e){} };
@@ -373,18 +387,51 @@
     if ($('yvoz-cfg')) $('yvoz-cfg').onclick = function(){ setupCfg(); };
     if ($('yvoz-out')) $('yvoz-out').onclick = function(){ try { speechSynthesis.cancel(); } catch(e){} try { if (typeof doLogout === 'function') doLogout(); } catch(e){} };
     $('yvoz-in').oninput = sendBtn;
-    $('yvoz-go').onclick = function(){ var q = $('yvoz-in').value.trim(); if (q && !listening) { $('yvoz-in').value = ''; sendBtn(); ask(q); } else listen(); };
-    $('yvoz-f').onsubmit = function(e){ e.preventDefault(); var q = $('yvoz-in').value; $('yvoz-in').value = ''; sendBtn(); ask(q); };
+    $('yvoz-go').onclick = function(){ var q = $('yvoz-in').value.trim(); if ((q || pending.length) && !listening) send(); else listen(); };
+    $('yvoz-f').onsubmit = function(e){ e.preventDefault(); send(); };
+    $('yvoz-att').onclick = function(){ $('yvoz-file').click(); };
+    $('yvoz-file').onchange = function(){ addFiles(this.files); this.value = ''; };
+    p.addEventListener('paste', function(e){ var fs = []; Array.prototype.forEach.call((e.clipboardData || {}).items || [], function(it){ if (it.kind === 'file' && /^image\//.test(it.type)) fs.push(it.getAsFile()); }); if (fs.length) { e.preventDefault(); addFiles(fs); } });
+    p.addEventListener('dragover', function(e){ e.preventDefault(); p.classList.add('drop'); });
+    p.addEventListener('dragleave', function(){ p.classList.remove('drop'); });
+    p.addEventListener('drop', function(e){ e.preventDefault(); p.classList.remove('drop'); if (e.dataTransfer && e.dataTransfer.files) addFiles(e.dataTransfer.files); });
     addMsg('ai', T('Hola 👋 Pregúntame lo que quieras de la app: dónde está un driver, viajes en tránsito, ganancias de la semana, pagos pendientes, diésel o millas. Mándame una nota de voz con el micrófono o escríbeme.',
                    'Hi 👋 Ask me about your trips: your pay this week, miles, diesel or your current trip. Send me a voice note with the mic or type.'), { noReplay: true });
+    addMsg('ai', T('📎 También puedes mandarme capturas de pantalla: una carga de TQL, C.H. Robinson, DAT o Premium y te digo si conviene, cuánto quedaría limpio y cuánto pedir; un recibo de diésel, un BOL o un RC y te digo de qué viaje es y qué le falta.',
+                   '📎 You can also send me screenshots: a load from a load board and I tell you the rate per mile and your pay; a fuel receipt, BOL or RC and I tell you which trip it belongs to.'), { noReplay: true });
   }
+  // ---------- capturas de pantalla ----------
+  var pending = [];   // [{type, data(base64)}]
+  function shrink(file){
+    return new Promise(function(res){
+      var rd = new FileReader();
+      rd.onload = function(){ var im = new Image(); im.onload = function(){
+        var M = 1600, w = im.naturalWidth, h = im.naturalHeight, k = Math.min(1, M / Math.max(w, h));
+        var c = document.createElement('canvas'); c.width = Math.round(w * k); c.height = Math.round(h * k);
+        var g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(im, 0, 0, c.width, c.height);
+        res({ type: 'image/jpeg', data: c.toDataURL('image/jpeg', 0.85).split(',')[1] }); };
+        im.onerror = function(){ res(null); }; im.src = rd.result; };
+      rd.onerror = function(){ res(null); }; rd.readAsDataURL(file);
+    });
+  }
+  async function addFiles(list){
+    var fs = Array.prototype.slice.call(list || []).filter(function(f){ return f && /^image\//.test(f.type); });
+    for (var i = 0; i < fs.length && pending.length < 4; i++) { var x = await shrink(fs[i]); if (x) pending.push(x); }
+    if (fs.length && pending.length >= 4) setHint(T('Máximo 4 capturas por mensaje.', 'Up to 4 screenshots per message.'));
+    drawPending(); sendBtn(); show(); try { $('yvoz-in').focus(); } catch(e){}
+  }
+  function drawPending(){
+    var c = $('yvoz-pend'); if (!c) return; c.innerHTML = '';
+    pending.forEach(function(x, i){ var d = document.createElement('div'); d.className = 'pi'; d.innerHTML = '<img alt="" src="data:' + x.type + ';base64,' + x.data + '"><button type="button" aria-label="' + T('Quitar', 'Remove') + '">×</button>'; d.querySelector('button').onclick = function(){ pending.splice(i, 1); drawPending(); sendBtn(); }; c.appendChild(d); });
+  }
+  function send(){ var q = $('yvoz-in').value; var imgs = pending.slice(); pending = []; drawPending(); $('yvoz-in').value = ''; sendBtn(); setHint(''); ask(q, { images: imgs }); }
   var chipsDone = false;
   function show(){
     var p = $('yvoz-panel'); if (!p) return; p.style.display = 'flex';
     if (!chipsDone) { chipsDone = true; var c = $('yvoz-chips'); chips().forEach(function(q){ var x = document.createElement('button'); x.type = 'button'; x.textContent = q; x.onclick = function(){ ask(q); }; c.appendChild(x); }); }
     var l = $('yvoz-log'); l.scrollTop = l.scrollHeight;
   }
-  function sendBtn(){ var g = $('yvoz-go'), i = $('yvoz-in'); if (!g || !i) return; var txt = !!i.value.trim() && !listening; g.innerHTML = txt ? IC.send : IC.mic; g.setAttribute('aria-label', txt ? T('Enviar', 'Send') : T('Hablar', 'Talk')); }
+  function sendBtn(){ var g = $('yvoz-go'), i = $('yvoz-in'); if (!g || !i) return; var txt = (!!i.value.trim() || pending.length > 0) && !listening; g.innerHTML = txt ? IC.send : IC.mic; g.setAttribute('aria-label', txt ? T('Enviar', 'Send') : T('Hablar', 'Talk')); }
   function fab(on){ var b = $('yvoz-fab'); if (b) b.classList.toggle('on', !!on); var g = $('yvoz-go'); if (g) { g.classList.toggle('on', !!on); g.innerHTML = IC.mic; } var i = $('yvoz-in'); if (i) i.placeholder = on ? T('Escuchando… habla ahora', 'Listening… speak now') : T('Escribe o toca el micrófono', 'Type or tap the mic'); }
   function status(t){ var e = $('yvoz-st'); if (!e) return; e.textContent = t || T('en línea', 'online'); e.classList.toggle('act', !!t); }
   function setHint(t){ var h = $('yvoz-hint'); if (h) h.textContent = t || ''; }
@@ -401,6 +448,7 @@
       d.innerHTML = '<div class="vn"><div class="pl">' + IC.mic + '</div><div class="wv">' + bars + '</div><em>0:' + ('0' + Math.min(59, o.voice)).slice(-2) + '</em></div>';
       var tx = document.createElement('div'); tx.className = 'tx'; tx.textContent = '“' + text + '”'; d.appendChild(tx);
     } else d.textContent = text;
+    if (who === 'me' && o.images && o.images.length) { var sh = document.createElement('div'); sh.className = 'shots'; o.images.forEach(function(im){ var g = document.createElement('img'); g.src = 'data:' + im.type + ';base64,' + im.data; g.alt = ''; g.onclick = function(){ try { var w = window.open(); w.document.write('<img src="' + g.src + '" style="max-width:100%">'); } catch(e){} }; sh.appendChild(g); }); d.insertBefore(sh, d.firstChild); }
     if (who === 'ai' && !o.err && !o.noReplay) { var r = document.createElement('button'); r.type = 'button'; r.className = 'rp'; r.innerHTML = IC.play + T('Escuchar', 'Listen'); r.onclick = function(){ var m = $('yvoz-mute'); var was = m.dataset.on; m.dataset.on = '0'; speak(text); m.dataset.on = was; }; d.appendChild(document.createElement('br')); d.appendChild(r); }
     var tm = document.createElement('span'); tm.className = 'tm'; tm.innerHTML = hhmm() + (who === 'me' ? ' <i>✓✓</i>' : ''); d.appendChild(tm);
     var l = $('yvoz-log'); l.appendChild(d); l.scrollTop = l.scrollHeight; return d;
@@ -413,7 +461,7 @@
       var key = a ? (u.username || u.name) + '|' + u.role : null;
       if (key !== builtFor) {
         ['yvoz-fab', 'yvoz-panel'].forEach(function(id){ var e = $(id); if (e) e.remove(); });
-        chipsDone = false; history = []; builtFor = key;
+        chipsDone = false; history = []; pending = []; builtFor = key;
         if (a) { IS_DRIVER = u.role === 'driver' || !u.role; ui(); show(); }
       }
       return;

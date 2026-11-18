@@ -19943,5 +19943,6 @@ async function renderAuditoria(force){
 function audSetGvwr(id,v){ const T=loadTrucks(); const t=T.find(x=>String(x.id)===String(id)); if(!t) return; t.gvwr=parseFloat(v)||''; saveTrucks(T); renderAuditoria(); }
 
 </script>
+<script src="voz.js?v=1" defer></script>
 </body>
 </html>

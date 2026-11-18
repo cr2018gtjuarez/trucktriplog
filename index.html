@@ -4606,6 +4606,24 @@ function initFirebase(){
 const TRIPS_KEY='trucklog_v6';
 const USERS_KEY='trucklog_users';
 const SESSION_KEY='trucklog_session';
+// App aparte "Asistente" (asistente.html → ?app=voz): pantalla de chat del asistente, sin el resto de la app
+const VOZ_APP=/[?&]app=voz\b/.test(location.search);
+if(VOZ_APP){ try{ document.title='Asistente YENAVI';
+  const setL=(sel,attr,val)=>{ let el=document.querySelector(sel); if(el) el.setAttribute(attr,val); };
+  setL('link[rel="manifest"]','href','asistente.webmanifest'); setL('meta[name="apple-mobile-web-app-title"]','content','Asistente');
+  document.querySelectorAll('link[rel="apple-touch-icon"]').forEach(l=>l.setAttribute('href','asistente-apple-touch-icon.png'));
+  document.querySelectorAll('link[rel="icon"]').forEach(l=>l.setAttribute('href','asistente-icon-192.png'));
+  setL('meta[name="theme-color"]','content','#0B3D91');
+  const st=document.createElement('style'); st.textContent=`
+    html.voz-app .login-wrap{background:#ECE5DD;}
+    html.voz-app .login-logo img{content:url(asistente-icon-192.png);border-radius:50%;}
+    html.voz-app .login-btn{background:#0B3D91;color:#fff;}
+    html.voz-app #bottom-nav{display:none !important;}`;
+  document.head.appendChild(st);
+  document.addEventListener('DOMContentLoaded',()=>{ ['login-title-txt','login-sub-txt'].forEach(id=>{ const e=document.getElementById(id); if(e) e.setAttribute('data-no-tr','1'); });
+    const a=document.getElementById('login-title-txt'); if(a) a.textContent='Asistente YENAVI';
+    const b=document.getElementById('login-sub-txt'); if(b) b.textContent='Entra con tu usuario de Truck Trip Log'; });
+}catch(e){} }
 // App aparte "ETA" (eta.html → ?app=eta): todos los usuarios ven solo el ETA
 const ETA_APP=/[?&]app=eta\b/.test(location.search);
 if(ETA_APP){ try{ document.title='ETA';
@@ -19943,6 +19961,6 @@ async function renderAuditoria(force){
 function audSetGvwr(id,v){ const T=loadTrucks(); const t=T.find(x=>String(x.id)===String(id)); if(!t) return; t.gvwr=parseFloat(v)||''; saveTrucks(T); renderAuditoria(); }
 
 </script>
-<script src="voz.js?v=1" defer></script>
+<script src="voz.js?v=2" defer></script>
 </body>
 </html>

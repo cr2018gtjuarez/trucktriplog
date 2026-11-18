@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  <title>Asistente YENAVI</title>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-title" content="Asistente"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="theme-color" content="#0B3D91"/>
+  <link rel="manifest" href="asistente.webmanifest"/>
+  <link rel="icon" href="asistente-icon-192.png"/>
+  <link rel="apple-touch-icon" href="asistente-apple-touch-icon.png"/>
+  <script>
+    // Entra directo al asistente
+    (function(){ var standalone=(window.navigator.standalone===true)||(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches)||/[?&]pwa=1\b/.test(location.search);
+      location.replace('index.html?app=voz'); })();
+  </script>
+  <style>
+    body{margin:0;min-height:100vh;background:#0B3D91;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box;}
+    .w{max-width:380px;width:100%;text-align:center;}
+    img{width:110px;height:110px;border-radius:26px;box-shadow:0 12px 30px rgba(0,0,0,.25);}
+    h1{font-size:30px;margin:18px 0 4px;}
+    p{color:#C8D6F0;font-size:15px;line-height:1.5;margin:6px 0;}
+    .s{background:#0E4AAE;border:1px solid #3D6FC2;border-radius:16px;padding:14px 16px;text-align:left;margin-top:18px;font-size:14px;line-height:1.6;}
+    .s b{color:#FFFFFF;}
+    a.btn{display:block;margin-top:18px;padding:15px;border-radius:14px;background:#FFFFFF;color:#0B3D91;font-weight:900;font-size:17px;text-decoration:none;}
+  </style>
+</head>
+<body>
+  <div class="w">
+    <img src="asistente-icon-512.png" alt="Asistente"/>
+    <h1>Asistente YENAVI</h1>
+    <p>YENAVI FREIGHT LLC · Pregúntale por tus viajes, drivers y pagos, hablando o escribiendo.</p>
+    <div class="s" id="ios">
+      <b>Instálala en tu iPhone:</b><br/>
+      1. Toca <b>Compartir</b> (el cuadrito con la flecha ↑).<br/>
+      2. Toca <b>“Agregar a pantalla de inicio”</b>.<br/>
+      3. Toca <b>Agregar</b>. Te queda el ícono <b>Asistente</b>.
+    </div>
+    <div class="s" id="and">
+      <b>En Android:</b> menú <b>⋮</b> de Chrome → <b>“Instalar app”</b>.
+    </div>
+    <a class="btn" href="index.html?app=voz">Abrir el asistente aquí</a>
+  </div>
+</body>
+</html>

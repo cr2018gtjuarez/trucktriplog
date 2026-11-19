@@ -14,6 +14,7 @@
   function users(){ try { return getUsers() || []; } catch(e){ return []; } }
   function nameOf(u){ var x = users().find(function(z){ return z.username === u; }) || {}; return x.firstName && x.lastName ? x.firstName + ' ' + x.lastName : (x.name || u); }
 
+  function isApproved(A){ return !!(A && (A.approved || A.dateSigned)); }
   async function getApp(u){ var d = fb(); if (!d) return null; try { var s = await d.collection('applications').doc(u).get(); return s.exists ? s.data() : null; } catch(e){ return null; } }
 
   // ---------- estilos ----------
@@ -162,13 +163,19 @@
   async function openForm(u){
     u = u || (user() || {}).username; if (!u) return;
     var prev = await getApp(u) || {};
+    if (isApproved(prev)) {
+      shell(IS_DRIVER_PAGE ? 'Employment Application' : 'Solicitud de empleo', '<div class="sec" style="text-align:center;padding:30px 14px"><div style="font-size:48px">🔒</div><h3>Application approved</h3>' +
+        '<p class="es">Su solicitud ya fue autorizada' + (prev.dateSigned ? ' (' + esc(prev.dateSigned) + ')' : '') + ' y ya no se puede cambiar. Si necesita corregir algo, pídaselo al administrador.</p>' +
+        '<div class="hint">It can no longer be changed. Ask the office if something needs to be corrected.</div></div>');
+      return;
+    }
     var draft = null; try { draft = JSON.parse(localStorage.getItem('ysol_draft_' + u) || 'null'); } catch(e){}
     var d = (draft && !prev.submittedAt) ? draft : (prev.data || {});
     if (!d.name) d.name = nameOf(u);
     var html =
       '<div class="sec"><h3>Driver Employment Application</h3><p class="es">Solicitud de empleo del conductor · YENAVI FREIGHT LLC · USDOT 6498343 · 49 CFR 391.21</p>' +
       '<div class="hint">Fill in everything that applies. It is saved on this phone while you type. / Llene todo lo que aplique; se guarda mientras escribe.</div>' +
-      (prev.submittedAt ? '<div class="err" style="color:#166534">✓ Already submitted ' + esc(new Date(prev.submittedAt).toLocaleDateString()) + '. If you send it again it replaces the previous one. / Ya la mandó; si la manda otra vez reemplaza la anterior.</div>' : '') + '</div>' +
+      (prev.submittedAt ? '<div class="err" style="color:#1E40AF">✓ Sent ' + esc(new Date(prev.submittedAt).toLocaleDateString()) + ' — waiting for approval. You can still correct it and send it again (sign again). / Ya la mandó y está esperando autorización: todavía la puede corregir y mandar otra vez (firme de nuevo).</div>' : '') + '</div>' +
 
       '<div class="sec noprint" style="background:#EFF6FF;border:2px solid #93C5FD"><h3>📷 Scan your driver license</h3><p class="es">Tome una foto de su licencia (el frente) y los datos se llenan solos. Revíselos antes de enviar.</p>' +
       '<button type="button" class="add" id="s-licscan" style="width:100%;padding:12px;font-size:15px;background:#2563EB;color:#fff">📷 Take photo of license / Foto de la licencia</button>' +
@@ -279,15 +286,16 @@
       if (err.length) { e.innerHTML = 'Missing / Falta: ' + err.map(esc).join(' · '); e.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
       var d2 = fb(); if (!d2) { e.textContent = 'No internet. Try again. / Sin internet.'; return; }
       var btn = $('s-go'); btn.disabled = true; btn.textContent = 'Sending… / Enviando…';
+      var now0 = await getApp(u); if (isApproved(now0)) { btn.disabled = false; btn.textContent = 'Submit application / Enviar'; e.textContent = 'Already approved: it can no longer be changed. / Ya fue autorizada; ya no se puede cambiar.'; return; }
       // firma chica (PNG) para no llenar la base de datos
       var sc = document.createElement('canvas'), r = cv.getBoundingClientRect(); sc.width = 520; sc.height = Math.round(520 * r.height / r.width);
       sc.getContext('2d').drawImage(cv, 0, 0, sc.width, sc.height);
       var sig = sc.toDataURL('image/png');
       try {
-        await d2.collection('applications').doc(u).set({ username: u, data: D, signature: sig, submittedAt: new Date().toISOString(), submittedBy: (user() || {}).username || u, dateSigned: '', reviewedBy: '' });
+        await d2.collection('applications').doc(u).set({ username: u, data: D, signature: sig, submittedAt: new Date().toISOString(), submittedBy: (user() || {}).username || u, dateSigned: '', reviewedBy: '', approved: false });
         try { localStorage.removeItem('ysol_draft_' + u); } catch(x){}
-        shell(IS_DRIVER_PAGE ? 'Employment Application' : 'Solicitud de empleo', '<div class="sec" style="text-align:center;padding:30px 14px"><div style="font-size:48px">✅</div><h3>Application submitted</h3><p class="es">Solicitud enviada. El administrador la va a revisar y poner la fecha.</p></div>');
-        paintBanner(true); try { if (typeof renderTareas === 'function') { renderTareas('home-tareas'); renderTareas('aud-tareas'); } } catch(x){}
+        shell(IS_DRIVER_PAGE ? 'Employment Application' : 'Solicitud de empleo', '<div class="sec" style="text-align:center;padding:30px 14px"><div style="font-size:48px">✅</div><h3>Application submitted</h3><p class="es">Solicitud enviada. Hasta que el administrador la autorice, la puede abrir y corregir desde el Home.</p><div class="hint">Until the office approves it, you can open and correct it from Home.</div></div>');
+        paintBanner(); try { if (typeof renderTareas === 'function') { renderTareas('home-tareas'); renderTareas('aud-tareas'); } } catch(x){}
       } catch(x){ btn.disabled = false; btn.textContent = 'Submit application / Enviar'; e.textContent = 'Could not send: ' + (x.message || x); }
     };
   }
@@ -297,6 +305,7 @@
     if (!rows || !rows.length) return '<div class="kv"><i>—</i></div>';
     return '<table><tr>' + cols.map(function(c){ return '<th>' + c[1] + '</th>'; }).join('') + '</tr>' + rows.map(function(r){ return '<tr>' + cols.map(function(c){ return '<td>' + esc(r[c[0]]) + '</td>'; }).join('') + '</tr>'; }).join('') + '</table>';
   }
+  function refreshAdmin(){ try { if (typeof renderTareas === 'function') { renderTareas('home-tareas'); renderTareas('aud-tareas'); } if (typeof renderAuditoria === 'function' && typeof _currentSidebarId !== 'undefined' && _currentSidebarId === 'auditoria') { _audDocs = null; renderAuditoria(true); } } catch(x){} }
   async function adminView(u){
     var A = await getApp(u);
     if (!A) { alert('Ese driver todavía no ha llenado la solicitud en la app.'); return; }
@@ -318,9 +327,20 @@
       '<div style="margin:8px 0"><img src="' + esc(A.signature) + '" alt="firma" style="max-width:320px;width:100%;border-bottom:1.5px solid #334155"></div>' +
       '<div class="kv"><b>Firma:</b> ' + esc(D.name) + '</div>' +
       '<label>Fecha de firma <i>(la llena el administrador)</i></label><input type="date" id="s-dsign" value="' + esc(A.dateSigned) + '" style="max-width:220px">' +
-      (A.dateSigned ? '<div class="kv" style="margin-top:6px"><b>Revisó:</b> ' + esc(A.reviewedBy || '') + '</div>' : '') + '<div class="err" id="s-err"></div></div>';
+      (isApproved(A) ? '<div class="kv" style="margin-top:6px;color:#166534"><b>🔒 Autorizada por:</b> ' + esc(A.reviewedBy || '') + (A.reviewedAt ? ' · ' + esc(new Date(A.reviewedAt).toLocaleDateString('es-US')) : '') + ' — el driver ya no la puede cambiar.</div>'
+        : '<div class="kv noprint" style="margin-top:6px;color:#1E40AF">✏️ Pendiente de autorizar: el driver todavía la puede corregir. Al autorizarla queda cerrada.</div>') + '<div class="err" id="s-err"></div></div>';
     var o = shell('Solicitud de empleo · ' + (D.name || nameOf(u)), html,
-      '<div class="send"><button type="button" class="sec2" id="s-print">🖨️ Imprimir / PDF</button><button type="button" id="s-save">Guardar fecha</button></div>');
+      '<div class="send"><button type="button" class="sec2" id="s-print">🖨️ Imprimir</button>' + (isApproved(A) ? '<button type="button" class="sec2" id="s-unlock">🔓 Devolver para corregir</button><button type="button" id="s-save">Guardar fecha</button>' : '<button type="button" id="s-save">✅ Autorizar</button>') + '</div>');
+    if ($('s-unlock')) $('s-unlock').onclick = async function(){
+      if (!confirm('¿Devolver la solicitud al driver para que la corrija?\n\nSe quita la autorización y sale de Documentos hasta que la vuelvas a autorizar.')) return;
+      var d2 = fb(), e = $('s-err'); if (!d2) { e.textContent = 'Sin internet.'; return; }
+      try {
+        await d2.collection('applications').doc(u).set({ approved: false, dateSigned: '', reviewedBy: '', reopenedAt: new Date().toISOString(), reopenedBy: (user() || {}).username || 'admin' }, { merge: true });
+        var ref = d2.collection('docs').doc('drv_' + u), sn = await ref.get();
+        if (sn.exists) { var cur = sn.data(); cur.items = cur.items || {}; if (cur.items.d_app) { cur.items.d_app.files = (cur.items.d_app.files || []).filter(function(x){ return !x.inApp; }); await ref.set(cur); try { if (typeof _ddData !== 'undefined') _ddData[u] = cur; } catch(x){} } }
+        close(); refreshAdmin(); alert('Listo: el driver ya la puede corregir. Cuando la vuelva a mandar, autorízala otra vez.');
+      } catch(x){ e.textContent = 'No se pudo: ' + (x.message || x); }
+    };
     function ssnShow(on){ var e = $('s-ssnv'); if (!e) return; var v = e.dataset.v || ''; e.textContent = on ? v : '***-**-' + v.slice(-4); var b = $('s-ssnshow'); if (b) b.textContent = on ? 'Ocultar' : 'Mostrar'; }
     if ($('s-ssnshow')) $('s-ssnshow').onclick = function(){ ssnShow(this.textContent === 'Mostrar'); };
     $('s-print').onclick = function(){ ssnShow(true); window.print(); setTimeout(function(){ ssnShow(false); }, 500); };
@@ -329,7 +349,7 @@
       var d2 = fb(); if (!d2) { e.textContent = 'Sin internet.'; return; }
       var me = (user() || {}).username || 'admin', now = new Date().toISOString();
       try {
-        await d2.collection('applications').doc(u).set({ dateSigned: f, reviewedBy: me, reviewedAt: now }, { merge: true });
+        await d2.collection('applications').doc(u).set({ dateSigned: f, reviewedBy: me, reviewedAt: now, approved: true }, { merge: true });
         // queda en Documentos → Solicitud de empleo (así la auditoría la cuenta)
         var ref = d2.collection('docs').doc('drv_' + u), sn = await ref.get(), cur = sn.exists ? sn.data() : { items: {} };
         cur.items = cur.items || {}; cur.username = u;
@@ -338,8 +358,8 @@
         cur.items.d_app = Object.assign({}, it, { files: files, updatedAt: now, by: me });
         await ref.set(cur);
         try { if (typeof _ddData !== 'undefined') _ddData[u] = cur; } catch(x){}
-        close(); try { if (typeof renderTareas === 'function') { renderTareas('home-tareas'); renderTareas('aud-tareas'); } if (typeof renderAuditoria === 'function' && typeof _currentSidebarId !== 'undefined' && _currentSidebarId === 'auditoria') { _audDocs = null; renderAuditoria(true); } } catch(x){}
-        alert('Listo: fecha guardada. La solicitud quedó en Documentos → Solicitud de empleo.');
+        close(); refreshAdmin();
+        alert('Listo: solicitud autorizada. El driver ya no la puede cambiar y quedó en Documentos → Solicitud de empleo.');
       } catch(x){ e.textContent = 'No se pudo guardar: ' + (x.message || x); }
     };
   }
@@ -350,10 +370,18 @@
     var u = user(); if (!u || u.role === 'admin' || !IS_DRIVER_PAGE) return;
     var home = $('page-home'); if (!home) return;
     var b = $('ysol-banner');
-    if (done === undefined) { var A = await getApp(u.username); done = !!(A && A.submittedAt); }
-    if (done) { if (b) b.remove(); return; }
+    var A = await getApp(u.username), st = !A || !A.submittedAt ? 'todo' : isApproved(A) ? 'ok' : 'wait';
+    if (st === 'ok') { if (b) b.remove(); return; }
+    if (b && b.dataset.st !== st) { b.remove(); b = null; }
+    if (!b && st === 'wait') {
+      b = document.createElement('div'); b.id = 'ysol-banner'; b.className = 'ysol-banner'; b.dataset.st = st; b.setAttribute('data-no-tr', '1');
+      b.style.cssText = 'background:#EFF6FF;border-color:#93C5FD;color:#1E3A8A';
+      b.innerHTML = '<b style="color:#1E3A8A">📝 Employment Application sent — waiting for approval</b>You can still review and correct it until the office approves it.<br><i style="font-size:12.5px">Su solicitud está esperando autorización; todavía la puede corregir.</i><button type="button" style="background:#2563EB">Review / edit — Revisar o corregir</button>';
+      b.querySelector('button').onclick = function(){ openForm(u.username); };
+      home.insertBefore(b, home.firstChild); return;
+    }
     if (!b) {
-      b = document.createElement('div'); b.id = 'ysol-banner'; b.className = 'ysol-banner'; b.setAttribute('data-no-tr', '1');
+      b = document.createElement('div'); b.id = 'ysol-banner'; b.className = 'ysol-banner'; b.dataset.st = st; b.setAttribute('data-no-tr', '1');
       b.innerHTML = '<b>⚠️ Action required: Employment Application</b>Please fill out and sign your employment application as soon as possible. It takes about 10 minutes.<br><i style="font-size:12.5px">Llene y firme su solicitud de empleo lo más pronto posible.</i><button type="button">Fill out now / Llenar ahora</button>';
       b.querySelector('button').onclick = function(){ openForm(u.username); };
       home.insertBefore(b, home.firstChild);
@@ -368,7 +396,7 @@
   function tick(){
     var u = user(); if (!u || !fb()) return;
     var key = u.username + '|' + u.role;
-    if (key !== lastKey) { lastKey = key; bannerState = null; paintBanner(); }
+    if (key !== lastKey || Date.now() - (tick.at || 0) > 120000) { lastKey = key; tick.at = Date.now(); paintBanner(); }
     if (!IS_DRIVER_PAGE && u.role === 'admin' && /^#solicitud=/.test(location.hash)) { var who = decodeURIComponent(location.hash.slice(11)); history.replaceState(null, '', location.pathname + location.search); adminView(who); }
   }
   function start(){ setInterval(tick, 1500); tick(); }

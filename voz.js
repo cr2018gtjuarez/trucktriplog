@@ -367,7 +367,13 @@
     try { sidebarNav('new'); } catch(e){}
     await new Promise(function(r){ setTimeout(r, 400); });
     try { if (typeof adminResetForm === 'function') adminResetForm(); } catch(e){}
-    var pk = d.pickup || {}, en = d.entrega || {}, done = [], miss = [];
+    var pk = Object.assign({}, d.pickup || {}), en = Object.assign({}, d.entrega || {}), done = [], miss = [];
+    // ZIP: el que leyó la IA, o el que venga en la dirección, o el de la ciudad
+    for (var x of [pk, en]) {
+      var z = String(x.zip || '').match(/\d{5}/) || String((x.direccion || '') + ' ' + (x.ciudad || '')).match(/\b\d{5}\b/);
+      x.zip = z ? z[0] : null;
+      if (!x.zip && x.ciudad && x.estado) { try { x.zip = await rcResolveZip(x.ciudad, x.estado); } catch(e){} }
+    }
     var rate = parseFloat(d.pago); rate = isFinite(rate) && rate > 0 ? rate : null;
     var stop = function(x, tp){ return { type: tp, city: x.ciudad || null, state: x.estado || null, zip: x.zip ? String(x.zip).slice(0, 5) : null, date: x.fecha || null, addr: x.direccion || null }; };
     _startRc = { file: null, name: 'RC ' + (d.rc || '') + ' (foto)', dataUrl: dataUrlOf(img),

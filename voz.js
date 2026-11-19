@@ -171,6 +171,7 @@
     return r;
   }
 
+  var geoCache = {};
   async function cityOf(lat, lon){
     var key = (+lat).toFixed(2) + ',' + (+lon).toFixed(2);
     if (geoCache[key]) return geoCache[key];

@@ -69,7 +69,7 @@ function doPost(e) {
       'Un objeto por foto, con "img" = número de la captura (1, 2, …) y "tipo" = diesel | bol | pod | rc | orden | carga | loadboard | otro. Campos según el tipo (pon null si no se ve; NUNCA inventes):',
       '- diesel: fecha (AAAA-MM-DD), gasolinera (marca y número de tienda), ciudad, estado (2 letras), zip, galones, precio, total, tarjeta (últimos 4), nombre (loyalty, si viene), ticket (número de ticket, invoice o transacción), reimpreso (true si dice DUPLICATE/COPY), producto (diesel | def | gasolina), enRuta (true | false | null)',
       '- bol / pod: bol, pro, sello, broker, carrier, placa, shipper {nombre, ciudad, estado, zip}, consignee {nombre, ciudad, estado, zip}, fechaPickup, fechaEntrega, piezas, peso, firmaDriver, firmaRecibido (true | false)',
-      '- rc / orden: rc (número de RC u orden), broker, driver, pago (número o null), millas, peso, pickup {fecha, hora, direccion, ciudad, estado, zip}, entrega {fecha, hora, direccion, ciudad, estado, zip}, notas (instrucciones importantes, corto)',
+      '- rc / orden: rc (número de RC u orden), broker, driver, pago (número o null), millas, peso, pickup {fecha, hora, direccion (calle y número), ciudad, estado, zip (5 dígitos; casi siempre viene junto a la ciudad)}, entrega {igual que pickup}, notas (instrucciones importantes, corto)',
       '- carga: piezas, asegurada (true | false | null)',
       'En TODOS los tipos pon tripId = el "id" del viaje de los DATOS al que corresponde (o null si no hay o no estás seguro) y driver = nombre del driver si lo sabes.'
     ].join('\n') : '';

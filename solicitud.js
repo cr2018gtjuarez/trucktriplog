@@ -172,7 +172,7 @@
 
       '<div class="sec noprint" style="background:#EFF6FF;border:2px solid #93C5FD"><h3>📷 Scan your driver license</h3><p class="es">Tome una foto de su licencia (el frente) y los datos se llenan solos. Revíselos antes de enviar.</p>' +
       '<button type="button" class="add" id="s-licscan" style="width:100%;padding:12px;font-size:15px;background:#2563EB;color:#fff">📷 Take photo of license / Foto de la licencia</button>' +
-      '<input type="file" id="s-licfile" accept="image/*" capture="environment" style="display:none"><div id="s-licmsg" class="hint" style="margin-top:6px"></div></div>' +
+      '<input type="file" id="s-licfile" accept="image/*" style="display:none"><div id="s-licmsg" class="hint" style="margin-top:6px"></div></div>' +
 
       '<div class="sec"><h3>1. Your information</h3><p class="es">Sus datos</p>' +
       '<label>Full legal name <i>Nombre completo</i></label><input type="text" id="s-name" value="' + esc(d.name) + '">' +

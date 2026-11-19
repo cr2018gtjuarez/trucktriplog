@@ -65,8 +65,7 @@ function doPost(e) {
 
     // Con fotos (solo administrador): además de la respuesta, los datos de cada foto en JSON para los botones de Guardar
     const DOCS = imgs.length && !en ? [
-      'AL FINAL de tu respuesta agrega UNA línea que empiece exactamente con <<DOCS>> seguida de JSON (sin markdown) con lo que leíste de cada foto:',
-      '<<DOCS>>{"docs":[{...}, ...]}',
+      'DESPUÉS de escribir tu respuesta, llama SIEMPRE a la herramienta "docs" con lo que leíste de cada foto (no pongas ese JSON en el texto).',
       'Un objeto por foto, con "img" = número de la captura (1, 2, …) y "tipo" = diesel | bol | pod | rc | orden | carga | loadboard | otro. Campos según el tipo (pon null si no se ve; NUNCA inventes):',
       '- diesel: fecha (AAAA-MM-DD), gasolinera (marca y número de tienda), ciudad, estado (2 letras), zip, galones, precio, total, tarjeta (últimos 4), nombre (loyalty, si viene), ticket (número de ticket, invoice o transacción), reimpreso (true si dice DUPLICATE/COPY), producto (diesel | def | gasolina), enRuta (true | false | null)',
       '- bol / pod: bol, pro, sello, broker, carrier, placa, shipper {nombre, ciudad, estado, zip}, consignee {nombre, ciudad, estado, zip}, fechaPickup, fechaEntrega, piezas, peso, firmaDriver, firmaRecibido (true | false)',
@@ -102,18 +101,21 @@ function doPost(e) {
           { type: 'text', text: sistema },
           { type: 'text', text: L('DATOS:\n', 'DATA:\n') + JSON.stringify(ctx), cache_control: { type: 'ephemeral' } }
         ],
-        messages: msgs
+        messages: msgs,
+        tools: DOCS ? [{ name: 'docs', description: 'Datos leídos de cada foto, para los botones de Guardar de la app.',
+          input_schema: { type: 'object', properties: { docs: { type: 'array', items: { type: 'object' } } }, required: ['docs'] } }] : undefined
       })
     });
     const j = JSON.parse(res.getContentText());
     if (j.error) return out_({ error: 'IA: ' + (j.error.message || j.error.type) });
-    let texto = (j.content || []).map(function (c) { return c.text || ''; }).join('').trim();
+    let texto = (j.content || []).map(function (c) { return c.type === 'text' ? (c.text || '') : ''; }).join('').trim();
     let docs = null;
+    (j.content || []).forEach(function (c) { if (c.type === 'tool_use' && c.name === 'docs' && c.input && Array.isArray(c.input.docs)) docs = c.input.docs; });
     const at = texto.indexOf('<<DOCS>>');
-    if (at >= 0) {
+    if (at >= 0) {   // por si acaso el modelo lo puso en el texto
       const raw = texto.slice(at + 8).replace(/```(json)?/g, '').trim();
       texto = texto.slice(0, at).trim();
-      try { const a = raw.indexOf('{'), z = raw.lastIndexOf('}'); docs = JSON.parse(raw.slice(a, z + 1)).docs || null; } catch (x) { docs = null; }
+      try { const a = raw.indexOf('{'), z = raw.lastIndexOf('}'); docs = docs || JSON.parse(raw.slice(a, z + 1)).docs || null; } catch (x) { }
     }
     return out_({ answer: texto, docs: docs });
   } catch (err) {

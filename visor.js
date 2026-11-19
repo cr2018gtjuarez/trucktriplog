@@ -18,15 +18,17 @@
     '#yv-visor .yv-m{color:#fff;opacity:.8;font-size:14px}';
   document.head.appendChild(css);
 
-  var v, img, drv, msg, pushed = false;
+  var v, img, drv, msg, ifr, shr, cur = '', pushed = false;
   function build() {
     if (v) return;
     v = document.createElement('div'); v.id = 'yv-visor';
     v.innerHTML = '<div class="yv-top"><button type="button" class="yv-b yv-x">✕ ' + L('Cerrar', 'Close') + '</button>' +
-      '<a class="yv-b yv-d" target="_blank" rel="noopener" style="display:none">☁️ ' + L('Abrir en Drive', 'Open in Drive') + '</a></div>' +
-      '<div class="yv-c"><div class="yv-m"></div><img alt=""/></div>';
+      '<span style="display:flex;gap:8px"><button type="button" class="yv-b yv-d yv-s" style="display:none">📤 ' + L('Compartir', 'Share') + '</button>' +
+      '<a class="yv-b yv-d yv-g" target="_blank" rel="noopener" style="display:none">☁️ ' + L('Abrir en Drive', 'Open in Drive') + '</a></span></div>' +
+      '<div class="yv-c"><div class="yv-m"></div><img alt=""/><iframe style="display:none;width:100%;height:100%;border:0;background:#fff;border-radius:6px"></iframe></div>';
     document.body.appendChild(v);
-    img = v.querySelector('img'); drv = v.querySelector('.yv-d'); msg = v.querySelector('.yv-m');
+    img = v.querySelector('img'); drv = v.querySelector('.yv-g'); msg = v.querySelector('.yv-m'); ifr = v.querySelector('iframe'); shr = v.querySelector('.yv-s');
+    shr.onclick = function () { compartir(); };
     v.querySelector('.yv-x').onclick = function () { cerrar(); };
     v.querySelector('.yv-c').onclick = function (e) { if (e.target !== img) cerrar(); };
     img.onload = function () { msg.style.display = 'none'; img.style.display = ''; };
@@ -34,7 +36,7 @@
   }
   function cerrar(fromBack) {
     if (!v || !v.classList.contains('on')) return;
-    v.classList.remove('on'); img.removeAttribute('src');
+    v.classList.remove('on'); img.removeAttribute('src'); ifr.removeAttribute('src'); ifr.style.display = 'none';
     if (pushed && !fromBack) { pushed = false; try { history.back(); } catch (e) {} }
     pushed = false;
   }
@@ -47,17 +49,35 @@
   }
   function esDrive(u) { return /^https:\/\/(drive|docs)\.google\.com\//.test(u) || /googleusercontent\.com\//.test(u); }
 
+  function mismoSitio(u) { try { return new URL(u, location.href).origin === location.origin; } catch (e) { return false; } }
+  function compartir() {
+    var u = cur; if (!u || !navigator.share) return;
+    var abs = new URL(u, location.href).href, name = abs.split('/').pop().split('?')[0] || 'foto.jpg';
+    fetch(abs).then(function (r) { return r.blob(); }).then(function (b) {
+      var f = new File([b], name, { type: b.type || 'image/jpeg' });
+      if (navigator.canShare && navigator.canShare({ files: [f] })) return navigator.share({ files: [f] });
+      return navigator.share({ url: abs });
+    }).catch(function () { try { navigator.share({ url: abs }); } catch (e) {} });
+  }
+  function abrir() { v.classList.add('on'); if (!pushed) { try { history.pushState({ yvVisor: 1 }, ''); pushed = true; } catch (e) {} } }
+  // PDF del mismo sitio (por ejemplo formularios): se muestra dentro del visor
+  window.verPdf = function (src) {
+    build(); cur = ''; shr.style.display = 'none'; drv.href = src; drv.textContent = '↗ ' + L('Abrir', 'Open'); drv.style.display = '';
+    msg.style.display = 'none'; img.style.display = 'none'; ifr.style.display = ''; ifr.src = src; abrir();
+  };
+
   // src: la foto (data:, URL). link: enlace opcional de Drive para el botón "Abrir en Drive".
   window.verImagen = function (src, link) {
     if (!src) return;
     build();
     var id = esDrive(src) ? driveId(src) : null;
     if (id) { if (!link && !/thumbnail/.test(src)) link = src; src = 'https://drive.google.com/thumbnail?id=' + id + '&sz=w2000'; }
+    drv.textContent = '☁️ ' + L('Abrir en Drive', 'Open in Drive'); ifr.style.display = 'none';
     if (link) { drv.href = link; drv.style.display = ''; } else drv.style.display = 'none';
+    cur = (!id && mismoSitio(src) && !/^data:/.test(src)) ? src : ''; shr.style.display = (cur && navigator.share) ? '' : 'none';
     msg.textContent = L('Cargando…', 'Loading…'); msg.style.display = ''; img.style.display = 'none';
     img.src = src;
-    v.classList.add('on');
-    if (!pushed) { try { history.pushState({ yvVisor: 1 }, ''); pushed = true; } catch (e) {} }
+    abrir();
   };
   window.openLightbox = function (src) { window.verImagen(src); };
   window.closeLightbox = function () { cerrar(); var lb = document.getElementById('lightbox'); if (lb) lb.classList.remove('open'); };
@@ -70,13 +90,18 @@
     return WO.apply(window, arguments);
   };
 
-  // Enlaces "foto" / "Ver recibo" de Drive también abren en el visor (el visor tiene "Abrir en Drive").
+  // Enlaces que abren fotos o documentos (fotos del camión, documentos de drivers, recibos, Drive): se ven en el visor.
+  // Así nunca se abre una pantalla nueva sin botón para regresar.
   document.addEventListener('click', function (e) {
     var a = e.target && e.target.closest && e.target.closest('a[href]');
-    if (!a) return;
-    var h = a.getAttribute('href') || '', t = (a.textContent || '').toLowerCase();
-    if (esDrive(h) && driveId(h) && /foto|photo|recibo|receipt|ver en drive|en drive ✓/.test(t)) {
-      e.preventDefault(); window.verImagen(h, h);
-    }
+    if (!a || a.hasAttribute('download') || (v && v.contains(a))) return;
+    var h = a.getAttribute('href') || '';
+    if (/^(mailto|tel|sms|javascript):/i.test(h) || h.charAt(0) === '#') return;
+    var abs; try { abs = new URL(h, location.href); } catch (er) { return; }
+    var path = abs.pathname.toLowerCase();
+    if (abs.origin === location.origin && /\.(jpe?g|png|webp|gif|heic)$/.test(path)) { e.preventDefault(); window.verImagen(abs.href); return; }
+    if (abs.origin === location.origin && /\.pdf$/.test(path)) { e.preventDefault(); window.verPdf(abs.href); return; }
+    if (/^data:image\//.test(h)) { e.preventDefault(); window.verImagen(h); return; }
+    if (esDrive(abs.href) && driveId(abs.href) && a.target === '_blank') { e.preventDefault(); window.verImagen(abs.href, abs.href); }
   }, true);
 })();

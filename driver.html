@@ -13674,8 +13674,9 @@ function docsViewer(slides){
     v.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;color:#fff;"><div style="font-weight:800;font-size:15px;">'+s.title+'<div style="font-size:12px;font-weight:600;opacity:.8;">'+s.sub+'</div></div><button id="dv-x" style="border:none;background:#fff;color:#000;border-radius:10px;padding:8px 14px;font-weight:800;">Cerrar</button></div>'+
       '<div style="flex:1;display:flex;align-items:center;justify-content:center;overflow:auto;">'+(s.src&&!s.pdf?'<img src="'+s.src+'" style="max-width:100%;max-height:100%;object-fit:contain;"/>':s.src&&s.pdf?'<iframe src="'+s.src+'" style="width:100%;height:100%;border:0;background:#fff;"></iframe>':s.link?'<a href="'+s.link+'" target="_blank" style="color:#fff;font-size:16px;">Abrir documento</a>':'<div style="color:#fff;">'+(s.err||'Sin foto')+'</div>')+'</div>'+
       (slides.length>1?'<div style="display:flex;gap:10px;padding:10px;"><button id="dv-p" style="flex:1;padding:14px;border:none;border-radius:12px;font-size:16px;font-weight:800;">◀ Anterior</button><div style="color:#fff;align-self:center;">'+(i+1)+'/'+slides.length+'</div><button id="dv-n" style="flex:1;padding:14px;border:none;border-radius:12px;font-size:16px;font-weight:800;">Siguiente ▶</button></div>':'');
-    v.querySelector('#dv-x').onclick=()=>v.remove(); const p=v.querySelector('#dv-p'), n=v.querySelector('#dv-n'); if(p) p.onclick=()=>{ i=(i-1+slides.length)%slides.length; paint(); }; if(n) n.onclick=()=>{ i=(i+1)%slides.length; paint(); }; };
+    v.querySelector('#dv-x').onclick=()=>{ if(v._h){ v._h=false; history.back(); } else v.remove(); }; const p=v.querySelector('#dv-p'), n=v.querySelector('#dv-n'); if(p) p.onclick=()=>{ i=(i-1+slides.length)%slides.length; paint(); }; if(n) n.onclick=()=>{ i=(i+1)%slides.length; paint(); }; };
   paint(); document.body.appendChild(v);
+  try{ history.pushState({dv:1},''); v._h=true; const pop=()=>{ v._h=false; v.remove(); window.removeEventListener('popstate',pop); }; window.addEventListener('popstate',pop); }catch(e){}
 }
 async function docsSlides(types){
   const out=[];
@@ -16623,7 +16624,7 @@ window.addEventListener('load', function(){
   document.addEventListener('click',()=>setTimeout(showInstall,300),{passive:true});
 })();
 </script>
-<script src="visor.js?v=1" defer></script>
+<script src="visor.js?v=2" defer></script>
 <script src="voz.js?v=9" defer></script>
 <script src="solicitud.js?v=6" defer></script>
 </body>

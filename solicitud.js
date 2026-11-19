@@ -175,7 +175,7 @@
     var html =
       '<div class="sec"><h3>Driver Employment Application</h3><p class="es">Solicitud de empleo del conductor · YENAVI FREIGHT LLC · USDOT 6498343 · 49 CFR 391.21</p>' +
       '<div class="hint">Fill in everything that applies. It is saved on this phone while you type. / Llene todo lo que aplique; se guarda mientras escribe.</div>' +
-      (prev.submittedAt ? '<div class="err" style="color:#1E40AF">✓ Sent ' + esc(new Date(prev.submittedAt).toLocaleDateString()) + ' — waiting for approval. You can still correct it and send it again (sign again). / Ya la mandó y está esperando autorización: todavía la puede corregir y mandar otra vez (firme de nuevo).</div>' : '') + '</div>' +
+      (prev.rejected ? '<div class="err" style="background:#FEF2F2;border:1.5px solid #FCA5A5;border-radius:10px;padding:8px 10px">❌ Returned by the office — please correct: / Rechazada, corrija esto: <b>' + esc(prev.rejectNote || '') + '</b></div>' : '') + (prev.submittedAt && !prev.rejected ? '<div class="err" style="color:#1E40AF">✓ Sent ' + esc(new Date(prev.submittedAt).toLocaleDateString()) + ' — waiting for approval. You can still correct it and send it again (sign again). / Ya la mandó y está esperando autorización: todavía la puede corregir y mandar otra vez (firme de nuevo).</div>' : '') + '</div>' +
 
       '<div class="sec noprint" style="background:#EFF6FF;border:2px solid #93C5FD"><h3>📷 Scan your driver license</h3><p class="es">Tome una foto de su licencia (el frente) y los datos se llenan solos. Revíselos antes de enviar.</p>' +
       '<button type="button" class="add" id="s-licscan" style="width:100%;padding:12px;font-size:15px;background:#2563EB;color:#fff">📷 Take photo of license / Foto de la licencia</button>' +
@@ -292,7 +292,7 @@
       sc.getContext('2d').drawImage(cv, 0, 0, sc.width, sc.height);
       var sig = sc.toDataURL('image/png');
       try {
-        await d2.collection('applications').doc(u).set({ username: u, data: D, signature: sig, submittedAt: new Date().toISOString(), submittedBy: (user() || {}).username || u, dateSigned: '', reviewedBy: '', approved: false });
+        await d2.collection('applications').doc(u).set({ username: u, data: D, signature: sig, submittedAt: new Date().toISOString(), submittedBy: (user() || {}).username || u, dateSigned: '', reviewedBy: '', approved: false, rejected: false, rejectNote: '', prevRejectNote: (now0 && now0.rejectNote) || '' });
         try { localStorage.removeItem('ysol_draft_' + u); } catch(x){}
         shell(IS_DRIVER_PAGE ? 'Employment Application' : 'Solicitud de empleo', '<div class="sec" style="text-align:center;padding:30px 14px"><div style="font-size:48px">✅</div><h3>Application submitted</h3><p class="es">Solicitud enviada. Hasta que el administrador la autorice, la puede abrir y corregir desde el Home.</p><div class="hint">Until the office approves it, you can open and correct it from Home.</div></div>');
         paintBanner(); try { if (typeof renderTareas === 'function') { renderTareas('home-tareas'); renderTareas('aud-tareas'); } } catch(x){}
@@ -328,17 +328,20 @@
       '<div class="kv"><b>Firma:</b> ' + esc(D.name) + '</div>' +
       '<label>Fecha de firma <i>(la llena el administrador)</i></label><input type="date" id="s-dsign" value="' + esc(A.dateSigned) + '" style="max-width:220px">' +
       (isApproved(A) ? '<div class="kv" style="margin-top:6px;color:#166534"><b>🔒 Autorizada por:</b> ' + esc(A.reviewedBy || '') + (A.reviewedAt ? ' · ' + esc(new Date(A.reviewedAt).toLocaleDateString('es-US')) : '') + ' — el driver ya no la puede cambiar.</div>'
+        : A.rejected ? '<div class="kv noprint" style="margin-top:6px;color:#B91C1C"><b>❌ Rechazada</b> ' + (A.rejectedAt ? esc(new Date(A.rejectedAt).toLocaleDateString('es-US')) : '') + ': ' + esc(A.rejectNote || '') + ' — esperando que el driver la corrija.</div>'
         : '<div class="kv noprint" style="margin-top:6px;color:#1E40AF">✏️ Pendiente de autorizar: el driver todavía la puede corregir. Al autorizarla queda cerrada.</div>') + '<div class="err" id="s-err"></div></div>';
     var o = shell('Solicitud de empleo · ' + (D.name || nameOf(u)), html,
-      '<div class="send"><button type="button" class="sec2" id="s-print">🖨️ Imprimir</button>' + (isApproved(A) ? '<button type="button" class="sec2" id="s-unlock">🔓 Devolver para corregir</button><button type="button" id="s-save">Guardar fecha</button>' : '<button type="button" id="s-save">✅ Autorizar</button>') + '</div>');
+      '<div class="send"><button type="button" class="sec2" id="s-print">🖨️ Imprimir</button>' + (isApproved(A) ? '<button type="button" class="sec2" id="s-unlock">🔓 Devolver para corregir</button><button type="button" id="s-save">Guardar fecha</button>' : '<button type="button" class="sec2" id="s-unlock" style="background:#FEE2E2;color:#B91C1C">❌ Rechazar</button><button type="button" id="s-save">✅ Autorizar</button>') + '</div>');
     if ($('s-unlock')) $('s-unlock').onclick = async function(){
-      if (!confirm('¿Devolver la solicitud al driver para que la corrija?\n\nSe quita la autorización y sale de Documentos hasta que la vuelvas a autorizar.')) return;
+      var why = prompt((isApproved(A) ? 'Devolver la solicitud al driver para que la corrija.\nSe quita la autorización y sale de Documentos hasta que la vuelvas a autorizar.' : 'Rechazar la solicitud: el driver la tiene que corregir y mandar otra vez.') + '\n\n¿Qué tiene que corregir? (el driver lo va a ver)', A.rejectNote || '');
+      if (why === null) return; why = String(why).trim();
+      if (!why) { alert('Escribe qué tiene que corregir.'); return; }
       var d2 = fb(), e = $('s-err'); if (!d2) { e.textContent = 'Sin internet.'; return; }
       try {
-        await d2.collection('applications').doc(u).set({ approved: false, dateSigned: '', reviewedBy: '', reopenedAt: new Date().toISOString(), reopenedBy: (user() || {}).username || 'admin' }, { merge: true });
+        await d2.collection('applications').doc(u).set({ approved: false, dateSigned: '', reviewedBy: '', rejected: true, rejectNote: why.slice(0, 500), rejectedAt: new Date().toISOString(), rejectedBy: (user() || {}).username || 'admin' }, { merge: true });
         var ref = d2.collection('docs').doc('drv_' + u), sn = await ref.get();
         if (sn.exists) { var cur = sn.data(); cur.items = cur.items || {}; if (cur.items.d_app) { cur.items.d_app.files = (cur.items.d_app.files || []).filter(function(x){ return !x.inApp; }); await ref.set(cur); try { if (typeof _ddData !== 'undefined') _ddData[u] = cur; } catch(x){} } }
-        close(); refreshAdmin(); alert('Listo: el driver ya la puede corregir. Cuando la vuelva a mandar, autorízala otra vez.');
+        close(); refreshAdmin(); alert('Listo: solicitud rechazada. El driver ve el motivo en su Home y la puede corregir; cuando la vuelva a mandar, te sale otra vez para autorizar.');
       } catch(x){ e.textContent = 'No se pudo: ' + (x.message || x); }
     };
     function ssnShow(on){ var e = $('s-ssnv'); if (!e) return; var v = e.dataset.v || ''; e.textContent = on ? v : '***-**-' + v.slice(-4); var b = $('s-ssnshow'); if (b) b.textContent = on ? 'Ocultar' : 'Mostrar'; }
@@ -349,7 +352,7 @@
       var d2 = fb(); if (!d2) { e.textContent = 'Sin internet.'; return; }
       var me = (user() || {}).username || 'admin', now = new Date().toISOString();
       try {
-        await d2.collection('applications').doc(u).set({ dateSigned: f, reviewedBy: me, reviewedAt: now, approved: true }, { merge: true });
+        await d2.collection('applications').doc(u).set({ dateSigned: f, reviewedBy: me, reviewedAt: now, approved: true, rejected: false, rejectNote: '' }, { merge: true });
         // queda en Documentos → Solicitud de empleo (así la auditoría la cuenta)
         var ref = d2.collection('docs').doc('drv_' + u), sn = await ref.get(), cur = sn.exists ? sn.data() : { items: {} };
         cur.items = cur.items || {}; cur.username = u;
@@ -370,9 +373,15 @@
     var u = user(); if (!u || u.role === 'admin' || !IS_DRIVER_PAGE) return;
     var home = $('page-home'); if (!home) return;
     var b = $('ysol-banner');
-    var A = await getApp(u.username), st = !A || !A.submittedAt ? 'todo' : isApproved(A) ? 'ok' : 'wait';
+    var A = await getApp(u.username), st = !A || !A.submittedAt ? 'todo' : isApproved(A) ? 'ok' : A.rejected ? 'rej' : 'wait';
     if (st === 'ok') { if (b) b.remove(); return; }
     if (b && b.dataset.st !== st) { b.remove(); b = null; }
+    if (!b && st === 'rej') {
+      b = document.createElement('div'); b.id = 'ysol-banner'; b.className = 'ysol-banner'; b.dataset.st = st; b.setAttribute('data-no-tr', '1');
+      b.innerHTML = '<b>❌ Employment Application returned — please correct it</b>' + esc(A.rejectNote || '') + '<br><i style="font-size:12.5px">La oficina rechazó su solicitud; corríjala y mándela otra vez.</i><button type="button">Correct and resend / Corregir y mandar</button>';
+      b.querySelector('button').onclick = function(){ openForm(u.username); };
+      home.insertBefore(b, home.firstChild); return;
+    }
     if (!b && st === 'wait') {
       b = document.createElement('div'); b.id = 'ysol-banner'; b.className = 'ysol-banner'; b.dataset.st = st; b.setAttribute('data-no-tr', '1');
       b.style.cssText = 'background:#EFF6FF;border-color:#93C5FD;color:#1E3A8A';

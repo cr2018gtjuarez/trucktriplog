@@ -20034,6 +20034,7 @@ async function renderTareas(boxId){
       if(!ok) pend++;
       const usr=users.find(x=>x.username===u)||{}; const nm=usr.firstName&&usr.lastName?usr.firstName+' '+usr.lastName:(usr.name||u);
       rows.push(`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-top:1px solid #FECACA;font-size:13px;"><span>${ok?'✅':'⬜'} ${E(nm)}</span>${ok?`<span style="font-size:11.5px;font-weight:700;color:#16A34A;">Lista${app?` · <a href="#" onclick="solAdminView('${E(u)}');return false;">ver</a>`:''}</span>`
+        :app&&app.submittedAt&&app.rejected?`<span style="text-align:right;"><span style="display:block;font-size:11px;font-weight:700;color:#B91C1C;">Rechazada · esperando corrección</span><button class="btn-sm" style="padding:3px 9px;font-size:11.5px;margin-top:2px;" onclick="solAdminView('${E(u)}')">Ver</button></span>`
         :app&&app.submittedAt?`<span style="text-align:right;"><span style="display:block;font-size:11px;font-weight:700;color:#B45309;">Llenada · falta autorizar</span><button class="btn-sm" style="padding:3px 9px;font-size:11.5px;margin-top:2px;" onclick="solAdminView('${E(u)}')">Revisar y autorizar</button></span>`
         :`<span style="display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end;"><button class="btn-sm" style="padding:3px 9px;font-size:11.5px;" onclick="solOpenForm('${E(u)}')">Llenar en la app</button><button class="btn-sm" style="padding:3px 9px;font-size:11.5px;" onclick="audGoDocs('${E(u)}')">Subir firmada</button></span>`}</div>`);
     }
@@ -20050,6 +20051,6 @@ function audSetGvwr(id,v){ const T=loadTrucks(); const t=T.find(x=>String(x.id)=
 
 </script>
 <script src="voz.js?v=8" defer></script>
-<script src="solicitud.js?v=4" defer></script>
+<script src="solicitud.js?v=5" defer></script>
 </body>
 </html>

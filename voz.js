@@ -257,7 +257,7 @@
       var r = await fetch(cfg.url, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: body, redirect: 'follow' });
       var txt = await r.text(); var j; try { j = JSON.parse(txt); } catch(e){ throw new Error(T('El asistente no contestó bien. Revisa la URL del Apps Script.', 'The assistant did not answer correctly.')); }
       if (j.error) { if (/clave|key/i.test(j.error) && !IS_DRIVER) { localStorage.removeItem('yvoz_cfg'); cfg = null; } throw new Error(j.error); }
-      var a = (j.answer || '').trim() || T('No tengo respuesta.', 'No answer.');
+      var a = String(j.answer || '').replace(/\*\*(.+?)\*\*/g, '$1').replace(/^#{1,4}\s+/gm, '').trim() || T('No tengo respuesta.', 'No answer.');
       typing(false); addMsg('ai', a);
       if (!IS_DRIVER && imgs.length && Array.isArray(j.docs) && j.docs.length) { try { docCards(j.docs, imgs); } catch(e){ console.warn('voz docs', e); } } history.push({ role: 'user', content: (imgs.length ? '[' + imgs.length + T(' captura(s)] ', ' screenshot(s)] ') : '') + q }, { role: 'assistant', content: a }); history = history.slice(-12);
       speak(imgs.length ? a.split(/\n/)[0] : a);
@@ -310,6 +310,9 @@
       || list.find(function(x){ return z2 && String(x.z2) === String(z2).slice(0, 5); })
       || (drv ? list.find(function(x){ return x.tripStatus === 'active' && sameDriver(x, drv); }) : null) || null;
   }
+  // el BOL casi siempre trae al broker como carrier (TQL = Total Quality Logistics): eso no es problema
+  function normB(x){ x = String(x || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim(); if (/^tql\b|total quality/.test(x)) return 'tql'; if (/robinson|^chr\b/.test(x)) return 'chr'; if (/premium/.test(x)) return 'premium'; if (/^echo\b/.test(x)) return 'echo'; return x.split(' ')[0]; }
+  function sameBroker(c, t){ if (!t) return false; var a = normB(c), b = normB(t.brokerName || t.broker); return !!a && !!b && a === b; }
   function fuelDup(d){
     var tot = parseFloat(d.total), out = null;
     trips0().forEach(function(t){ (t.fuelLoads || []).forEach(function(l){
@@ -411,7 +414,7 @@
         if (t0 && d.pago) { var ap = parseFloat(t0.loadVal != null && t0.loadVal !== '' ? t0.loadVal : t0.rcRate); if (isFinite(ap) && Math.abs(ap - d.pago) > 1) warn.push(T('El pago en la app es ', 'App pay is ') + money2(ap) + T(' y aquí dice ', ' and here it says ') + money2(d.pago)); }
       } else {
         head = (tp === 'carga' ? '📦 ' : '📄 ') + '<b>' + KIND[tp] + '</b>' + (d.bol ? ' #' + esc(d.bol) : '') + (d.consignee && d.consignee.ciudad ? ' · → ' + esc(d.consignee.ciudad + (d.consignee.estado ? ', ' + d.consignee.estado : '')) : '');
-        if (d.carrier && !/yenavi/i.test(d.carrier)) warn.push(T('El carrier del BOL es ', 'Carrier on the BOL is ') + d.carrier + T(', no YENAVI.', ', not YENAVI.'));
+        if (d.carrier && !/yenavi/i.test(d.carrier) && !sameBroker(d.carrier, t0) && !sameBroker(d.carrier, { brokerName: d.broker })) warn.push(T('El carrier del BOL es ', 'Carrier on the BOL is ') + d.carrier + T(', no YENAVI.', ', not YENAVI.'));
         if (tp === 'bol' && d.firmaRecibido) warn.push(T('Ya está firmado de recibido: tal vez es POD.', 'Signed by the receiver: it may be a POD.'));
       }
       var opts = '<option value="">' + T('— Escoge el viaje —', '— Pick the trip —') + '</option>' + candidates().slice(0, 40).map(function(t){ return '<option value="' + esc(t.id) + '"' + (t0 && String(t0.id) === String(t.id) ? ' selected' : '') + '>' + esc(tLabel(t)) + '</option>'; }).join('');

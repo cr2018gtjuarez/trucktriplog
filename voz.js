@@ -1,6 +1,8 @@
 // YENAVI Truck Trip Log — Asistente de voz con IA (botón de micrófono)
 // Funciona en index.html (admin, español) y driver.html (driver, inglés).
-// Solo CONSULTA: lee los datos de la app y contesta. No crea, cambia ni borra nada.
+// Lee los datos de la app y contesta. Con fotos (solo administrador) ofrece botones de Guardar:
+// recibo de diésel → viaje, BOL/POD/foto de carga → viaje, RC u orden → viaje existente o formulario de Nuevo viaje lleno.
+// Nada se guarda sin que el administrador toque Guardar.
 // La IA corre en un Apps Script de Google (ver voz-apps-script.gs). La URL y la clave se guardan en Firestore: data/voz.
 (function(){
   'use strict';
@@ -40,7 +42,7 @@
     if (!k) return false;
     cfg = { url: url, k: k.trim() };
     localStorage.setItem('yvoz_cfg', JSON.stringify(cfg));
-    var d = fb(); if (d) { try { await d.collection('data').doc('voz').set({ url: cfg.url, k: cfg.k, updatedAt: new Date().toISOString() }); } catch(e){} }
+    var d = fb(); if (d) { try { await d.collection('data').doc('voz').set({ url: cfg.url, k: cfg.k, updatedAt: new Date().toISOString() }, { merge: true }); } catch(e){} }
     return true;
   }
 
@@ -222,6 +224,7 @@
       ctx.driverAdjustments = slim(call('loadAdj'));
       ctx.scheduledLoads = slim(call('loadScheduled'));
       ctx.company = slim(call('loadCompany'));
+      try { var cm = await loadCards(); if (Object.keys(cm).length) ctx.fuelCards = cm; } catch(e){}
     } else {
       try { ctx.myAdjustments = slim((call('loadAdj') || []).filter(function(a){ return a && (a.driverUser === u.username || a.driver === u.username || (a.driverName && u.name && String(a.driverName).toLowerCase() === String(u.name).toLowerCase())); })); } catch(e){}
       try { ctx.myTruck = slim((call('loadTrucks') || []).filter(function(t){ return String(t.id) === String(u.truckId); })); } catch(e){}
@@ -254,10 +257,186 @@
       var txt = await r.text(); var j; try { j = JSON.parse(txt); } catch(e){ throw new Error(T('El asistente no contestó bien. Revisa la URL del Apps Script.', 'The assistant did not answer correctly.')); }
       if (j.error) { if (/clave|key/i.test(j.error) && !IS_DRIVER) { localStorage.removeItem('yvoz_cfg'); cfg = null; } throw new Error(j.error); }
       var a = (j.answer || '').trim() || T('No tengo respuesta.', 'No answer.');
-      typing(false); addMsg('ai', a); history.push({ role: 'user', content: (imgs.length ? '[' + imgs.length + T(' captura(s)] ', ' screenshot(s)] ') : '') + q }, { role: 'assistant', content: a }); history = history.slice(-12);
+      typing(false); addMsg('ai', a);
+      if (!IS_DRIVER && imgs.length && Array.isArray(j.docs) && j.docs.length) { try { docCards(j.docs, imgs); } catch(e){ console.warn('voz docs', e); } } history.push({ role: 'user', content: (imgs.length ? '[' + imgs.length + T(' captura(s)] ', ' screenshot(s)] ') : '') + q }, { role: 'assistant', content: a }); history = history.slice(-12);
       speak(imgs.length ? a.split(/\n/)[0] : a);
     } catch(e){ typing(false); addMsg('ai', '⚠️ ' + (e && e.message ? e.message : e), { err: true }); }
     busy = false;
+  }
+
+  // ---------- guardar lo que se lee en las fotos (solo administrador) ----------
+  // Tarjetas de diésel → driver. Se aprenden solas: al guardar un recibo en el viaje de un driver, su tarjeta queda ligada a él.
+  var cards = null;
+  async function loadCards(){
+    if (cards) return cards; cards = {};
+    var d = fb(); if (d) { try { var sn = await d.collection('data').doc('voz').get(); if (sn.exists && sn.data().cards) cards = sn.data().cards; } catch(e){} }
+    return cards;
+  }
+  async function learnCard(last4, t){
+    last4 = String(last4 || '').replace(/\D/g, '').slice(-4); if (last4.length !== 4 || !t || !(t.driverUser || t.driverName)) return;
+    await loadCards(); var cur = cards[last4];
+    if (cur && cur.driverUser === t.driverUser && cur.driverName === t.driverName) return;
+    cards[last4] = { driverUser: t.driverUser || null, driverName: t.driverName || null, at: new Date().toISOString() };
+    var d = fb(); if (d) { try { var o = {}; o['cards.' + last4] = cards[last4]; await d.collection('data').doc('voz').update(o); } catch(e){ try { await d.collection('data').doc('voz').set({ cards: cards }, { merge: true }); } catch(_){} } }
+  }
+  function trips0(){ try { return (typeof loadTrips === 'function' ? loadTrips() : []) || []; } catch(e){ return []; } }
+  function money2(v){ return '$' + Number(v || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+  function esc(x){ return String(x == null ? '' : x).replace(/[&<>"]/g, function(c){ return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function tLabel(t){ return (t.driverName || T('Sin driver', 'No driver')) + ' · ' + (t.city1 || t.z1 || '—') + ' → ' + (t.city2 || t.z2 || '—') + (t.rc ? ' · RC ' + t.rc : '') + (t.tripStatus === 'active' ? ' · 🚚' : t.tripStatus === 'scheduled' ? ' · ⏳' : ''); }
+  function sameDriver(t, name){ if (!name) return false; var n = String(name).toLowerCase().trim(), a = String(t.driverName || '').toLowerCase(), u = String(t.driverUser || '').toLowerCase(); var f = n.split(/\s+/)[0]; return !!a && (a === n || a.split(/\s+/)[0] === f || u === f); }
+  function tStart(t){ return String(t.date || t.pickupDate || (t.startTime || '').slice(0, 10) || ''); }
+  function tEnd(t){ return String(t.deliveryDate || (t.endTime || '').slice(0, 10) || ''); }
+  // viajes para escoger: en tránsito y programados primero, luego los terminados de los últimos 45 días
+  function candidates(){
+    var cut = iso(new Date(Date.now() - 45 * 86400000));
+    return trips0().filter(function(t){ return t && (t.tripStatus === 'active' || t.tripStatus === 'scheduled' || tStart(t) >= cut || tEnd(t) >= cut); })
+      .sort(function(a, b){ var r = function(t){ return t.tripStatus === 'active' ? 0 : t.tripStatus === 'scheduled' ? 1 : 2; }; return r(a) - r(b) || tStart(b).localeCompare(tStart(a)); });
+  }
+  function byId(id){ if (id == null || id === '') return null; return trips0().find(function(t){ return String(t.id) === String(id); }) || null; }
+  function guessTrip(d){
+    var list = candidates(), t = byId(d.tripId); if (t) return t;
+    if (d.rc) { t = trips0().find(function(x){ return x.rc && String(x.rc).replace(/\D/g, '') === String(d.rc).replace(/\D/g, ''); }); if (t) return t; }
+    var drv = d.driver || d.nombre || d.firmaDriver;
+    if (d.tipo === 'diesel') {
+      var c = cards && d.tarjeta ? cards[String(d.tarjeta).replace(/\D/g, '').slice(-4)] : null;
+      var mine = list.filter(function(x){ return (c && ((c.driverUser && x.driverUser === c.driverUser) || (c.driverName && x.driverName === c.driverName))) || sameDriver(x, drv); });
+      var dt = d.fecha || '';
+      return mine.find(function(x){ var a = tStart(x), b = tEnd(x) || iso(new Date()); return dt && a && a <= dt && dt <= b; }) || mine.find(function(x){ return x.tripStatus === 'active'; }) || null;
+    }
+    var z1 = d.shipper && d.shipper.zip, z2 = (d.consignee && d.consignee.zip) || (d.entrega && d.entrega.zip);
+    z1 = z1 || (d.pickup && d.pickup.zip);
+    return list.find(function(x){ return z2 && String(x.z2) === String(z2).slice(0, 5) && (!z1 || String(x.z1) === String(z1).slice(0, 5)); })
+      || list.find(function(x){ return z2 && String(x.z2) === String(z2).slice(0, 5); })
+      || (drv ? list.find(function(x){ return x.tripStatus === 'active' && sameDriver(x, drv); }) : null) || null;
+  }
+  function fuelDup(d){
+    var tot = parseFloat(d.total), out = null;
+    trips0().forEach(function(t){ (t.fuelLoads || []).forEach(function(l){
+      if (out) return;
+      if (d.ticket && l.ticket && String(l.ticket) === String(d.ticket)) { out = t; return; }
+      if (isFinite(tot) && d.fecha && (l.date || t.date) === d.fecha && Math.abs((parseFloat(l.cost) || 0) - tot) < 0.02) out = t;
+    }); });
+    return out;
+  }
+  function dataUrlOf(img){ return 'data:' + (img.type || 'image/jpeg') + ';base64,' + img.data; }
+  // sube la foto a la carpeta del viaje en Drive con la fila de subidas de la app (si falla la señal, queda pendiente y no se pierde)
+  async function attach(tripId, kind, dataUrl, extra){
+    var trip = byId(tripId); if (!trip) throw new Error(T('No encontré el viaje.', 'Trip not found.'));
+    var item = Object.assign({ tripId: trip.id, kind: kind, dataUrl: dataUrl }, extra || {});
+    item.qid = upqAdd(item);
+    try { var res = await uploadPhotoToDrive(trip, kind, dataUrl); await applyUpload(item, res); upqRemove(item.qid); return 'drive'; }
+    catch(e){ console.warn('voz attach', e); try { await markPending(item); } catch(_){} return 'pending'; }
+  }
+  // agrega el recibo a las cargas de diésel del viaje (igual que "Agregar diésel" de En Tránsito)
+  function chain(fn){ var p = (window._tripWriteChain || Promise.resolve()).then(fn); window._tripWriteChain = p.catch(function(){}); return p; }
+  async function saveFuel(tripId, d, img){
+    var gal = parseFloat(d.galones) || 0, price = parseFloat(d.precio) || 0, cost = parseFloat(d.total);
+    if (!isFinite(cost) || cost <= 0) cost = gal * price; cost = Math.round(cost * 100) / 100;
+    if (!(cost > 0)) throw new Error(T('No se leyó el total del recibo.', 'Could not read the receipt total.'));
+    if (!price && gal) price = Math.round(cost / gal * 1000) / 1000;
+    var tipo = d.producto === 'def' ? 'def' : 'diesel';
+    var loadId = Date.now() + '_ia';
+    var station = [d.gasolinera, [d.ciudad, d.estado].filter(Boolean).join(', ')].filter(Boolean).join(' — ');
+    var newLoad = clean({ loadId: loadId, gal: Math.round(gal * 1000) / 1000, price: price, cost: cost, station: station, date: d.fecha || iso(new Date()), type: tipo, tipo: tipo,
+      city: d.ciudad, state: d.estado, zip: d.zip, ticket: d.ticket ? String(d.ticket) : undefined, card: d.tarjeta ? String(d.tarjeta).replace(/\D/g, '').slice(-4) : undefined, source: 'asistente' });
+    newLoad.image = null;
+    var trip = await chain(async function(){
+      var T0 = trips0(), i = T0.findIndex(function(t){ return String(t.id) === String(tripId); }); if (i < 0) throw new Error(T('No encontré el viaje.', 'Trip not found.'));
+      var t = T0[i], L = (t.fuelLoads || []).concat([newLoad]);
+      var sum = function(arr, k){ return Math.round(arr.reduce(function(a, r){ return a + (parseFloat(r[k]) || 0); }, 0) * 100) / 100; };
+      var totalGal = sum(L.filter(function(l){ return l.tipo !== 'otro'; }), 'gal'), totalCost = sum(L, 'cost');
+      var upd = { fuelLoads: L, totalGal: totalGal, totalCost: totalCost,
+        dieselCost: sum(L.filter(function(l){ return l.tipo === 'diesel' || !l.tipo; }), 'cost'), defCost: sum(L.filter(function(l){ return l.tipo === 'def'; }), 'cost'), otrosCost: sum(L.filter(function(l){ return l.tipo === 'otro'; }), 'cost') };
+      if (t.profitSet && t.loadVal) upd.net = Math.round((t.loadVal - (t.fee || 0) - (t.factoringFee || 0) - (t.driver || 0) - totalCost - (t.extrasTotal || 0)) * 100) / 100;
+      T0[i] = Object.assign({}, t, upd); await storeTrips(T0);
+      try { if (typeof _adminActiveTrip !== 'undefined' && _adminActiveTrip && String(_adminActiveTrip.id) === String(tripId)) _adminActiveTrip = Object.assign({}, _adminActiveTrip, upd); } catch(e){}
+      return T0[i];
+    });
+    try { if (typeof renderLog === 'function') renderLog(); } catch(e){}
+    if (newLoad.card) learnCard(newLoad.card, trip).catch(function(){});
+    return attach(tripId, 'diesel', dataUrlOf(img), { loadId: loadId });
+  }
+  // RC u orden nueva: abre "Nuevo viaje" con los datos puestos y la foto como RC adjunto; el administrador revisa e inicia
+  async function fillNewTrip(d, img){
+    if (APP) { document.documentElement.classList.remove('voz-app'); var fb2 = $('yvoz-fab'); if (fb2) fb2.style.display = 'flex'; }
+    var p = $('yvoz-panel'); if (p) p.style.display = 'none';
+    try { sidebarNav('new'); } catch(e){}
+    await new Promise(function(r){ setTimeout(r, 400); });
+    try { if (typeof adminResetForm === 'function') adminResetForm(); } catch(e){}
+    var pk = d.pickup || {}, en = d.entrega || {}, done = [], miss = [];
+    var rate = parseFloat(d.pago); rate = isFinite(rate) && rate > 0 ? rate : null;
+    var stop = function(x, tp){ return { type: tp, city: x.ciudad || null, state: x.estado || null, zip: x.zip ? String(x.zip).slice(0, 5) : null, date: x.fecha || null, addr: x.direccion || null }; };
+    _startRc = { file: null, name: 'RC ' + (d.rc || '') + ' (foto)', dataUrl: dataUrlOf(img),
+      parsed: { rate: rate, lineHaul: rate, extras: [], stops: [], extraStops: [], notes: d.notas ? [String(d.notas)] : [], docsEmail: null, pickup: stop(pk, 'pickup'), delivery: stop(en, 'delivery') } };
+    var lbl = $('f-rcfile-label'); if (lbl) lbl.textContent = '✔ ' + _startRc.name;
+    var sel = $('f-driver-select');
+    if (d.driver) { var u = null; try { u = rcMatchDriver(d.driver); } catch(e){} if (u && sel) { sel.value = u.username; try { onDriverSelectChange(); } catch(e){} done.push('Driver: ' + d.driver); } else miss.push('Driver (' + d.driver + ')'); } else miss.push('Driver');
+    var sv = function(id, v, name){ var ok = false; try { ok = setVal(id, v); } catch(e){} if (name) (ok ? done : miss).push(name + (ok ? ': ' + v : '')); return ok; };
+    sv('f-rc-admin', d.rc, 'RC #'); sv('f-brokername-admin', d.broker, 'Broker');
+    sv('f-date-admin', pk.fecha, T('Fecha pick up', 'Pick up date')); sv('f-z1-admin', pk.zip ? String(pk.zip).slice(0, 5) : '', 'ZIP pick up'); sv('f-addr1-admin', pk.direccion);
+    sv('f-delivery-date-admin', en.fecha, T('Fecha entrega', 'Delivery date')); sv('f-z2-admin', en.zip ? String(en.zip).slice(0, 5) : '', 'ZIP delivery'); sv('f-addr2-admin', en.direccion);
+    try { calcDeadAdmin(); } catch(e){}
+    var box = $('f-rc-read');
+    if (box) {
+      var h = '🤖 <b>' + T('Datos leídos por el asistente', 'Data read by the assistant') + '</b><br>' + done.map(function(x){ return '✔ ' + esc(x); }).join('<br>');
+      h += '<br>💵 <b>' + T('Pago', 'Pay') + ': ' + (rate ? money2(rate) : T('no venía en la foto', 'not in the photo')) + '</b>' + (rate ? ' — ' + T('se pone solo al finalizar el viaje', 'filled in when finishing the trip') : '');
+      if (d.notas) h += '<br>📝 ' + esc(d.notas);
+      if (miss.length) h += '<br><span style="color:#B45309;">⚠️ ' + T('Falta / revisa', 'Missing / check') + ': ' + esc(miss.join(', ')) + '</span>';
+      h += '<br><span style="color:#B45309;">' + T('Recuerda: si todavía no hay BOL, guárdalo como programado o sin driver.', 'Reminder: without a BOL, save it as scheduled.') + '</span>';
+      box.innerHTML = h; box.style.display = 'block';
+      try { box.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch(e){}
+    }
+  }
+  var KIND = { bol: 'BOL', pod: 'POD', carga: T('Foto de carga', 'Cargo photo'), rc: 'RC', orden: T('Orden', 'Order') };
+  function docCards(docs, imgs){
+    var log = $('yvoz-log'); if (!log) return;
+    loadCards().catch(function(){});
+    docs.forEach(function(d){
+      if (!d || !d.tipo) return;
+      var img = imgs[(parseInt(d.img, 10) || 1) - 1]; if (!img) return;
+      var tp = String(d.tipo).toLowerCase(); if (!/^(diesel|bol|pod|carga|rc|orden)$/.test(tp)) return;
+      var box = document.createElement('div'); box.className = 'm ai dc';
+      var head = '', warn = [], t0 = guessTrip(d), dup = null;
+      if (tp === 'diesel') {
+        var g = parseFloat(d.galones), pr = parseFloat(d.precio), tot = parseFloat(d.total);
+        head = '⛽ <b>' + esc(d.gasolinera || T('Recibo', 'Receipt')) + '</b> · ' + esc([d.ciudad, d.estado].filter(Boolean).join(', ')) + '<br>' + esc(d.fecha || '') + ' · ' + (isFinite(g) ? g + ' gal' : '') + (isFinite(pr) ? ' × $' + pr : '') + ' = <b>' + (isFinite(tot) ? money2(tot) : '—') + '</b>' + (d.tarjeta ? ' · ' + T('tarjeta', 'card') + ' ' + esc(d.tarjeta) : '');
+        if (isFinite(g) && isFinite(pr) && isFinite(tot) && Math.abs(g * pr - tot) > 0.6) warn.push(T('Galones × precio no da el total; revisa la foto.', 'Gallons × price does not match the total.'));
+        dup = fuelDup(d); if (dup) warn.push(T('Ya está guardado en: ', 'Already saved in: ') + tLabel(dup));
+        if (d.enRuta === false) warn.push(T('La gasolinera no parece quedar en la ruta del viaje.', 'The station does not seem to be on the trip route.'));
+        if (d.tarjeta && !(cards && cards[String(d.tarjeta).replace(/\D/g, '').slice(-4)])) warn.push(T('Tarjeta nueva: al guardarlo queda ligada al driver del viaje.', 'New card: it will be linked to the trip driver.'));
+      } else if (tp === 'rc' || tp === 'orden') {
+        var pk = d.pickup || {}, en = d.entrega || {};
+        head = '📑 <b>' + KIND[tp] + (d.rc ? ' #' + esc(d.rc) : '') + '</b>' + (d.broker ? ' · ' + esc(d.broker) : '') + '<br>' + esc([pk.ciudad, pk.estado, pk.zip].filter(Boolean).join(' ')) + ' → ' + esc([en.ciudad, en.estado, en.zip].filter(Boolean).join(' ')) + '<br>' + (d.pago ? '<b>' + money2(d.pago) + '</b>' : T('Sin pago en la foto', 'No pay in the photo')) + (d.driver ? ' · ' + esc(d.driver) : '');
+        if (t0 && d.pago) { var ap = parseFloat(t0.loadVal != null && t0.loadVal !== '' ? t0.loadVal : t0.rcRate); if (isFinite(ap) && Math.abs(ap - d.pago) > 1) warn.push(T('El pago en la app es ', 'App pay is ') + money2(ap) + T(' y aquí dice ', ' and here it says ') + money2(d.pago)); }
+      } else {
+        head = (tp === 'carga' ? '📦 ' : '📄 ') + '<b>' + KIND[tp] + '</b>' + (d.bol ? ' #' + esc(d.bol) : '') + (d.consignee && d.consignee.ciudad ? ' · → ' + esc(d.consignee.ciudad + (d.consignee.estado ? ', ' + d.consignee.estado : '')) : '');
+        if (d.carrier && !/yenavi/i.test(d.carrier)) warn.push(T('El carrier del BOL es ', 'Carrier on the BOL is ') + d.carrier + T(', no YENAVI.', ', not YENAVI.'));
+        if (tp === 'bol' && d.firmaRecibido) warn.push(T('Ya está firmado de recibido: tal vez es POD.', 'Signed by the receiver: it may be a POD.'));
+      }
+      var opts = '<option value="">' + T('— Escoge el viaje —', '— Pick the trip —') + '</option>' + candidates().slice(0, 40).map(function(t){ return '<option value="' + esc(t.id) + '"' + (t0 && String(t0.id) === String(t.id) ? ' selected' : '') + '>' + esc(tLabel(t)) + '</option>'; }).join('');
+      var newOpt = (tp === 'rc' || tp === 'orden');
+      box.innerHTML = '<div class="dh">' + head + '</div>' + (warn.length ? '<div class="dw">⚠️ ' + warn.map(esc).join('<br>⚠️ ') + '</div>' : '') +
+        '<select class="ds">' + (newOpt ? opts.replace('<option value="">' + T('— Escoge el viaje —', '— Pick the trip —') + '</option>', '<option value="__new">' + T('➕ Viaje nuevo (llenar formulario)', '➕ New trip (fill the form)') + '</option>') : opts) + '</select>' +
+        '<button type="button" class="db">' + (dup ? T('Guardar de todos modos', 'Save anyway') : T('Guardar', 'Save')) + '</button><div class="dr"></div>';
+      var sel = box.querySelector('select'), btn = box.querySelector('button'), res = box.querySelector('.dr');
+      if (newOpt && !t0) sel.value = '__new';
+      var lblB = function(){ btn.textContent = sel.value === '__new' ? T('Abrir Nuevo viaje', 'Open New trip') : (dup ? T('Guardar de todos modos', 'Save anyway') : (tp === 'diesel' ? T('Guardar en el viaje', 'Save to trip') : T('Subir al viaje', 'Upload to trip'))); };
+      sel.onchange = lblB; lblB();
+      btn.onclick = async function(){
+        var id = sel.value; if (!id) { res.textContent = T('Escoge el viaje primero.', 'Pick the trip first.'); return; }
+        btn.disabled = true; res.textContent = '⏳ ' + T('Guardando…', 'Saving…');
+        try {
+          var where;
+          if (id === '__new') { await fillNewTrip(d, img); res.textContent = '✔ ' + T('Formulario de Nuevo viaje listo. Revísalo e inicia.', 'New trip form ready.'); return; }
+          if (tp === 'diesel') where = await saveFuel(id, d, img);
+          else where = await attach(id, tp === 'carga' ? 'loaded' : tp === 'orden' ? 'rc' : tp, dataUrlOf(img), (tp === 'bol' || tp === 'pod') ? { checklist: { admin: true, signature: true, date: true, name: true } } : null);
+          var t = byId(id);
+          res.textContent = '✔ ' + T('Guardado en ', 'Saved to ') + (t ? tLabel(t) : '') + (where === 'pending' ? T(' · la foto queda en el celular y se sube a Drive al tocar "Subir ahora"', ' · photo saved on the phone; tap "Upload now"') : '');
+          btn.textContent = '✔'; sel.disabled = true;
+        } catch(e){ btn.disabled = false; res.textContent = '⚠️ ' + (e && e.message ? e.message : e); }
+      };
+      log.appendChild(box); log.scrollTop = log.scrollHeight;
+    });
   }
 
   // ---------- voz ----------
@@ -349,6 +528,11 @@
       '#yvoz-pend .pi button{position:absolute;top:-6px;right:-6px;width:22px;height:22px;border-radius:50%;border:none;background:#111B21;color:#fff;font-size:13px;line-height:22px;padding:0;cursor:pointer}' +
       '#yvoz-log .shots{display:flex;flex-wrap:wrap;gap:4px;margin:-2px -5px 6px}#yvoz-log .shots img{max-width:220px;max-height:260px;border-radius:6px;display:block;cursor:pointer}' +
       '#yvoz-panel.drop{outline:3px dashed var(--yb);outline-offset:-8px}' +
+      '#yvoz-log .dc{padding:8px 10px 10px;border-left:4px solid var(--yb);white-space:normal;font-size:14px;max-width:88%}' +
+      '#yvoz-log .dc .dw{margin-top:6px;font-size:13px;color:#9A3412;background:#FFF7ED;border-radius:6px;padding:5px 7px}' +
+      '#yvoz-log .dc .ds{width:100%;margin-top:8px;padding:8px;border:1px solid #D1D7DB;border-radius:8px;font-size:14px;background:#fff;color:var(--ink)}' +
+      '#yvoz-log .dc .db{width:100%;margin-top:6px;padding:9px;border:none;border-radius:8px;background:var(--yb);color:#fff;font-weight:700;font-size:14px;cursor:pointer}' +
+      '#yvoz-log .dc .db:disabled{background:#8FA6CC}#yvoz-log .dc .dr{margin-top:5px;font-size:13px;color:#1B5E20}#yvoz-log .dc .dr:empty{display:none}' +
       '#yvoz-go{width:46px;height:46px;border-radius:50%;border:none;background:var(--yb);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none}' +
       '#yvoz-go.on{background:#E53935;animation:yvozp 1.1s infinite}' +
       'html.voz-app #yvoz-fab{display:none!important}' +

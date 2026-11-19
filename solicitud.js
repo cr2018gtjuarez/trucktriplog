@@ -321,7 +321,7 @@
       var doc = fr.contentDocument; doc.open(); doc.write(html); doc.close();
       await new Promise(function(ok, ko){ var sc = doc.createElement('script'); sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js'; sc.onload = ok; sc.onerror = function(){ ko(new Error('no se pudo cargar el generador de PDF')); }; doc.head.appendChild(sc); });
       await new Promise(function(r){ setTimeout(r, 400); });
-      blob = await fr.contentWindow.html2pdf().set({ margin: [24, 18, 24, 18], image: { type: 'jpeg', quality: 0.9 }, html2canvas: { scale: 2, windowWidth: 816, backgroundColor: '#ffffff' }, jsPDF: { unit: 'pt', format: 'letter' }, pagebreak: { mode: ['css', 'avoid-all'] } }).from(doc.querySelector('.pdf')).outputPdf('blob');
+      blob = await fr.contentWindow.html2pdf().set({ margin: 20, image: { type: 'jpeg', quality: 0.9 }, html2canvas: { scale: 2, windowWidth: 816, backgroundColor: '#ffffff' }, jsPDF: { unit: 'pt', format: 'letter' }, pagebreak: { mode: ['css', 'avoid-all'] } }).from(doc.querySelector('.pdf')).outputPdf('blob');
     } finally { fr.remove(); }
     var dataUrl = await new Promise(function(ok, ko){ var r = new FileReader(); r.onload = function(){ ok(r.result); }; r.onerror = ko; r.readAsDataURL(blob); });
     var nm = 'Solicitud de empleo ' + (D.name || nameOf(u)) + (f ? ' (firmada ' + f + ')' : '') + '.pdf';

@@ -642,7 +642,7 @@
       d.innerHTML = '<div class="vn"><div class="pl">' + IC.mic + '</div><div class="wv">' + bars + '</div><em>0:' + ('0' + Math.min(59, o.voice)).slice(-2) + '</em></div>';
       var tx = document.createElement('div'); tx.className = 'tx'; tx.textContent = '“' + text + '”'; d.appendChild(tx);
     } else d.textContent = text;
-    if (who === 'me' && o.images && o.images.length) { var sh = document.createElement('div'); sh.className = 'shots'; o.images.forEach(function(im){ var g = document.createElement('img'); g.src = 'data:' + im.type + ';base64,' + im.data; g.alt = ''; g.onclick = function(){ try { var w = window.open(); w.document.write('<img src="' + g.src + '" style="max-width:100%">'); } catch(e){} }; sh.appendChild(g); }); d.insertBefore(sh, d.firstChild); }
+    if (who === 'me' && o.images && o.images.length) { var sh = document.createElement('div'); sh.className = 'shots'; o.images.forEach(function(im){ var g = document.createElement('img'); g.src = 'data:' + im.type + ';base64,' + im.data; g.alt = ''; g.onclick = function(){ if (window.verImagen) window.verImagen(g.src); }; sh.appendChild(g); }); d.insertBefore(sh, d.firstChild); }
     if (who === 'ai' && !o.err && !o.noReplay) { var r = document.createElement('button'); r.type = 'button'; r.className = 'rp'; r.innerHTML = IC.play + T('Escuchar', 'Listen'); r.onclick = function(){ var m = $('yvoz-mute'); var was = m.dataset.on; m.dataset.on = '0'; speak(text); m.dataset.on = was; }; d.appendChild(document.createElement('br')); d.appendChild(r); }
     var tm = document.createElement('span'); tm.className = 'tm'; tm.innerHTML = hhmm() + (who === 'me' ? ' <i>✓✓</i>' : ''); d.appendChild(tm);
     var l = $('yvoz-log'); l.appendChild(d); l.scrollTop = l.scrollHeight; return d;

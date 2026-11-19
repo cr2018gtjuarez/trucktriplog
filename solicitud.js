@@ -18,11 +18,11 @@
   async function getApp(u){ var d = fb(); if (!d) return null; try { var s = await d.collection('applications').doc(u).get(); return s.exists ? s.data() : null; } catch(e){ return null; } }
 
   // ---------- estilos ----------
-  var cssDone = false;
+  var cssDone = false, CSS_TEXT = '';
   function css(){
     if (cssDone) return; cssDone = true;
     var s = document.createElement('style');
-    s.textContent =
+    s.textContent = CSS_TEXT =
       '#ysol{position:fixed;inset:0;z-index:2147482000;background:#F1F5F9;overflow:auto;-webkit-overflow-scrolling:touch;font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#0F172A}' +
       '#ysol .top{position:sticky;top:0;z-index:2;background:#0B3D91;color:#fff;display:flex;align-items:center;gap:10px;padding:calc(10px + env(safe-area-inset-top,0px)) 12px 10px}' +
       '#ysol .top b{flex:1;font-size:16px}#ysol .top button{background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:10px;padding:7px 12px;font-size:14px;cursor:pointer}' +
@@ -305,6 +305,39 @@
     if (!rows || !rows.length) return '<div class="kv"><i>—</i></div>';
     return '<table><tr>' + cols.map(function(c){ return '<th>' + c[1] + '</th>'; }).join('') + '</tr>' + rows.map(function(r){ return '<tr>' + cols.map(function(c){ return '<td>' + esc(r[c[0]]) + '</td>'; }).join('') + '</tr>'; }).join('') + '</table>';
   }
+  // PDF de la solicitud (con firma y seguro social completo) → Drive: Documentos_<driver> y Documentos → Solicitud de empleo
+  async function savePdf(o, u, D, f, me){
+    if (!(typeof scriptMode === 'function' && scriptMode() && typeof scriptUpload === 'function')) throw new Error('Falta el servicio de fotos (Drive).');
+    var w = o.querySelector('.wrap').cloneNode(true);
+    w.querySelectorAll('.noprint,button').forEach(function(x){ x.remove(); });
+    var sv = w.querySelector('#s-ssnv'); if (sv) sv.textContent = sv.dataset.v || sv.textContent;
+    var di = w.querySelector('#s-dsign'); if (di) { var sp = document.createElement('div'); sp.className = 'kv'; sp.innerHTML = '<b>Fecha de firma:</b> ' + esc(f || ''); di.replaceWith(sp); }
+    w.querySelectorAll('label').forEach(function(l){ if (/la llena el administrador/.test(l.textContent)) l.remove(); });
+    var html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>' + CSS_TEXT.replace(/#ysol /g, '.pdf ').replace(/#ysol\{[^}]*\}/, '') +
+      ' body{margin:0;background:#fff;font-family:Arial,Helvetica,sans-serif;color:#0F172A}.pdf .wrap{max-width:none;padding:18px 22px}.pdf .sec{box-shadow:none;border:1px solid #CBD5E1;break-inside:avoid;page-break-inside:avoid}</style></head><body><div class="pdf" style="width:770px"><div class="wrap">' + w.innerHTML + '</div></div></body></html>';
+    var fr = document.createElement('iframe'); fr.style.cssText = 'position:fixed;left:-10000px;top:0;width:816px;height:1056px;border:0;'; document.body.appendChild(fr);
+    var blob;
+    try {
+      var doc = fr.contentDocument; doc.open(); doc.write(html); doc.close();
+      await new Promise(function(ok, ko){ var sc = doc.createElement('script'); sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js'; sc.onload = ok; sc.onerror = function(){ ko(new Error('no se pudo cargar el generador de PDF')); }; doc.head.appendChild(sc); });
+      await new Promise(function(r){ setTimeout(r, 400); });
+      blob = await fr.contentWindow.html2pdf().set({ margin: 20, image: { type: 'jpeg', quality: 0.9 }, html2canvas: { scale: 2, windowWidth: 816, backgroundColor: '#ffffff' }, jsPDF: { unit: 'pt', format: 'letter' }, pagebreak: { mode: ['css', 'avoid-all'] } }).from(doc.querySelector('.pdf')).outputPdf('blob');
+    } finally { fr.remove(); }
+    var dataUrl = await new Promise(function(ok, ko){ var r = new FileReader(); r.onload = function(){ ok(r.result); }; r.onerror = ko; r.readAsDataURL(blob); });
+    var nm = 'Solicitud de empleo ' + (D.name || nameOf(u)) + (f ? ' (firmada ' + f + ')' : '') + '.pdf';
+    var j = await scriptUpload(dataUrl, 'd_app_' + u + '_Solicitud_de_empleo_' + (f || 'sin_fecha') + '.pdf', { folder: 'Documentos_' + u });
+    if (!j || !j.id) throw new Error('Drive no devolvió el archivo.');
+    var d2 = fb(), now = new Date().toISOString();
+    var ref = d2.collection('docs').doc('drv_' + u), sn = await ref.get(), cur = sn.exists ? sn.data() : { items: {} };
+    cur.items = cur.items || {}; cur.username = u;
+    var it = cur.items.d_app || {}, files = (it.files || []).filter(function(x){ return !x.appPdf; });
+    files.push({ name: nm, mime: 'application/pdf', id: j.id, link: j.webViewLink || '', appPdf: true, at: now });
+    cur.items.d_app = Object.assign({}, it, { files: files.slice(-6), updatedAt: now, by: me });
+    await ref.set(cur);
+    try { if (typeof _ddData !== 'undefined') _ddData[u] = cur; } catch(x){}
+    await d2.collection('applications').doc(u).set({ pdf: { id: j.id, link: j.webViewLink || '', at: now } }, { merge: true });
+    return j;
+  }
   function refreshAdmin(){ try { if (typeof renderTareas === 'function') { renderTareas('home-tareas'); renderTareas('aud-tareas'); } if (typeof renderAuditoria === 'function' && typeof _currentSidebarId !== 'undefined' && _currentSidebarId === 'auditoria') { _audDocs = null; renderAuditoria(true); } } catch(x){} }
   async function adminView(u){
     var A = await getApp(u);
@@ -331,7 +364,7 @@
         : A.rejected ? '<div class="kv noprint" style="margin-top:6px;color:#B91C1C"><b>❌ Rechazada</b> ' + (A.rejectedAt ? esc(new Date(A.rejectedAt).toLocaleDateString('es-US')) : '') + ': ' + esc(A.rejectNote || '') + ' — esperando que el driver la corrija.</div>'
         : '<div class="kv noprint" style="margin-top:6px;color:#1E40AF">✏️ Pendiente de autorizar: el driver todavía la puede corregir. Al autorizarla queda cerrada.</div>') + '<div class="err" id="s-err"></div></div>';
     var o = shell('Solicitud de empleo · ' + (D.name || nameOf(u)), html,
-      '<div class="send"><button type="button" class="sec2" id="s-print">🖨️ Imprimir</button>' + (isApproved(A) ? '<button type="button" class="sec2" id="s-unlock">🔓 Devolver para corregir</button><button type="button" id="s-save">Guardar fecha</button>' : '<button type="button" class="sec2" id="s-unlock" style="background:#FEE2E2;color:#B91C1C">❌ Rechazar</button><button type="button" id="s-save">✅ Autorizar</button>') + '</div>');
+      '<div class="send"><button type="button" class="sec2" id="s-print">🖨️ Imprimir</button>' + (isApproved(A) ? '<button type="button" class="sec2" id="s-unlock">🔓 Devolver</button><button type="button" class="sec2" id="s-pdf">📄 Guardar PDF</button><button type="button" id="s-save">Guardar fecha</button>' : '<button type="button" class="sec2" id="s-unlock" style="background:#FEE2E2;color:#B91C1C">❌ Rechazar</button><button type="button" id="s-save">✅ Autorizar</button>') + '</div>');
     if ($('s-unlock')) $('s-unlock').onclick = async function(){
       var why = prompt((isApproved(A) ? 'Devolver la solicitud al driver para que la corrija.\nSe quita la autorización y sale de Documentos hasta que la vuelvas a autorizar.' : 'Rechazar la solicitud: el driver la tiene que corregir y mandar otra vez.') + '\n\n¿Qué tiene que corregir? (el driver lo va a ver)', A.rejectNote || '');
       if (why === null) return; why = String(why).trim();
@@ -340,7 +373,7 @@
       try {
         await d2.collection('applications').doc(u).set({ approved: false, dateSigned: '', reviewedBy: '', rejected: true, rejectNote: why.slice(0, 500), rejectedAt: new Date().toISOString(), rejectedBy: (user() || {}).username || 'admin' }, { merge: true });
         var ref = d2.collection('docs').doc('drv_' + u), sn = await ref.get();
-        if (sn.exists) { var cur = sn.data(); cur.items = cur.items || {}; if (cur.items.d_app) { cur.items.d_app.files = (cur.items.d_app.files || []).filter(function(x){ return !x.inApp; }); await ref.set(cur); try { if (typeof _ddData !== 'undefined') _ddData[u] = cur; } catch(x){} } }
+        if (sn.exists) { var cur = sn.data(); cur.items = cur.items || {}; if (cur.items.d_app) { cur.items.d_app.files = (cur.items.d_app.files || []).filter(function(x){ return !x.inApp && !x.appPdf; }); await ref.set(cur); try { if (typeof _ddData !== 'undefined') _ddData[u] = cur; } catch(x){} } }
         close(); refreshAdmin(); alert('Listo: solicitud rechazada. El driver ve el motivo en su Home y la puede corregir; cuando la vuelva a mandar, te sale otra vez para autorizar.');
       } catch(x){ e.textContent = 'No se pudo: ' + (x.message || x); }
     };
@@ -350,7 +383,7 @@
     $('s-save').onclick = async function(){
       var f = $('s-dsign').value, e = $('s-err'); if (!f) { e.textContent = 'Escribe la fecha de firma.'; return; }
       var d2 = fb(); if (!d2) { e.textContent = 'Sin internet.'; return; }
-      var me = (user() || {}).username || 'admin', now = new Date().toISOString();
+      var me = (user() || {}).username || 'admin', now = new Date().toISOString(), btn = this; btn.disabled = true; btn.textContent = '⏳ Autorizando…';
       try {
         await d2.collection('applications').doc(u).set({ dateSigned: f, reviewedBy: me, reviewedAt: now, approved: true, rejected: false, rejectNote: '' }, { merge: true });
         // queda en Documentos → Solicitud de empleo (así la auditoría la cuenta)
@@ -361,9 +394,17 @@
         cur.items.d_app = Object.assign({}, it, { files: files, updatedAt: now, by: me });
         await ref.set(cur);
         try { if (typeof _ddData !== 'undefined') _ddData[u] = cur; } catch(x){}
+        // y en PDF, en la carpeta de Drive del driver
+        btn.textContent = '⏳ Guardando PDF…'; var pdfOk = false;
+        try { await savePdf(o, u, D, f, me); pdfOk = true; } catch(x){ console.warn('pdf solicitud', x); }
         close(); refreshAdmin();
-        alert('Listo: solicitud autorizada. El driver ya no la puede cambiar y quedó en Documentos → Solicitud de empleo.');
-      } catch(x){ e.textContent = 'No se pudo guardar: ' + (x.message || x); }
+        alert('Listo: solicitud autorizada. El driver ya no la puede cambiar' + (pdfOk ? ' y quedó guardada en PDF en Documentos → Solicitud de empleo.' : '.\n\n⚠️ No se pudo guardar el PDF; ábrela otra vez y dale "📄 Guardar PDF".'));
+      } catch(x){ btn.disabled = false; btn.textContent = '✅ Autorizar'; e.textContent = 'No se pudo guardar: ' + (x.message || x); }
+    };
+    if ($('s-pdf')) $('s-pdf').onclick = async function(){
+      var b = this, t = b.textContent; b.disabled = true; b.textContent = '⏳ Guardando…';
+      try { await savePdf(o, u, D, A.dateSigned || $('s-dsign').value, (user() || {}).username || 'admin'); refreshAdmin(); alert('Listo: el PDF quedó en Documentos → Solicitud de empleo (Drive del driver).'); } catch(x){ alert('No se pudo guardar el PDF: ' + (x.message || x)); }
+      b.disabled = false; b.textContent = t;
     };
   }
 

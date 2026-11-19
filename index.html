@@ -20020,7 +20020,7 @@ async function renderAuditoria(force){
 }
 // ===== TAREAS IMPORTANTES (admin): se marcan solas cuando se sube el documento firmado =====
 const TAREAS=[{id:'solicitud', titulo:'Firmar la solicitud de empleo (FMCSA 391.21)',
-  detalle:'Que cada driver la llene y la firme lo más pronto posible. La fecha de firma la llena el administrador. Después súbela en Documentos → Solicitud de empleo.',
+  detalle:'Cada driver la llena y la firma en su app (le sale un aviso en Inicio). Cuando la mande, ábrela aquí y pon la fecha de firma. Si la firman en papel, súbela con "Subir firmada".',
   pdf:'forms/Solicitud_empleo_en_blanco.pdf', doc:'d_app', drivers:['walter','JAIRO','ljuarez']}];
 async function renderTareas(boxId){
   const box=document.getElementById(boxId); if(!box) return;
@@ -20029,16 +20029,19 @@ async function renderTareas(boxId){
   for(const t of TAREAS){
     const rows=[]; let pend=0;
     for(const u of t.drivers){
-      let ok=false; try{ const sn=await db.collection('docs').doc('drv_'+u).get(); ok=!!(sn.exists&&(((sn.data().items||{})[t.doc]||{}).files||[]).length); }catch(e){}
+      let ok=false, app=null; try{ const sn=await db.collection('docs').doc('drv_'+u).get(); ok=!!(sn.exists&&(((sn.data().items||{})[t.doc]||{}).files||[]).length); }catch(e){}
+      if(t.id==='solicitud'&&typeof solGetApp==='function'){ try{ app=await solGetApp(u); }catch(e){} }
       if(!ok) pend++;
       const usr=users.find(x=>x.username===u)||{}; const nm=usr.firstName&&usr.lastName?usr.firstName+' '+usr.lastName:(usr.name||u);
-      rows.push(`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-top:1px solid #FECACA;font-size:13px;"><span>${ok?'✅':'⬜'} ${E(nm)}</span>${ok?'<span style="font-size:11.5px;font-weight:700;color:#16A34A;">Firmada y subida</span>':`<button class="btn-sm" style="padding:3px 9px;font-size:11.5px;" onclick="audGoDocs('${E(u)}')">Subir firmada</button>`}</div>`);
+      rows.push(`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-top:1px solid #FECACA;font-size:13px;"><span>${ok?'✅':'⬜'} ${E(nm)}</span>${ok?`<span style="font-size:11.5px;font-weight:700;color:#16A34A;">Lista${app?` · <a href="#" onclick="solAdminView('${E(u)}');return false;">ver</a>`:''}</span>`
+        :app&&app.submittedAt?`<span style="text-align:right;"><span style="display:block;font-size:11px;font-weight:700;color:#B45309;">Llenada en la app · falta la fecha</span><button class="btn-sm" style="padding:3px 9px;font-size:11.5px;margin-top:2px;" onclick="solAdminView('${E(u)}')">Ver y poner fecha</button></span>`
+        :`<span style="display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end;"><button class="btn-sm" style="padding:3px 9px;font-size:11.5px;" onclick="solOpenForm('${E(u)}')">Llenar en la app</button><button class="btn-sm" style="padding:3px 9px;font-size:11.5px;" onclick="audGoDocs('${E(u)}')">Subir firmada</button></span>`}</div>`);
     }
     if(!pend) continue;
     html+=`<div style="border:2px solid #FCA5A5;background:#FEF2F2;border-radius:14px;padding:11px 13px;margin-bottom:10px;">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;"><div style="font-size:14.5px;font-weight:800;color:#991B1B;">📌 Tarea importante · ${E(t.titulo)}</div><span style="font-size:11px;font-weight:800;color:#fff;background:#DC2626;border-radius:8px;padding:2px 7px;white-space:nowrap;">${pend} pendiente${pend!==1?'s':''}</span></div>
       <div style="font-size:12px;color:#7F1D1D;margin:4px 0 8px;line-height:1.4;">${E(t.detalle)}</div>
-      <a href="${E(t.pdf)}" target="_blank" rel="noopener" class="btn-sm" style="display:inline-block;padding:5px 11px;font-size:12px;margin-bottom:6px;text-decoration:none;">📄 Abrir formulario para imprimir</a>
+      <a href="${E(t.pdf)}" target="_blank" rel="noopener" style="display:inline-block;font-size:11.5px;margin-bottom:6px;color:#991B1B;">📄 Formulario en papel (por si alguien no puede en la app)</a>
       ${rows.join('')}</div>`;
   }
   box.innerHTML=html; box.style.display=html?'block':'none';
@@ -20047,5 +20050,6 @@ function audSetGvwr(id,v){ const T=loadTrucks(); const t=T.find(x=>String(x.id)=
 
 </script>
 <script src="voz.js?v=8" defer></script>
+<script src="solicitud.js?v=1" defer></script>
 </body>
 </html>

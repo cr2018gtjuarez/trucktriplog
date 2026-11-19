@@ -87,6 +87,78 @@
   function val(o, id){ var e = o.querySelector('#' + id); return e ? (e.type === 'checkbox' ? e.checked : e.value.trim()) : ''; }
   function radio(o, name){ var e = o.querySelector('input[name="' + name + '"]:checked'); return e ? e.value : ''; }
 
+  // ---------- foto de la licencia (la lee la IA del asistente) ----------
+  function fileToDataUrl(f){ return new Promise(function(ok, ko){ var r = new FileReader(); r.onload = function(){ ok(r.result); }; r.onerror = ko; r.readAsDataURL(f); }); }
+  function shrink(dataUrl, max, q){
+    return new Promise(function(ok){
+      var im = new Image();
+      im.onload = function(){ var k = Math.min(1, max / Math.max(im.width, im.height)), c = document.createElement('canvas'); c.width = Math.round(im.width * k); c.height = Math.round(im.height * k); c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); ok(c.toDataURL('image/jpeg', q)); };
+      im.onerror = function(){ ok(dataUrl); }; im.src = dataUrl;
+    });
+  }
+  async function vozCfg(){
+    try { var c = JSON.parse(localStorage.getItem('yvoz_cfg') || 'null'); if (c && c.url) return c; } catch(e){}
+    var d = fb(); if (d) { try { var sn = await d.collection('data').doc('voz').get(); if (sn.exists && sn.data().url) return { url: sn.data().url, k: sn.data().k || '' }; } catch(e){} }
+    return null;
+  }
+  var lastLicImg = null;
+  async function readLicense(f){
+    var dataUrl = await fileToDataUrl(f);
+    if (!/^data:image\//.test(dataUrl)) throw new Error('Use a photo (JPG/PNG). / Use una foto.');
+    dataUrl = await shrink(dataUrl, 1600, 0.85); lastLicImg = dataUrl;
+    var cfg = await vozCfg(); if (!cfg) throw new Error('The assistant is not set up. / El asistente no está configurado.');
+    var q = 'This photo is a US driver license (front). Do NOT answer in sentences. Reply with ONLY one JSON object, no other text, with these keys (use "" if not visible, never guess): ' +
+      '{"first":"first and middle name","last":"last name(s)","dob":"YYYY-MM-DD","number":"license number","state":"2-letter issuing state","cls":"class letter, e.g. A, B or C","cdl":true/false (true only if it says COMMERCIAL or CDL),' +
+      '"endorse":"endorsements, empty if NONE","restrict":"restrictions, empty if NONE","exp":"YYYY-MM-DD expiration","iss":"YYYY-MM-DD issue date","street":"street address","city":"city","st":"address state 2 letters","zip":"ZIP"}. ' +
+      'Names in normal capitalization (Fredy Adolfo, not FREDY ADOLFO). Read dates carefully: EXP is expiration, ISS is issue, DOB is birth date.';
+    var body = JSON.stringify({ k: cfg.k, lang: 'en', role: 'driver', user: nameOf((user() || {}).username), q: q, ctx: {}, history: [], images: [{ media_type: 'image/jpeg', data: dataUrl.split(',')[1] }] });
+    var r = await fetch(cfg.url, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: body, redirect: 'follow' });
+    var j; try { j = JSON.parse(await r.text()); } catch(e){ throw new Error('The assistant did not answer. / El asistente no contestó.'); }
+    if (j.error) throw new Error(j.error);
+    var t = String(j.answer || ''), a = t.indexOf('{'), z = t.lastIndexOf('}');
+    if (a < 0 || z < a) throw new Error('Could not read the license. Try a clearer photo. / No se pudo leer; tome otra foto con más luz.');
+    var L; try { L = JSON.parse(t.slice(a, z + 1)); } catch(e){ throw new Error('Could not read the license. / No se pudo leer la licencia.'); }
+    Object.keys(L).forEach(function(k){ if (typeof L[k] === 'string') { L[k] = L[k].trim(); if (/^(none|n\/a|null)$/i.test(L[k])) L[k] = ''; } });
+    return L;
+  }
+  function isoOk(x){ return /^\d{4}-\d{2}-\d{2}$/.test(x || '') ? x : ''; }
+  function us(x){ x = isoOk(x); return x ? x.slice(5, 7) + '/' + x.slice(8, 10) + '/' + x.slice(0, 4) : ''; }
+  function fillLicense(o, L){
+    var n = 0;
+    function put(el, v){ if (!el || !v) return; el.value = v; el.style.background = '#FEF9C3'; n++; }
+    var name = [L.first, L.last].filter(Boolean).join(' ');
+    put(o.querySelector('#s-name'), name);
+    put(o.querySelector('#s-dob'), isoOk(L.dob));
+    var addr = [L.street, L.city, [L.st, L.zip].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+    put(o.querySelector('#s-addr'), addr);
+    var row = o.querySelector('[data-list="lic"] .row'); if (!row) return n;
+    // si la primera licencia ya tiene otro número, la nueva va en otra fila
+    var numEl = row.querySelector('[data-f="number"]');
+    if (numEl && numEl.value && L.number && numEl.value.replace(/\W/g, '') !== String(L.number).replace(/\W/g, '')) {
+      var lst = o.querySelector('[data-list="lic"]'); lst.insertAdjacentHTML('afterbegin', rowHtml('lic', {})); row = lst.querySelector('.row');
+    }
+    function f(k){ return row.querySelector('[data-f="' + k + '"]'); }
+    put(f('state'), (L.state || '').toUpperCase());
+    put(f('number'), L.number);
+    put(f('cls'), (L.cls ? L.cls.toUpperCase() : '') + (L.cls ? (L.cdl ? ' (CDL)' : ' (non-CDL)') : ''));
+    put(f('endorse'), [L.endorse, L.restrict ? 'Restr: ' + L.restrict : ''].filter(Boolean).join(' · '));
+    put(f('exp'), us(L.exp));
+    return n;
+  }
+  // la foto también queda en Documentos → Licencia de manejo, con su fecha de vencimiento
+  async function saveLicensePhoto(u, L){
+    var d = fb(); if (!d || !lastLicImg) return;
+    var file = { name: 'Licencia ' + (L.state || '') + ' ' + (L.number || '') + (isoOk(L.exp) ? ' (vence ' + L.exp + ')' : '') + '.jpg', mime: 'image/jpeg', id: '', link: '', at: new Date().toISOString(), from: 'solicitud' };
+    try { if (typeof scriptMode === 'function' && scriptMode() && typeof scriptUpload === 'function') { var j = await scriptUpload(lastLicImg, 'cdl_' + u + '_' + Date.now() + '.jpg', { folder: 'Documentos_' + u }); file.id = j.id || ''; file.link = j.webViewLink || ''; } } catch(e){}
+    if (!file.id) return;   // sin servicio de fotos no se guarda nada a medias
+    var ref = d.collection('docs').doc('drv_' + u), sn = await ref.get(), cur = sn.exists ? sn.data() : { items: {} }; cur.items = cur.items || {};
+    var it = cur.items.cdl || {}, files = (it.files || []).concat([file]).slice(-6);
+    cur.items.cdl = Object.assign({}, it, { files: files, updatedAt: file.at, by: (user() || {}).username || u }, isoOk(L.exp) ? { exp: L.exp, expRead: L.exp } : {},
+      { read: { clase: L.cls || '', endosos: L.endorse || '', estado: L.state || '', at: file.at } });
+    cur.username = u; await ref.set(cur);
+    lastLicImg = null;
+  }
+
   async function openForm(u){
     u = u || (user() || {}).username; if (!u) return;
     var prev = await getApp(u) || {};
@@ -97,6 +169,10 @@
       '<div class="sec"><h3>Driver Employment Application</h3><p class="es">Solicitud de empleo del conductor · YENAVI FREIGHT LLC · USDOT 6498343 · 49 CFR 391.21</p>' +
       '<div class="hint">Fill in everything that applies. It is saved on this phone while you type. / Llene todo lo que aplique; se guarda mientras escribe.</div>' +
       (prev.submittedAt ? '<div class="err" style="color:#166534">✓ Already submitted ' + esc(new Date(prev.submittedAt).toLocaleDateString()) + '. If you send it again it replaces the previous one. / Ya la mandó; si la manda otra vez reemplaza la anterior.</div>' : '') + '</div>' +
+
+      '<div class="sec noprint" style="background:#EFF6FF;border:2px solid #93C5FD"><h3>📷 Scan your driver license</h3><p class="es">Tome una foto de su licencia (el frente) y los datos se llenan solos. Revíselos antes de enviar.</p>' +
+      '<button type="button" class="add" id="s-licscan" style="width:100%;padding:12px;font-size:15px;background:#2563EB;color:#fff">📷 Take photo of license / Foto de la licencia</button>' +
+      '<input type="file" id="s-licfile" accept="image/*" style="display:none"><div id="s-licmsg" class="hint" style="margin-top:6px"></div></div>' +
 
       '<div class="sec"><h3>1. Your information</h3><p class="es">Sus datos</p>' +
       '<label>Full legal name <i>Nombre completo</i></label><input type="text" id="s-name" value="' + esc(d.name) + '">' +
@@ -166,6 +242,22 @@
     }
     function saveDraft(){ try { localStorage.setItem('ysol_draft_' + u, JSON.stringify(collect())); } catch(e){} }
     o.addEventListener('input', saveDraft); o.addEventListener('change', saveDraft);
+
+    // foto de la licencia → llena los datos solos
+    $('s-licscan').onclick = function(){ var f = $('s-licfile'); f.value = ''; f.click(); };
+    $('s-licfile').onchange = async function(){
+      var f = this.files && this.files[0]; if (!f) return;
+      var msg = $('s-licmsg'), btn = $('s-licscan');
+      btn.disabled = true; btn.textContent = '⏳ Reading license… / Leyendo licencia…'; msg.style.color = '#64748B'; msg.textContent = '';
+      try {
+        var L = await readLicense(f);
+        var n = fillLicense(o, L); saveDraft();
+        msg.style.color = '#166534';
+        msg.textContent = n ? '✓ ' + n + ' fields filled (yellow). Check them. / Se llenaron ' + n + ' datos (en amarillo). Revíselos.' : 'Could not read the license. Try a clearer photo. / No se pudo leer; tome la foto con más luz.';
+        if (n) saveLicensePhoto(u, L).catch(function(){});
+      } catch(x){ msg.style.color = '#B91C1C'; msg.textContent = '⚠️ ' + (x.message || x); }
+      btn.disabled = false; btn.textContent = '📷 Take photo of license / Foto de la licencia';
+    };
 
     $('s-go').onclick = async function(){
       var D = collect(), err = [];

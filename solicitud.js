@@ -177,6 +177,7 @@
       '<div class="sec"><h3>1. Your information</h3><p class="es">Sus datos</p>' +
       '<label>Full legal name <i>Nombre completo</i></label><input type="text" id="s-name" value="' + esc(d.name) + '">' +
       '<div class="g2"><div><label>Date of birth <i>Fecha de nacimiento</i></label><input type="date" id="s-dob" value="' + esc(d.dob) + '"></div>' +
+      '<div><label>Social Security # <i>Seguro social</i></label><input type="text" id="s-ssn" inputmode="numeric" autocomplete="off" maxlength="11" placeholder="123-45-6789" value="' + esc(prev.data && prev.data.ssn || '') + '"></div></div><div class="g2">' +
       '<div><label>Phone <i>Teléfono</i></label><input type="tel" id="s-phone" value="' + esc(d.phone) + '"></div></div>' +
       '<label>Email <i>Correo</i></label><input type="email" id="s-email" value="' + esc(d.email) + '">' +
       '<label>Current address (street, city, state, ZIP) <i>Dirección actual</i></label><input type="text" id="s-addr" value="' + esc(d.addr) + '">' +
@@ -233,16 +234,17 @@
 
     function collect(){
       return {
-        name: val(o, 's-name'), dob: val(o, 's-dob'), phone: val(o, 's-phone'), email: val(o, 's-email'), addr: val(o, 's-addr'), addrTime: val(o, 's-addrtime'),
+        name: val(o, 's-name'), dob: val(o, 's-dob'), ssn: val(o, 's-ssn'), phone: val(o, 's-phone'), email: val(o, 's-email'), addr: val(o, 's-addr'), addrTime: val(o, 's-addrtime'),
         emerg: val(o, 's-emerg'), emergPhone: val(o, 's-emergph'), addresses: readList(o, 'addr'), licenses: readList(o, 'lic'),
         qa: radio(o, 's-qa'), qb: radio(o, 's-qb'), qExplain: val(o, 's-qexp'), experience: readList(o, 'exp'),
         noAccidents: val(o, 's-noacc'), accidents: readList(o, 'acc'), noConvictions: val(o, 's-noconv'), convictions: readList(o, 'conv'),
         employers: readList(o, 'emp'), gaps: val(o, 's-gaps')
       };
     }
-    function saveDraft(){ try { localStorage.setItem('ysol_draft_' + u, JSON.stringify(collect())); } catch(e){} }
+    function saveDraft(){ try { var x = collect(); delete x.ssn; localStorage.setItem('ysol_draft_' + u, JSON.stringify(x)); } catch(e){} }   // el seguro social no se guarda en el teléfono
     o.addEventListener('input', saveDraft); o.addEventListener('change', saveDraft);
 
+    $('s-ssn').addEventListener('input', function(){ var v = this.value.replace(/\D/g, '').slice(0, 9); this.value = v.length > 5 ? v.slice(0, 3) + '-' + v.slice(3, 5) + '-' + v.slice(5) : v.length > 3 ? v.slice(0, 3) + '-' + v.slice(3) : v; });
     // foto de la licencia → llena los datos solos
     $('s-licscan').onclick = function(){ var f = $('s-licfile'); f.value = ''; f.click(); };
     $('s-licfile').onchange = async function(){
@@ -263,6 +265,7 @@
       var D = collect(), err = [];
       if (!D.name) err.push('Name / Nombre');
       if (!D.dob) err.push('Date of birth / Fecha de nacimiento');
+      if (!/^\d{3}-\d{2}-\d{4}$/.test(D.ssn || '')) err.push('Social Security # (9 digits) / Seguro social (9 números)');
       if (!D.phone) err.push('Phone / Teléfono');
       if (!D.addr) err.push('Current address / Dirección');
       if (!D.licenses.length || !D.licenses[0].number) err.push('Driver license / Licencia');
@@ -302,8 +305,8 @@
       '<div class="sec"><h3>Driver Employment Application · Solicitud de empleo</h3><p class="es">YENAVI FREIGHT LLC · USDOT 6498343 · MC 92117262 · 49 CFR 391.21</p>' +
       '<div class="kv"><b>Llenada en la app:</b> ' + esc(new Date(A.submittedAt).toLocaleString('es-US')) + '</div></div>' +
       '<div class="sec"><h3>1. Datos del solicitante</h3>' +
-      [['Nombre', D.name], ['Fecha de nacimiento', D.dob], ['Teléfono', D.phone], ['Correo', D.email], ['Dirección', D.addr], ['Tiempo en la dirección', D.addrTime], ['Contacto de emergencia', (D.emerg || '') + (D.emergPhone ? ' · ' + D.emergPhone : '')]]
-        .map(function(k){ return '<div class="kv"><b>' + k[0] + ':</b> ' + esc(k[1] || '—') + '</div>'; }).join('') + '</div>' +
+      [['Nombre', D.name], ['Fecha de nacimiento', D.dob], ['Seguro social', D.ssn ? '__SSN__' : ''], ['Teléfono', D.phone], ['Correo', D.email], ['Dirección', D.addr], ['Tiempo en la dirección', D.addrTime], ['Contacto de emergencia', (D.emerg || '') + (D.emergPhone ? ' · ' + D.emergPhone : '')]]
+        .map(function(k){ return '<div class="kv"><b>' + k[0] + ':</b> ' + (k[1] === '__SSN__' ? '<span id="s-ssnv" data-v="' + esc(D.ssn) + '">***-**-' + esc(String(D.ssn).slice(-4)) + '</span> <button type="button" class="add noprint" id="s-ssnshow" style="padding:2px 8px;font-size:12px">Mostrar</button>' : esc(k[1] || '—')) + '</div>'; }).join('') + '</div>' +
       '<div class="sec"><h3>2. Direcciones de los últimos 3 años</h3>' + tbl(D.addresses, ROWS.addr) + '</div>' +
       '<div class="sec"><h3>3. Licencias de los últimos 3 años</h3>' + tbl(D.licenses, ROWS.lic) +
       '<div class="kv"><b>A. ¿Le negaron licencia?</b> ' + yn(D.qa) + '</div><div class="kv"><b>B. ¿Suspendida o revocada?</b> ' + yn(D.qb) + '</div>' + (D.qExplain ? '<div class="kv"><b>Explicación:</b> ' + esc(D.qExplain) + '</div>' : '') + '</div>' +
@@ -318,7 +321,9 @@
       (A.dateSigned ? '<div class="kv" style="margin-top:6px"><b>Revisó:</b> ' + esc(A.reviewedBy || '') + '</div>' : '') + '<div class="err" id="s-err"></div></div>';
     var o = shell('Solicitud de empleo · ' + (D.name || nameOf(u)), html,
       '<div class="send"><button type="button" class="sec2" id="s-print">🖨️ Imprimir / PDF</button><button type="button" id="s-save">Guardar fecha</button></div>');
-    $('s-print').onclick = function(){ window.print(); };
+    function ssnShow(on){ var e = $('s-ssnv'); if (!e) return; var v = e.dataset.v || ''; e.textContent = on ? v : '***-**-' + v.slice(-4); var b = $('s-ssnshow'); if (b) b.textContent = on ? 'Ocultar' : 'Mostrar'; }
+    if ($('s-ssnshow')) $('s-ssnshow').onclick = function(){ ssnShow(this.textContent === 'Mostrar'); };
+    $('s-print').onclick = function(){ ssnShow(true); window.print(); setTimeout(function(){ ssnShow(false); }, 500); };
     $('s-save').onclick = async function(){
       var f = $('s-dsign').value, e = $('s-err'); if (!f) { e.textContent = 'Escribe la fecha de firma.'; return; }
       var d2 = fb(); if (!d2) { e.textContent = 'Sin internet.'; return; }

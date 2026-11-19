@@ -19937,14 +19937,21 @@ async function bdUpload(){
 </script>
 <script>
 // ===== LISTA PARA LA AUDITORÍA DE FMCSA (New Entrant Safety Audit) =====
-let _audDocs=null, _audAt=0;
+let _audDocs=null, _audAt=0, _audCfg=null;
+// Quién cuenta en la auditoría: activo (todo vigente), ex (manejó antes: su expediente se guarda 3 años), fuera (nunca manejó / no existe)
+const AUD_DEFAULT={drivers:{walter:'activo',JAIRO:'activo',ljuarez:'activo',FNajarro:'ex',JOSEBT:'ex',driver1:'fuera',Rodrigo:'fuera'},trucks:{'1784253416318':'fuera'}};
+function audSt(kind,id){ const c=_audCfg||AUD_DEFAULT; return ((c[kind]||{})[String(id)])||'activo'; }
+async function audSetSt(kind,id,v){ _audCfg=_audCfg||JSON.parse(JSON.stringify(AUD_DEFAULT)); (_audCfg[kind]=_audCfg[kind]||{})[String(id)]=v;
+  try{ await db.collection('data').doc('auditoria').set(sanitizeForFirestore(_audCfg)); }catch(e){ console.warn('auditoria',e); } renderAuditoria(); }
+function audTripRange(u){ const T=loadTrips().concat(typeof _archiveTrips!=='undefined'?_archiveTrips:[]); let a='',b='',n=0;
+  T.forEach(t=>{ if(!(t.driverUser===u.username||(!t.driverUser&&t.driverName&&u.name&&t.driverName===u.name))) return; const d=t.date||''; if(!d) return; n++; if(!a||d<a) a=d; if(!b||d>b) b=d; }); return {a,b,n}; }
 function audGoDocs(u){ _ddSel=u; sidebarNav('drvdocs'); }
 function audCdlNeeded(){ return (loadTrucks()||[]).some(t=>parseFloat(t.gvwr)>26000); }
 async function renderAuditoria(force){
   if(!currentUser||currentUser.role!=='admin'){ sidebarNav('home'); return; }
   const box=document.getElementById('aud-body'); if(!box) return;
   if(!(typeof fbReady!=='undefined'&&fbReady&&db)){ box.innerHTML='<div class="empty">Necesitas internet para revisar los documentos.</div>'; return; }
-  if(!_audDocs||force||Date.now()-_audAt>60000){ box.innerHTML='<div class="empty">Revisando documentos…</div>'; try{ const sn=await db.collection('docs').get(); _audDocs={}; sn.forEach(d=>{ _audDocs[d.id]=d.data(); }); _audAt=Date.now(); }catch(e){ box.innerHTML='<div class="empty">No se pudieron leer los documentos.</div>'; return; } }
+  if(!_audDocs||force||Date.now()-_audAt>60000){ box.innerHTML='<div class="empty">Revisando documentos…</div>'; try{ try{ const cs=await db.collection('data').doc('auditoria').get(); _audCfg=cs.exists?cs.data():null; }catch(e){} const sn=await db.collection('docs').get(); _audDocs={}; sn.forEach(d=>{ _audDocs[d.id]=d.data(); }); _audAt=Date.now(); }catch(e){ box.innerHTML='<div class="empty">No se pudieron leer los documentos.</div>'; return; } }
   const today=rpLocalISO(new Date()), E=txE;
   const st=(it,needExp)=>{ if(!it||!((it.files||[]).length)) return {k:'none',t:'Falta'};
     if(!it.exp) return needExp?{k:'nodate',t:'Sin fecha de vencimiento'}:{k:'ok',t:'Listo'};
@@ -19969,18 +19976,28 @@ async function renderAuditoria(force){
     row('Logs del ELD de los últimos 6 meses (exportados)',st(C.eld),true,DD_CO,'Sin registro de horas en 51% o más de los días revisados = reprueba.')+
     row('Programa de drogas y alcohol (consorcio, pruebas aleatorias, Clearinghouse)',cdl?st(C.drugs):{k:'na',t:'No aplica (sin CDL)'},true,DD_CO,cdl?'Algún camión pasa de 26,000 lb: los drivers necesitan CDL y entran al programa.':'Solo si algún camión pasa de 26,000 lb (CDL).'));
   const users=getUsers().filter(u=>u.role!=='admin'&&u.role!=='dispatch'&&u.role!=='contador');
+  const outList=[];
+  const pick=(kind,id,v)=>`<select onchange="audSetSt('${kind}','${E(String(id))}',this.value)" style="font-size:11.5px;padding:2px 4px;border-radius:6px;border:1px solid var(--border);background:var(--bg3);color:var(--text);">`+
+    (kind==='drivers'?[['activo','Maneja hoy'],['ex','Ex driver'],['fuera','No cuenta']]:[['activo','En uso'],['fuera','No cuenta']]).map(o=>`<option value="${o[0]}"${o[0]===v?' selected':''}>${o[1]}</option>`).join('')+`</select>`;
+  const yearAgo=rpLocalISO(new Date(Date.now()-365*864e5));
   users.forEach(u=>{ const D=(_audDocs['drv_'+u.username]||{}).items||{}; const nm=u.firstName&&u.lastName?u.firstName+' '+u.lastName:(u.name||u.username);
-    html+=card('👤 '+E(nm),
-      row(cdl?'CDL vigente':'Licencia de manejo vigente',st(D.cdl,true),cdl,u.username)+
-      row('Certificado médico DOT',st(D.medical,true),true,u.username,'Driver sin medical card vigente = reprueba.')+
+    const S=audSt('drivers',u.username), R=audTripRange(u);
+    if(S==='fuera'){ outList.push({n:nm,html:pick('drivers',u.username,S)}); return; }
+    const ex=S==='ex', exS=it=>ex?st(it,false):st(it,true);
+    const when=R.n?`${R.n} viaje${R.n!==1?'s':''} · ${fmtDate(R.a)} – ${fmtDate(R.b)}`:'sin viajes en la app';
+    const head=`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;"><span>👤 ${E(nm)}${ex?' <span style="font-size:11px;font-weight:700;color:#64748B;">· ex driver</span>':''}</span>${pick('drivers',u.username,S)}</div><div style="font-size:11px;font-weight:500;color:var(--text3);">${when}</div>`;
+    html+=card(head,
+      (ex?`<div style="font-size:11.5px;color:#475569;background:#F1F5F9;border-radius:8px;padding:6px 8px;margin:4px 0;">Ya no maneja, pero su expediente se guarda 3 años y el auditor lo puede pedir. Los documentos deben ser los que tenía vigentes cuando manejó.</div>`:'')+
+      row(cdl?'CDL vigente':(ex?'Licencia de manejo (la que tenía)':'Licencia de manejo vigente'),exS(D.cdl),cdl,u.username)+
+      row(ex?'Certificado médico DOT (vigente cuando manejó)':'Certificado médico DOT',exS(D.medical),true,u.username,ex?'Si manejó sin medical card = reprueba.':'Driver sin medical card vigente = reprueba.')+
       row('Récord de manejo (MVR) de cada estado',st(D.mvr),false,u.username)+
       row('Solicitud de empleo firmada',st(D.d_app),false,u.username)+
       row('Verificación de empleadores anteriores (3 años)',st(D.d_prevemp),false,u.username)+
       row('Road test o licencia equivalente',st(D.d_roadtest),false,u.username)+
-      row('Revisión anual del récord',st(D.d_review,true),false,u.username)); });
-  (loadTrucks()||[]).forEach(t=>{ const D=(_audDocs['truck_'+t.id]||{}).items||{}; const maint=loadMaintenance().some(m=>String(m.truckId)===String(t.id));
+      row('Revisión anual del récord',(ex||!R.a||R.a>yearAgo)?{k:'na',t:ex?'No aplica':'Aún no (antes del año)'}:st(D.d_review,true),false,u.username)); });
+  (loadTrucks()||[]).forEach(t=>{ const TS=audSt('trucks',t.id); if(TS==='fuera'){ outList.push({n:t.name+(t.plate?' · '+t.plate:''),html:pick('trucks',t.id,TS)}); return; } const D=(_audDocs['truck_'+t.id]||{}).items||{}; const maint=loadMaintenance().some(m=>String(m.truckId)===String(t.id));
     const an2=st(D.annual,true);
-    html+=card('🚚 '+E(t.name)+(t.plate?' · '+E(t.plate):''),
+    html+=card(`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;"><span>🚚 ${E(t.name)}${t.plate?' · '+E(t.plate):''}</span>${pick('trucks',t.id,TS)}</div>`,
       `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;"><span style="flex:1;">Peso bruto (GVWR) de la etiqueta de la puerta</span><input type="number" value="${E(t.gvwr||'')}" placeholder="lb" onchange="audSetGvwr('${t.id}',this.value)" style="width:90px;padding:5px 6px;border:1px solid var(--border);border-radius:8px;background:var(--bg2);color:var(--text);text-align:right;"> lb</div>`+
       row('Inspección anual DOT (últimos 12 meses)',an2,true,'truck:'+t.id,'Camión sin inspección periódica = reprueba.')+
       row('Registro (cab card)',st(D.registration,true),false,'truck:'+t.id)+
@@ -19988,6 +20005,7 @@ async function renderAuditoria(force){
       row('Etiqueta del fabricante (VIN y GVWR)',st(D.t_label),false,'truck:'+t.id)+
       row('Registro de mantenimiento',maint||(D.t_maint&&(D.t_maint.files||[]).length)?{k:'ok',t:maint?'En la app':'Listo'}:{k:'none',t:'Falta'},false,'truck:'+t.id)+
       (t.gvwr?'':`<div style="font-size:11px;color:#B45309;margin-top:4px;">Escribe el GVWR: si pasa de 26,000 lb el driver necesita CDL y entra el programa de drogas.</div>`)); });
+  if(outList.length) html+=card('<span style="font-size:13px;color:var(--text3);">No cuentan para la auditoría</span>', outList.map(o=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;font-size:12.5px;color:var(--text3);"><span>${E(o.n)}</span>${o.html}</div>`).join(''));
   const pct=total?Math.round(okN*100/total):0;
   box.innerHTML=`<div style="border-radius:14px;padding:12px 14px;margin-bottom:12px;background:${fails?'#FEF2F2':'#F0FDF4'};border:1px solid ${fails?'#FECACA':'#BBF7D0'};">
       <div style="font-size:15px;font-weight:800;color:${fails?'#991B1B':'#166534'};">${fails?`❌ Hoy reprobarías: ${fails} punto${fails!==1?'s':''} de reprobación automática`:'✅ Sin puntos de reprobación automática'}</div>

@@ -26,6 +26,7 @@ function doPost(e) {
     const P = PropertiesService.getScriptProperties();
     const b = JSON.parse(e.postData.contents || '{}');
     if (!b.k || b.k !== P.getProperty('VOZ_KEY')) return out_({ error: 'Clave incorrecta' });
+    if (b.mode === 'pod') return out_(revisarPOD_(b, P));   // revisión automática del POD (pod-check.js)
     const en = b.lang === 'en';
     const imgs = (b.images || []).filter(function (x) { return x && x.data && /^image\/(jpeg|png|gif|webp)$/.test(x.media_type || ''); }).slice(0, 6);
 
@@ -121,6 +122,85 @@ function doPost(e) {
   } catch (err) {
     return out_({ error: String(err) });
   }
+}
+
+// ===== Revisión automática del POD (lo manda pod-check.js cuando el driver sube el POD) =====
+// Regresa { pod: { verdict: ok | review | reject, ... } }. No guarda nada: la app guarda el resultado en el viaje.
+function revisarPOD_(b, P) {
+  const imgs = (b.images || []).filter(function (x) { return x && x.data && /^image\/(jpeg|png|webp)$/.test(x.media_type || ''); }).slice(0, 4);
+  if (!imgs.length) return { error: 'Sin foto' };
+  const trip = b.trip || {};
+  const reglas = [
+    'You check a delivery document (POD = Bill of Lading signed by the RECEIVER at delivery) for YENAVI FREIGHT LLC, a box-truck carrier.',
+    'Brokers (TQL, C.H. Robinson, Premium Logistics…) refuse to pay when the POD is not clearly signed by the receiver. Your job: decide if the driver can leave the receiver.',
+    '',
+    'What a GOOD POD has (real examples that were paid):',
+    '- "RECEIVED" stamp with date + receiver signature + printed name (e.g. "Sam Jackson", NOV 04 2026).',
+    '- "Receiver Certification / RECEIVED THE ABOVE DESCRIBED PROPERTY IN GOOD CONDITION": consignee signature, DATE 11-10-26, PLEASE PRINT: name.',
+    '- "Consignee Signature X ____ Date ____" filled in by the receiver.',
+    '',
+    'BAD PODs that were REJECTED by the broker:',
+    '- The receiver signed in the "CARRIER SIGNATURE / PICKUP DATE" box (or the shipper box) instead of the receiver area, with no printed name and no delivery date. The broker said "missing receiver signed BOL". → reject, problem = wrong box.',
+    '- Only shipper signature + driver/carrier signature (this is the PICKUP BOL, not a POD). Receiving stamp space empty. → reject.',
+    '- Receiver signed outside/below the consignee line with no date. → reject (no date) .',
+    '',
+    'If the form has NO receiver line at all, the receiver must write "Received in good condition", sign, PRINT NAME and DATE in a blank area or in the "RECEIVING STAMP SPACE". A stamp alone with no signature is not enough.',
+    '',
+    'Decide:',
+    '- "ok": delivery document; receiver signature in the receiver/consignee/"received" area (or on a receiving stamp); receiver printed name readable (or a stamp that shows the name); delivery date present; whole page visible and readable; reference number does not contradict the trip.',
+    '- "reject": pickup BOL only; no receiver signature; receiver signature only in the carrier or shipper box; receiver printed name missing; delivery date missing; photo cut off, blurry or unreadable; PO/BOL/load number clearly belongs to another load; not a BOL at all.',
+    '- "review": everything required is there but something needs a human: shortage/damage/refused notes (OS&D), only page 1 of 2+ visible, date before the pickup date, handwriting you are not sure about.',
+    'Be strict. If you are not sure the receiver signed in the right place with name and date, do not say ok.',
+    'Dates can be written day-month; use the trip pickup date to interpret them.',
+    '',
+    'TRIP: ' + JSON.stringify(trip)
+  ].join('\n');
+  const contenido = [];
+  imgs.forEach(function (x, i) {
+    contenido.push({ type: 'text', text: 'Photo ' + (i + 1) + ':' });
+    contenido.push({ type: 'image', source: { type: 'base64', media_type: x.media_type, data: x.data } });
+  });
+  contenido.push({ type: 'text', text: 'Check this POD. Answer ONLY by calling the pod_check tool (no other text).' });
+  const tool = {
+    name: 'pod_check',
+    description: 'Result of the POD check.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        verdict: { type: 'string', enum: ['ok', 'review', 'reject'] },
+        doc_type: { type: 'string', enum: ['delivery_pod', 'pickup_bol', 'other', 'unreadable'] },
+        receiver_signature: { type: 'string', enum: ['receiver_box', 'wrong_box', 'missing', 'unclear'] },
+        wrong_box: { type: ['string', 'null'], description: 'carrier | shipper | other, when receiver_signature = wrong_box' },
+        receiver_name: { type: ['string', 'null'], description: 'printed name of the receiver, as written' },
+        delivery_date: { type: ['string', 'null'], description: 'YYYY-MM-DD if readable' },
+        stamp: { type: 'boolean' },
+        reference: { type: ['string', 'null'], description: 'BOL / PO / load number seen' },
+        matches_trip: { type: ['boolean', 'null'] },
+        exceptions: { type: ['string', 'null'], description: 'shortage, damage, refused, OS&D notes, if any' },
+        pages_missing: { type: 'boolean' },
+        legible: { type: 'boolean' },
+        problems_en: { type: 'array', items: { type: 'string' }, description: 'short problems, English, for the driver' },
+        fix_en: { type: 'string', description: 'one or two short sentences in simple English: exactly what the driver must ask the receiver to do before leaving. Empty if ok.' },
+        resumen_es: { type: 'string', description: 'one short line in Spanish for the owner' }
+      },
+      required: ['verdict', 'doc_type', 'receiver_signature', 'legible', 'problems_en', 'fix_en', 'resumen_es']
+    }
+  };
+  const res = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
+    method: 'post', contentType: 'application/json', muteHttpExceptions: true,
+    headers: { 'x-api-key': P.getProperty('ANTHROPIC_KEY'), 'anthropic-version': '2023-06-01' },
+    payload: JSON.stringify({
+      model: MODELO_CAPTURAS, max_tokens: 1200, system: reglas,
+      messages: [{ role: 'user', content: contenido }],
+      tools: [tool]
+    })
+  });
+  const j = JSON.parse(res.getContentText());
+  if (j.error) return { error: 'IA: ' + (j.error.message || j.error.type) };
+  let pod = null;
+  (j.content || []).forEach(function (c) { if (c.type === 'tool_use' && c.name === 'pod_check') pod = c.input; });
+  if (!pod) return { error: 'La IA no contestó' };
+  return { pod: pod };
 }
 
 // Para probar que la URL funciona: ábrela en el navegador y debe decir "Asistente YENAVI listo".

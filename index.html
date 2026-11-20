@@ -2519,6 +2519,10 @@ label.dead-lock-lbl{color:#B91C1C!important;font-weight:800;}
         <button class="btn-sm ct-tab" data-t="cargas" onclick="ctTab('cargas')">🚚 Cargas</button>
         <button class="btn-sm ct-tab" data-t="gastos" onclick="ctTab('gastos')">🧾 Gastos</button>
         <button class="btn-sm ct-tab" data-t="socios" onclick="ctTab('socios')">🤝 Socios</button>
+        <button class="btn-sm ct-tab" data-t="resultados" onclick="ctTab('resultados')">📊 Resultados</button>
+        <button class="btn-sm ct-tab" data-t="capital" onclick="ctTab('capital')">💼 Capital</button>
+        <button class="btn-sm ct-tab" data-t="camiones" onclick="ctTab('camiones')">🚛 Camiones</button>
+        <button class="btn-sm ct-tab" data-t="calendario" onclick="ctTab('calendario')">📅 Calendario</button>
       </div>
     </div>
     <div class="card" id="ct-body"></div>
@@ -20119,8 +20123,9 @@ function renderContabilidad(){
   const cy=String(new Date().getFullYear()); if(!years.includes(cy)) years.unshift(cy);
   const keep=sel.value||cy; sel.innerHTML=years.map(y=>`<option value="${y}">${y}</option>`).join(''); sel.value=years.includes(keep)?keep:cy;
   document.querySelectorAll('#ct-tabs .ct-tab').forEach(b=>{ const on=b.dataset.t===_ctTab; b.style.background=on?'var(--accent)':''; b.style.color=on?'#fff':''; b.style.borderColor=on?'var(--accent)':''; });
-  document.getElementById('ct-month').style.display=_ctTab==='socios'?'none':'';
+  document.getElementById('ct-month').style.display=['socios','capital','camiones','calendario'].includes(_ctTab)?'none':'';
   const p=ctPeriod(), body=document.getElementById('ct-body'), td='padding:7px 8px;border-bottom:1px solid var(--border);';
+  if(CT_MORE.includes(_ctTab)){ const pp=['capital','camiones','calendario'].includes(_ctTab)?{y:p.y,m:'',pref:p.y}:p; ctRenderMore(_ctTab,pp,body); return; }
   if(_ctTab==='cargas'){
     const C=ctCargas(p), tot=C.reduce((s,t)=>s+txNum(t.loadVal),0), paid=C.filter(t=>t.payStatus==='paid').reduce((s,t)=>s+txNum(t.loadVal),0), noRc=C.filter(t=>!t.rcDriveFileId).length;
     body.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
@@ -20159,6 +20164,124 @@ function renderContabilidad(){
   }
 }
 function ctTab(t){ _ctTab=t; renderContabilidad(); }
+// ===== CONTABILIDAD: Resultados, Capital de socios, Camiones y préstamos, Calendario =====
+const CT_MORE=['resultados','capital','camiones','calendario'];
+function ctMoreData(){ const c=loadCompany()||{}; return {capital:Array.isArray(c.capital)?c.capital:[], checks:c.ctChecks||{}}; }
+function ctMoreSave(patch){ saveCompanyData(Object.assign({},loadCompany()||{},patch)); }
+// Estado de resultados para un año ("2026") o un mes ("2026-11"); misma lógica que el Reporte de impuestos
+function ctPL(pref){
+  const inP=d=>String(d||'').startsWith(pref), sum=(a,f)=>a.reduce((s,x)=>s+txNum(f(x)),0);
+  const done=loadTrips().filter(t=>t.tripStatus==='completed'&&inP(txTripDay(t)));
+  const cexp=loadCompanyExpenses().filter(e=>inP(e.date)), cat=c=>sum(cexp.filter(e=>(e.category||'Otro')===c),e=>e.amount);
+  const known=['Pago de camión','Seguro','Comida','Hotel','Tollways','Gastos de Oficina','Trámites'];
+  const bought=loadTrucks().filter(t=>t.purchase&&t.purchase.date&&txNum(t.purchase.price)>0), ids=new Set(bought.map(t=>String(t.id)));
+  const isBuy=e=>(e.category||'')==='Pago de camión'&&e.truckId!=null&&ids.has(String(e.truckId));
+  const income=sum(done,t=>t.loadVal);
+  const rows=[['Pago a drivers',sum(done,t=>t.driver)],['Diésel y DEF',sum(done,t=>t.totalCost)],['Factoring',sum(done,t=>t.factoringFee)],['Dispatcher',sum(done,t=>t.fee)],
+    ['Gastos del viaje (tolls, lumper…)',sum(done,t=>t.extrasTotal)],['Gastos extras',sum(loadExtras().filter(e=>inP(e.date)),e=>e.amount)],
+    ['Mantenimiento y reparaciones',sum(loadMaintenance().filter(m=>inP(m.date)),m=>m.cost)],['Seguro',cat('Seguro')],
+    ['Renta o pagos de camión',sum(cexp.filter(e=>(e.category||'')==='Pago de camión'&&!isBuy(e)),e=>e.amount)],
+    ['Depreciación de camiones',bought.filter(t=>inP(t.purchase.date)).reduce((s,t)=>s+txNum(t.purchase.price),0)],
+    ['Tollways',cat('Tollways')],['Comida',cat('Comida')],['Hotel',cat('Hotel')],['Oficina',cat('Gastos de Oficina')],['Trámites y permisos',cat('Trámites')],
+    ['Otros',sum(cexp.filter(e=>!known.includes(e.category||'Otro')),e=>e.amount)]];
+  const expenses=rows.reduce((s,r)=>s+r[1],0);
+  return {trips:done.length,income,rows,expenses,net:income-expenses};
+}
+function ctRenderMore(tab,p,body){
+  const td='padding:7px 8px;border-bottom:1px solid var(--border);', th=td+'color:var(--text3);font-size:11px;text-align:left;';
+  const admin=currentUser&&currentUser.role==='admin', S=ctSocios(), D=ctMoreData(), R=(v,c)=>`<td style="${td}text-align:right;${c||''}">${txM(v)}</td>`;
+  const inp='padding:7px 9px;border:1px solid var(--border);border-radius:8px;background:var(--bg2);color:var(--text);';
+  if(tab==='resultados'){
+    const P=ctPL(p.pref), MES=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+    let h=`<div style="font-size:13px;color:var(--text2);margin-bottom:10px;line-height:1.5;">${p.m?MES[+p.m-1]+' '+p.y:'Año '+p.y}: <b>${P.trips}</b> cargas entregadas · ingresos <b style="color:var(--green);">${txM(P.income)}</b> · gastos <b style="color:var(--red);">${txM(P.expenses)}</b> · ganancia <b style="color:${P.net>=0?'var(--green)':'var(--red)'};">${txM(P.net)}</b>${P.income?' ('+(100*P.net/P.income).toFixed(1)+'% del ingreso)':''}</div>`;
+    if(!p.m){ const M=MES.map((n,i)=>({n,P:ctPL(p.y+'-'+String(i+1).padStart(2,'0'))})).filter(x=>x.P.income||x.P.expenses);
+      h+=`<div style="font-weight:800;font-size:13px;margin:6px 0;">Por mes</div><div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums;"><tr><th style="${th}">Mes</th><th style="${th}">Cargas</th><th style="${th}text-align:right;">Ingresos</th><th style="${th}text-align:right;">Gastos</th><th style="${th}text-align:right;">Ganancia</th></tr>`+
+        M.map(x=>`<tr><td style="${td}">${x.n}</td><td style="${td}">${x.P.trips}</td>${R(x.P.income)}${R(x.P.expenses)}${R(x.P.net,'font-weight:800;color:'+(x.P.net>=0?'var(--green)':'var(--red)')+';')}</tr>`).join('')+`</table></div>`; }
+    h+=`<div style="font-weight:800;font-size:13px;margin:14px 0 6px;">Estado de resultados${p.m?'':' del año'}</div><table style="width:100%;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums;">
+      <tr><td style="${td}font-weight:800;">Ingresos por fletes y adicionales</td>${R(P.income,'font-weight:800;color:var(--green);')}</tr>`+
+      P.rows.filter(r=>r[1]).map(r=>`<tr><td style="${td}padding-left:18px;">− ${ctE(r[0])}</td>${R(r[1])}</tr>`).join('')+
+      `<tr><td style="${td}font-weight:800;">Total de gastos</td>${R(P.expenses,'font-weight:800;color:var(--red);')}</tr><tr><td style="${td}font-weight:800;font-size:14px;">Ganancia neta</td>${R(P.net,'font-weight:800;font-size:14px;color:'+(P.net>=0?'var(--green)':'var(--red)')+';')}</tr></table>
+      <div style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.45;">Las cargas cuentan en la semana/mes en que se entregaron, aunque el broker pague después. La depreciación pone el 100% del camión en el mes de compra; tu contador decide si se reparte en varios años.</div>
+      <button class="btn-sm" style="margin-top:10px;" onclick="ctCSVMore('resultados')">⬇️ Excel</button>`;
+    body.innerHTML=h; return;
+  }
+  if(tab==='capital'){
+    const P=ctPL(p.y), L=D.capital.filter(x=>String(x.date||'').startsWith(p.y)).sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+    const rows=S.map(s=>{ const mine=L.filter(x=>x.socio===s.name), ap=mine.filter(x=>x.type==='aporte').reduce((a,x)=>a+txNum(x.amount),0), re=mine.filter(x=>x.type==='retiro').reduce((a,x)=>a+txNum(x.amount),0), part=P.net*txNum(s.pct)/100; return {s,ap,re,part,bal:ap+part-re}; });
+    let h=`<div style="font-size:13px;color:var(--text2);margin-bottom:10px;line-height:1.5;">Cuenta de capital ${p.y}: lo que cada socio metió, su parte de la ganancia (${txM(P.net)}) y lo que sacó. El saldo es lo que le queda en la empresa.</div>
+      <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums;"><tr><th style="${th}">Socio</th><th style="${th}text-align:right;">Aportes</th><th style="${th}text-align:right;">Parte de la ganancia</th><th style="${th}text-align:right;">Retiros</th><th style="${th}text-align:right;">Saldo</th><th style="${th}text-align:right;">Apartar para impuestos (25–30%)</th></tr>`+
+      rows.map(r=>`<tr><td style="${td}font-weight:700;">${ctE(r.s.name)} <span style="color:var(--text3);font-weight:400;">${txNum(r.s.pct)}%</span></td>${R(r.ap)}${R(r.part)}${R(r.re)}${R(r.bal,'font-weight:800;')}<td style="${td}text-align:right;">${r.part>0?txM(r.part*.25)+' – '+txM(r.part*.30):'—'}</td></tr>`).join('')+`</table></div>`;
+    if(admin) h+=`<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-end;margin-top:12px;">
+      <select id="ct-cap-socio" style="${inp}">${S.map(s=>`<option>${ctE(s.name)}</option>`).join('')}</select>
+      <select id="ct-cap-type" style="${inp}"><option value="retiro">Retiro (sacó dinero)</option><option value="aporte">Aporte (metió dinero)</option></select>
+      <input id="ct-cap-date" type="date" value="${new Date().toISOString().slice(0,10)}" style="${inp}"><input id="ct-cap-amt" type="number" step="0.01" min="0" placeholder="Monto $" style="${inp}width:110px;">
+      <input id="ct-cap-note" placeholder="Nota (ej. transferencia Zelle)" style="${inp}flex:1;min-width:160px;"><button class="btn-sm" onclick="ctCapAdd()">+ Agregar</button></div>`;
+    h+=`<div style="font-weight:800;font-size:13px;margin:14px 0 6px;">Movimientos de ${p.y}</div>`+(L.length?`<table style="width:100%;border-collapse:collapse;font-size:12.5px;">`+L.map(x=>`<tr><td style="${td}white-space:nowrap;">${ctE(x.date)}</td><td style="${td}">${ctE(x.socio)}</td><td style="${td}">${x.type==='aporte'?'Aporte':'Retiro'}</td><td style="${td}">${ctE(x.note||'')}</td>${R(txNum(x.amount),'font-weight:700;color:'+(x.type==='aporte'?'var(--green)':'var(--red)')+';')}<td style="${td}">${admin?`<button class="btn-sm" onclick="ctCapDel('${ctE(x.id)}')">Borrar</button>`:''}</td></tr>`).join('')+`</table>`:'<div class="empty">Todavía no hay aportes ni retiros anotados este año.</div>');
+    h+=`<div style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.45;">Los retiros de los socios no son gasto de la empresa: se anotan aquí. Lo de "apartar para impuestos" es una guía para los pagos estimados de cada socio; tu contador te dice la cantidad exacta.</div>`;
+    body.innerHTML=h; return;
+  }
+  if(tab==='camiones'){
+    const T=loadTrucks().filter(t=>t&&t.name), cexp=loadCompanyExpenses();
+    let h=`<div style="font-size:13px;color:var(--text2);margin-bottom:10px;line-height:1.5;">Cada camión es un activo de la empresa: lo que costó, cuánto se ha pagado del préstamo, lo que falta y la depreciación.</div><div style="display:flex;flex-direction:column;gap:12px;">`;
+    T.forEach((t,i)=>{ const pu=t.purchase||{}, price=txNum(pu.price), down=txNum(pu.down), paid=cexp.filter(e=>(e.category||'')==='Pago de camión'&&String(e.truckId)===String(t.id)).reduce((a,e)=>a+txNum(e.amount),0);
+      const yrPaid=cexp.filter(e=>(e.category||'')==='Pago de camión'&&String(e.truckId)===String(t.id)&&String(e.date||'').startsWith(p.y)).reduce((a,e)=>a+txNum(e.amount),0);
+      const bal=price?Math.max(price-down-paid,0):null, miss=!(price&&pu.date);
+      h+=`<div style="border:1px solid var(--border);border-radius:12px;padding:12px;"><div style="font-weight:800;font-size:14px;">${ctE(t.name)} <span style="font-weight:400;color:var(--text3);">${ctE(t.plate||'')} · ${ctE(t.makeModel||pu.make||'')}${pu.vin?' · VIN '+ctE(pu.vin):''}</span></div>
+        ${miss?`<div style="font-size:12px;color:#B45309;margin:6px 0;">Falta la información de compra (precio, fecha y enganche). Sin eso no se puede depreciar ni llevar el préstamo.</div>`:`<table style="width:100%;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums;margin-top:6px;">
+          <tr><td style="${td}">Fecha de compra</td><td style="${td}text-align:right;">${ctE(pu.date)}</td></tr><tr><td style="${td}">Precio</td>${R(price)}</tr><tr><td style="${td}">Enganche</td>${R(down)}</tr>
+          <tr><td style="${td}">Pagado al préstamo (todos los años)</td>${R(paid)}</tr><tr><td style="${td}">Pagado en ${p.y}</td>${R(yrPaid)}</tr><tr><td style="${td}font-weight:800;">Saldo estimado del préstamo</td>${R(bal,'font-weight:800;')}</tr>
+          <tr><td style="${td}">Depreciación (100% el año de compra)</td>${R(String(pu.date).startsWith(p.y)?price:0)}</tr><tr><td style="${td}">Millas actuales</td><td style="${td}text-align:right;">${txNum(t.mileage).toLocaleString('en-US')}</td></tr></table>`}
+        ${admin?`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;"><input id="ct-tk-date-${i}" type="date" value="${ctE(pu.date||'')}" style="${inp}"><input id="ct-tk-price-${i}" type="number" step="0.01" placeholder="Precio $" value="${price||''}" style="${inp}width:110px;"><input id="ct-tk-down-${i}" type="number" step="0.01" placeholder="Enganche $" value="${down||''}" style="${inp}width:110px;"><input id="ct-tk-vin-${i}" placeholder="VIN" value="${ctE(pu.vin||'')}" style="${inp}width:170px;"><button class="btn-sm" onclick="ctTruckSave(${i})">Guardar compra</button></div>`:''}</div>`; });
+    h+=`</div><div style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.45;">El saldo es aproximado: los pagos de "Pago de camión" incluyen interés. Para el saldo exacto usa el estado de cuenta del préstamo. Los pagos al préstamo de un camión comprado no cuentan como gasto (se cuenta la depreciación).</div>`;
+    body.innerHTML=h; return;
+  }
+  // calendario
+  const Y=+p.y, N=Y+1, P=ctPL(p.y);
+  const drv=(typeof txDrivers==='function'?txDrivers(p.y):[]).filter(d=>d.pay>=600);
+  const items=[
+    {k:`ucr-${N}`,d:`${Y}-12-31`,t:`Pagar el UCR de ${N} (0–2 camiones: $55). Abre el 1 de octubre.`},
+    {k:`est4-${Y}`,d:`${N}-01-15`,t:`Pago estimado del 4.º trimestre de ${Y} (cada socio).`},
+    {k:`1099-${Y}`,d:`${N}-02-01`,t:`1099-NEC a los drivers y al IRS (o W-2 si son empleados).${drv.length?' Drivers con pago ≥ $600: '+drv.map(d=>ctE(d.name.split(' ')[0])+' '+txM(d.pay)).join(', ')+'.':''}`},
+    {k:`1065-${Y}`,d:`${N}-03-15`,t:`Form 1065 y un K-1 para cada socio (o Form 7004 para extender a septiembre).`},
+    {k:`1040-${Y}`,d:`${N}-04-15`,t:`Declaración personal de cada socio y estimado del 1.er trimestre de ${N}.`},
+    {k:`tx-${Y}`,d:`${N}-05-15`,t:`Texas franchise tax y Public Information Report (aunque no se deba impuesto).`},
+    {k:`est2-${N}`,d:`${N}-06-15`,t:`Pago estimado del 2.º trimestre de ${N}.`},
+    {k:`est3-${N}`,d:`${N}-09-15`,t:`Pago estimado del 3.er trimestre de ${N} (y 1065 si se extendió).`}];
+  const once=[{k:'bank',t:'Cuenta de banco y tarjeta solo de la empresa'},{k:'books',t:'Software de contabilidad o bookkeeper conectado al banco'},{k:'oa',t:'Operating agreement firmado por los socios'},{k:'w9',t:'W-9 de cada driver y decidir 1099 o W-2 con el contador'},{k:'truckdocs',t:'Contrato, título y préstamo de cada camión guardados en Drive'},{k:'nyhut',t:'Revisar si necesitan NY HUT (viajes a Nueva York)'},{k:'mcs150',t:'MCS-150 (DOT) actualizado en los últimos 2 años'}];
+  const ck=(k,label,extra)=>{ const on=!!D.checks[k]; return `<label style="display:flex;gap:10px;align-items:flex-start;padding:8px 4px;border-bottom:1px solid var(--border);cursor:${admin?'pointer':'default'};"><input type="checkbox" ${on?'checked':''} ${admin?`onchange="ctCheck('${k}',this.checked)"`:'disabled'} style="margin-top:3px;"><span style="flex:1;font-size:13px;${on?'color:var(--text3);text-decoration:line-through;':''}">${label}${on?` <span style="font-size:11px;">(hecho ${ctE(String(D.checks[k]).slice(0,10))})</span>`:''}</span>${extra||''}</label>`; };
+  const today=new Date().toISOString().slice(0,10);
+  let h=`<div style="font-size:13px;color:var(--text2);margin-bottom:10px;line-height:1.5;">Fechas del año fiscal ${Y}. Ganancia de ${Y} hasta hoy: <b>${txM(P.net)}</b>. Para los estimados, cada socio debería ir apartando 25–30% de su parte: ${S.map(s=>ctE(s.name.split(' ')[0])+' '+txM(Math.max(P.net,0)*txNum(s.pct)/100*.25)+'–'+txM(Math.max(P.net,0)*txNum(s.pct)/100*.30)).join(' · ')}.</div>
+    <div style="font-weight:800;font-size:13px;margin:6px 0;">Fechas límite</div>`+
+    items.map(x=>{ const late=!D.checks[x.k]&&x.d<today, soon=!D.checks[x.k]&&!late&&(Date.parse(x.d)-Date.parse(today))<30*864e5; return ck(x.k,`<b>${x.d}</b> · ${x.t}`,late?'<span style="color:var(--red);font-size:11px;font-weight:700;">vencida</span>':soon?'<span style="color:#B45309;font-size:11px;font-weight:700;">pronto</span>':''); }).join('')+
+    `<div style="font-weight:800;font-size:13px;margin:14px 0 6px;">Cada mes: cuadrar banco y tarjeta contra los libros</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:2px;">`+
+    ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'].map((n,i)=>ck(`rec-${Y}-${String(i+1).padStart(2,'0')}`,n)).join('')+`</div>
+    <div style="font-weight:800;font-size:13px;margin:14px 0 6px;">Una sola vez (y revisar cada año)</div>`+once.map(x=>ck('once-'+x.k,x.t)).join('')+
+    `<div style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.45;">Si una fecha cae en fin de semana se corre al siguiente día hábil. Confirma las fechas y montos con tu contador.</div>`;
+  body.innerHTML=h;
+}
+function ctCapAdd(){
+  if(!currentUser||currentUser.role!=='admin') return;
+  const amt=txNum((document.getElementById('ct-cap-amt')||{}).value), date=(document.getElementById('ct-cap-date')||{}).value;
+  if(!(amt>0)||!date){ alertMsg('Escribe la fecha y el monto.'); return; }
+  const D=ctMoreData(); D.capital.push({id:String(Date.now()),date,socio:document.getElementById('ct-cap-socio').value,type:document.getElementById('ct-cap-type').value,amount:amt,note:(document.getElementById('ct-cap-note').value||'').trim(),by:currentUser.username||''});
+  ctMoreSave({capital:D.capital}); renderContabilidad(); alertMsg('Movimiento guardado.');
+}
+function ctCapDel(id){ if(!currentUser||currentUser.role!=='admin') return; const D=ctMoreData(); ctMoreSave({capital:D.capital.filter(x=>String(x.id)!==String(id))}); renderContabilidad(); }
+function ctCheck(k,on){ if(!currentUser||currentUser.role!=='admin') return; const D=ctMoreData(); if(on) D.checks[k]=new Date().toISOString(); else delete D.checks[k]; ctMoreSave({ctChecks:D.checks}); renderContabilidad(); }
+function ctTruckSave(i){
+  if(!currentUser||currentUser.role!=='admin') return;
+  const T=loadTrucks(), list=T.filter(t=>t&&t.name), t=list[i]; if(!t) return;
+  const g=id=>(document.getElementById(id)||{}).value;
+  t.purchase=Object.assign({},t.purchase||{},{date:g('ct-tk-date-'+i)||'',price:txNum(g('ct-tk-price-'+i)),down:txNum(g('ct-tk-down-'+i)),vin:(g('ct-tk-vin-'+i)||'').trim(),updatedAt:new Date().toISOString()});
+  saveTrucks(T); renderContabilidad(); alertMsg('Compra del camión guardada.');
+}
+function ctCSVMore(kind){
+  const p=ctPeriod(), P=ctPL(p.pref);
+  const R=[['Concepto','Monto'],['Ingresos',P.income.toFixed(2)]].concat(P.rows.map(r=>[r[0],(-r[1]).toFixed(2)])).concat([['Total gastos',(-P.expenses).toFixed(2)],['Ganancia neta',P.net.toFixed(2)]]);
+  const csv='﻿'+R.map(r=>r.map(x=>/[",\n]/.test(String(x))?'"'+String(x).replace(/"/g,'""')+'"':x).join(',')).join('\n');
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'})); a.download='estado-de-resultados-'+p.pref+'-YENAVI.csv'; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },1000);
+}
+
 function ctSaveSocios(){
   if(!currentUser||currentUser.role!=='admin') return;
   const S=ctSocios().map((s,i)=>({name:String((document.getElementById('ct-sn-'+i)||{}).value||'').trim(),pct:txNum((document.getElementById('ct-sp-'+i)||{}).value)}));

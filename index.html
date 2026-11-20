@@ -2341,6 +2341,24 @@ label.dead-lock-lbl{color:#B91C1C!important;font-weight:800;}
     </div>
 
     <div id="reportes-hub-cards" style="display:flex;flex-direction:column;gap:12px;">
+      <div class="card" style="cursor:pointer;display:flex;align-items:center;gap:14px;transition:all .2s;border:1.5px solid var(--accent);" onclick="sidebarNav('millas')">
+        <div style="width:48px;height:48px;border-radius:8px;background:var(--accent-bg);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;">🛣️</div>
+        <div style="flex:1;">
+          <div style="font-size:14px;font-weight:700;color:var(--text);">Millas por camión</div>
+          <div style="font-size:12px;color:var(--text3);margin-top:2px;">Histórico por viaje: milla inicial y final, total, diésel y MPG</div>
+        </div>
+        <div style="font-size:20px;color:var(--text3);">›</div>
+      </div>
+
+      <div class="card" style="cursor:pointer;display:flex;align-items:center;gap:14px;transition:all .2s;border:1.5px solid var(--accent);" onclick="sidebarNav('millas');setTimeout(()=>{const d=document.getElementById('tm-daily');if(d)d.scrollIntoView({behavior:'smooth',block:'start'});},1200)">
+        <div style="width:48px;height:48px;border-radius:8px;background:var(--accent-bg);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;">📅</div>
+        <div style="flex:1;">
+          <div style="font-size:14px;font-weight:700;color:var(--text);">Odómetro diario del ELD</div>
+          <div style="font-size:12px;color:var(--text3);margin-top:2px;">Dónde estuvo cada camión cada día y cuántas millas hizo</div>
+        </div>
+        <div style="font-size:20px;color:var(--text3);">›</div>
+      </div>
+
       <div class="card" style="cursor:pointer;display:flex;align-items:center;gap:14px;transition:all .2s;" onclick="sidebarNav('bulkdocs')">
         <div style="width:48px;height:48px;border-radius:8px;background:var(--accent-bg);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;">📎</div>
         <div style="flex:1;">
@@ -2368,14 +2386,6 @@ label.dead-lock-lbl{color:#B91C1C!important;font-weight:800;}
         <div style="font-size:20px;color:var(--text3);">›</div>
       </div>
 
-      <div class="card" style="cursor:pointer;display:flex;align-items:center;gap:14px;transition:all .2s;" onclick="sidebarNav('millas')">
-        <div style="width:48px;height:48px;border-radius:8px;background:var(--accent-bg);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;">🛣️</div>
-        <div style="flex:1;">
-          <div style="font-size:14px;font-weight:700;color:var(--text);">Millas por camión</div>
-          <div style="font-size:12px;color:var(--text3);margin-top:2px;">Histórico por viaje: milla inicial y final, total, diésel y MPG</div>
-        </div>
-        <div style="font-size:20px;color:var(--text3);">›</div>
-      </div>
 
       <div class="card" style="cursor:pointer;display:flex;align-items:center;gap:14px;transition:all .2s;" onclick="sidebarNav('reporte')">
         <div style="width:48px;height:48px;border-radius:8px;background:var(--accent-bg);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6"/></svg></div>
@@ -19403,7 +19413,6 @@ const ADMIN_SIDEBAR_ITEMS = [
   {id:'ubicacion', icon:'📍', label:'Ubicación', section:'Operaciones'},
   {id:'gastos',    icon:'⛽', label:'Gastos', section:'Finanzas'},
   {id:'mantenimiento', icon:'🔧', label:'Mantenimiento', section:'Finanzas'},
-  {id:'millas', icon:'🛣️', label:'Millas por camión', section:'Finanzas'},
   {id:'balance', icon:'🧮', label:'Balance General', section:'Finanzas'},
   {id:'otrosgastos', icon:'🧾', label:'Otros gastos', section:'Finanzas'},
   {id:'semana',    icon:'📅', label:'Semana', section:'Finanzas'},

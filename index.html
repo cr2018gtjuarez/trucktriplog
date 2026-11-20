@@ -3787,6 +3787,13 @@ label.dead-lock-lbl{color:#B91C1C!important;font-weight:800;}
           </select>
         </div>
         <div class="field">
+          <label>Viajes</label>
+          <select id="rep-mode" onchange="renderReporte()" style="width:100%;padding:10px 13px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius-sm);font-size:14px;color:var(--text);">
+            <option value="week">Entregados en la semana</option>
+            <option value="transit">&#x1F69A; En tránsito para pagar</option>
+          </select>
+        </div>
+        <div class="field">
           <label>Desde</label>
           <input type="date" id="rep-from" onchange="renderReporte()"/>
         </div>
@@ -3802,6 +3809,9 @@ label.dead-lock-lbl{color:#B91C1C!important;font-weight:800;}
         <button onclick="repQuick('last30')" class="btn-sm">Últimos 30 días</button>
       </div>
     </div>
+
+    <!-- Viajes en tránsito para pagar (no cambia el estado de pago del viaje ni el dashboard) -->
+    <div id="rep-transit" style="display:none;"></div>
 
     <!-- Preview del reporte -->
     <div id="rep-preview" style="display:none;">
@@ -18573,6 +18583,9 @@ function renderReporte(){
   const payF    = document.getElementById('rep-paystatus').value;
   const fromF   = document.getElementById('rep-from').value;
   const toF     = document.getElementById('rep-to').value;
+  { const mode=document.getElementById('rep-mode')?.value||'week', box=document.getElementById('rep-transit');
+    if(mode==='transit'){ document.getElementById('rep-preview').style.display='none'; document.getElementById('rep-empty').style.display='none'; renderRepTransit(trips, driverF); return; }
+    if(box) box.style.display='none'; }
   renderAdjCard(driverF, fromF, toF);
 
   // Base set (driver + fecha) usado para el desglose de pagados/pendientes
@@ -18614,10 +18627,12 @@ function renderReporte(){
   const m2=v=>'$'+(v||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
   const adjList=adjFor(driverF,fromF,toF), adjTotal=adjList.reduce((a,x)=>a+adjSigned(x),0);
   const totalMiles=filtered.reduce((a,t)=>a+tripTotalMiles(t),0);
+  const transitPaidTrips=unpaidTrips.filter(t=>t.transitPay&&t.transitPay.paid), transitPaidTotal=transitPaidTrips.reduce((a,t)=>a+(parseFloat(t.transitPay.amount)||0),0);
   document.getElementById('rep-tiles').innerHTML = `
     <div class="rep-tile main"><div class="l">Pago neto</div><div class="v">${m2(totalPay+adjTotal)}</div><div class="s">${totalTrips} carga${totalTrips!==1?'s':''} · ${totalMiles.toLocaleString('en-US')} mi${adjList.length?' · pago bruto '+m2(totalPay)+(adjTotal<0?' − ':' + ')+m2(Math.abs(adjTotal))+' en ajustes':''}</div></div>
     <div class="rep-tile"><div class="l">Liquidado</div><div class="v" style="color:var(--green)">${m2(paidTotal)}</div><div class="s">${paidTrips.length} viaje${paidTrips.length!==1?'s':''}</div></div>
-    <div class="rep-tile"><div class="l">Por liquidar</div><div class="v" style="color:var(--orange)">${m2(unpaidTotal)}</div><div class="s">${unpaidTrips.length} viaje${unpaidTrips.length!==1?'s':''}</div></div>`;
+    <div class="rep-tile"><div class="l">Por liquidar</div><div class="v" style="color:var(--orange)">${m2(unpaidTotal)}</div><div class="s">${unpaidTrips.length} viaje${unpaidTrips.length!==1?'s':''}${transitPaidTotal?' · falta '+m2(Math.max(unpaidTotal-transitPaidTotal,0)):''}</div></div>${transitPaidTotal?`
+    <div class="rep-tile"><div class="l">Ya pagado en tránsito</div><div class="v" style="color:#2563EB">${m2(transitPaidTotal)}</div><div class="s">${transitPaidTrips.length} viaje${transitPaidTrips.length!==1?'s':''} · no lo pagues otra vez</div></div>`:''}`;
 
   // Table rows
   const tbody = document.getElementById('rep-tbody');
@@ -18633,7 +18648,7 @@ function renderReporte(){
         ${t.profitSet?m2(t.driver):'—'}
       </td>
       <td style="padding:10px 12px;text-align:center;white-space:nowrap;font-size:11px;font-weight:700;color:${(t.driverPayStatus||'paid')==='paid'?'var(--green)':'var(--orange)'};">
-        ${(t.driverPayStatus||'paid')==='paid'?'&#x2714; Pagado':'&#x23F3; Pendiente'}
+        ${(t.driverPayStatus||'paid')==='paid'?'&#x2714; Pagado':(t.transitPay&&t.transitPay.paid?'<span style="color:#2563EB;">&#x1F4B8; Pagado en tránsito '+String(t.transitPay.at||'').slice(5,10).replace('-','/')+'</span>':'&#x23F3; Pendiente')}
       </td>
     </tr>`).join('');
 
@@ -18645,6 +18660,49 @@ function renderReporte(){
       <td style="padding:12px;text-align:right;font-size:14px;font-weight:800;color:var(--green);">${m2(totalPay)}</td>
       <td></td>
     </tr>`;
+}
+
+// ===== PAGAR VIAJES EN TRÁNSITO =====
+// Se guarda aparte en el viaje (transitPay) y NO cambia driverPayStatus: el dashboard y los pendientes siguen igual.
+// Cuando el viaje se entrega, la liquidación semanal lo muestra como "Pagado en tránsito" para no pagarlo dos veces.
+function repDriverPayOf(t){
+  if(t.profitSet && parseFloat(t.driver)>0) return parseFloat(t.driver);
+  const lh=tripLineHaul(t); if(!(lh>0)) return 0;
+  let pct=parseFloat(t.payPct); if(!(pct>0)){ const b=String(t.brokerName||'').toUpperCase(); pct=/TQL|ROBINSON/.test(b)?25:30; }
+  return tripPayCalc(lh,pct,t.accessorials||[],0,0).driver;
+}
+function renderRepTransit(trips, driverF){
+  const box=document.getElementById('rep-transit'); if(!box) return; box.style.display='block';
+  const esc=x=>String(x==null?'':x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const m2=v=>'$'+(v||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const L=trips.filter(t=>t.tripStatus==='active' && (driverF==='all'||(t.driverName||'—')===driverF)).sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+  const paidL=L.filter(t=>t.transitPay&&t.transitPay.paid), penL=L.filter(t=>!(t.transitPay&&t.transitPay.paid));
+  const sum=A=>A.reduce((a,t)=>a+(t.transitPay&&t.transitPay.paid?parseFloat(t.transitPay.amount)||0:repDriverPayOf(t)),0);
+  const th='padding:10px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.6px;text-transform:uppercase;border-bottom:1px solid var(--border);white-space:nowrap;';
+  const td='padding:10px 12px;border-bottom:1px solid var(--border);';
+  box.innerHTML=`<div class="rep-tiles">
+      <div class="rep-tile main"><div class="l">Por pagar en tránsito</div><div class="v">${m2(sum(penL))}</div><div class="s">${penL.length} viaje${penL.length!==1?'s':''}</div></div>
+      <div class="rep-tile"><div class="l">Ya pagado en tránsito</div><div class="v" style="color:#2563EB">${m2(sum(paidL))}</div><div class="s">${paidL.length} viaje${paidL.length!==1?'s':''}</div></div></div>
+    <div class="card" style="padding:0;overflow:hidden;">
+      <div style="padding:14px 16px;border-bottom:1px solid var(--border);"><div style="font-size:13px;font-weight:700;color:var(--text);">🚚 Viajes en tránsito</div>
+        <div style="font-size:12px;color:var(--text3);margin-top:2px;">Marcar aquí no cambia el estado de pago del viaje ni el dashboard. Cuando se entregue, en la liquidación de su semana sale como "Pagado en tránsito".</div></div>
+      <div style="overflow-x:auto;">${L.length?`<table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr style="background:var(--bg3);">${['Driver','Viaje','Broker / RC','Pick up','Entrega','Valor carga','Pago al driver','Estado',''].map(x=>`<th style="${th}">${x}</th>`).join('')}</tr></thead><tbody>`+
+      L.map(t=>{ const p=t.transitPay&&t.transitPay.paid; const amt=p?parseFloat(t.transitPay.amount)||0:repDriverPayOf(t);
+        return `<tr><td style="${td}white-space:nowrap;">${esc((t.driverName||'—').split(' ')[0])}</td>
+          <td style="${td}">${esc(t.city1||t.z1||'—')}${t.state1?', '+esc(t.state1):''} → ${esc(t.city2||t.z2||'—')}${t.state2?', '+esc(t.state2):''}</td>
+          <td style="${td}white-space:nowrap;">${esc(t.brokerName||t.broker||'—')}${t.rc?'<div style="font-size:11px;color:var(--text3);">RC '+esc(t.rc)+'</div>':''}</td>
+          <td style="${td}white-space:nowrap;">${t.date?fmtDate(t.date):'—'}</td><td style="${td}white-space:nowrap;">${t.deliveryDate?fmtDate(t.deliveryDate):'—'}</td>
+          <td style="${td}text-align:right;white-space:nowrap;">${t.loadVal?m2(t.loadVal):'—'}</td>
+          <td style="${td}text-align:right;font-weight:800;white-space:nowrap;color:${amt?'var(--green)':'var(--text3)'};">${amt?m2(amt):'Falta el valor de la carga'}</td>
+          <td style="${td}white-space:nowrap;font-size:11px;font-weight:700;color:${p?'#2563EB':'var(--orange)'};">${p?'💸 Pagado '+String(t.transitPay.at||'').slice(5,10).replace('-','/'):'⏳ Pendiente'}</td>
+          <td style="${td}white-space:nowrap;">${p?`<button class="btn-sm" onclick="repTransitPay(${t.id},false)">Deshacer</button>`:(amt?`<button class="btn-sm" style="background:var(--accent);color:#fff;border:none;" onclick="repTransitPay(${t.id},true)">Marcar pagado</button>`:'')}</td></tr>`; }).join('')+'</tbody></table>'
+      :'<div class="empty" style="margin:12px;">No hay viajes en tránsito para este driver.</div>'}</div></div>`;
+}
+async function repTransitPay(id, on){
+  const trips=loadTrips(); const i=trips.findIndex(t=>t.id===id); if(i<0) return;
+  const t=trips[i];
+  trips[i]={...t, transitPay: on?{paid:true, amount:repDriverPayOf(t), at:new Date().toISOString(), by:(currentUser&&currentUser.username)||''}:null};
+  await storeTrips(trips); renderReporte();
 }
 
 function repJumpWeek(n){

@@ -2436,6 +2436,11 @@ label.dead-lock-lbl{color:#B91C1C!important;font-weight:800;}
       </div>
       <div style="overflow-x:auto;"><div id="tm-table"></div></div>
     </div>
+    <div class="card" style="margin-bottom:12px;">
+      <div style="font-size:14px;font-weight:800;color:var(--text);">📅 Odómetro diario del ELD</div>
+      <div style="font-size:12px;color:var(--text3);margin:2px 0 8px;">Dónde empezó y terminó el camión cada día, con el odómetro (millas del tablero). Úsalo para corregir la fecha de entrega de un viaje: al guardarla, el viaje toma el odómetro solo.</div>
+      <div style="overflow-x:auto;"><div id="tm-daily"></div></div>
+    </div>
   </div>
 
   <!-- IMPUESTOS: REPORTE ANUAL PARA EL CONTADOR -->
@@ -16860,17 +16865,27 @@ async function tmLoad(force){
   if(!force && Date.now()-_tmAt<60000) return false;
   _tmAt=Date.now();
   try{ const s=await db.collection('truckMiles').get(); const o={}; s.forEach(d=>{ o[d.id]=d.data(); }); window._tmHist=o; }catch(e){ console.warn('truckMiles',e); }
+  try{ const s=await db.collection('eldDaily').get(); const o={}; s.forEach(d=>{ const x=d.data(); o[String(x.truckId||d.id.replace('truck_',''))]=x; }); window._eldDaily=o; }catch(e){ console.warn('eldDaily',e); }
   return true;
 }
 // Diferencia entre el odómetro del tablero del camión y el que reporta el ELD (se calibra una vez por camión)
 function tmOffset(id){ const t=(loadTrucks()||[]).find(x=>String(x.id)===String(id)); return t&&t.eldOffset?Number(t.eldOffset):0; }
+// Odómetro diario del ELD (reporte de AxionRoute guardado en "eldDaily"). Después de resetAt el ELD empezó de cero: se le suma la diferencia del tablero.
+function tmEld(tk){
+  const E=window._eldDaily&&window._eldDaily[String(tk)]; if(!E||!E.days) return null;
+  const off=tmOffset(tk), keys=Object.keys(E.days).sort();
+  const cv=(d,v)=>(E.resetAt&&d>=E.resetAt)?v+off:v;
+  return { first:keys[0], last:keys[keys.length-1], keys, days:E.days, cv,
+    eod:d=>{ let k=null; for(const x of keys){ if(x<=d) k=x; else break; } return k?cv(k,E.days[k].b):null; },
+    sod:d=>{ const k=keys.find(x=>x>=d); return k?cv(k,E.days[k].a):null; } };
+}
 function tmTruckName(id){ const t=(loadTrucks()||[]).find(x=>String(x.id)===String(id)); return t?(t.name||'Camión')+(t.plate?' · '+t.plate:''):'Sin camión'; }
 function tmCompute(){
   const out=[]; const trips=loadTrips().filter(t=>t&&t.tripStatus!=='scheduled');
   const by={}; trips.forEach(t=>{ const k=tripTruckId(t)||(t.truckId?String(t.truckId):''); if(!k) return; (by[k]=by[k]||[]).push(t); });
   Object.keys(by).forEach(tk=>{
     const L=by[tk].sort((a,b)=>((a.date||'')+String(a.id)).localeCompare((b.date||'')+String(b.id)));
-    let prevEnd=null, prevManEnd=null; const off=tmOffset(tk);
+    let prevEnd=null, prevManEnd=null; const off=tmOffset(tk); const ED=tmEld(tk);
     L.forEach(t=>{
       const r=window._odo&&window._odo[String(t.id)]; const n=x=>x&&x.odo!=null?Number(x.odo)+off:null;
       const st=n(r&&r.start), en=n(r&&r.end), dl=n(r&&r.delivery);
@@ -16880,8 +16895,19 @@ function tmCompute(){
       let s=null,e=null,src='estimado',notes=[];
       if(t.parentTripId){ src='parcial'; notes.push('Carga parcial: las millas van en el viaje principal'); }
       else if(st!=null && (en!=null||dl!=null) && !active && Math.max(en||0,dl||0)>st){
-        e=Math.max(en||0,dl||0); s=(prevEnd!=null&&prevEnd<=st&&st-prevEnd<3000)?prevEnd:st; src='ELD'; prevEnd=e;
-      } else if(st!=null && active){ s=(prevEnd!=null&&prevEnd<=st&&st-prevEnd<3000)?prevEnd:st; src='ELD'; notes.push('En tránsito'); }
+        e=Math.max(en||0,dl||0); s=(prevEnd!=null&&prevEnd>=st&&prevEnd<e)?prevEnd:((prevEnd!=null&&prevEnd<=st&&st-prevEnd<3000)?prevEnd:st); src='ELD'; prevEnd=e;
+      } else if(st!=null && active){ s=(prevEnd!=null&&prevEnd>=st)?prevEnd:((prevEnd!=null&&prevEnd<=st&&st-prevEnd<3000)?prevEnd:st); src='ELD'; notes.push('En tránsito'); }
+      else if(ED && !active && !t.parentTripId && (t.deliveryDate||t.date||'')>=ED.first && (t.date||'')<=ED.last){
+        // Con el odómetro diario: termina al final del día de entrega (si no hay fecha de entrega, la fecha del viaje)
+        const ref=(t.deliveryDate&&t.deliveryDate>=t.date)?t.deliveryDate:t.date;
+        const e0=ED.eod(ref), s0=prevEnd!=null?prevEnd:ED.sod(t.date);
+        if(e0!=null && s0!=null && e0>=s0){
+          const tt=Math.round(e0-s0);
+          if(est>0 && (tt<est*0.7||tt>est*1.5)){ notes.push('Revisa las fechas: con entrega el '+ref+' el ELD da '+tt.toLocaleString('en-US')+' mi y la ruta '+est.toLocaleString('en-US')+' mi (mira el odómetro diario)'); }
+          else { s=s0; e=e0; src='ELD'; notes.push('Odómetro diario del ELD'); }
+          prevEnd=e0;
+        }
+      }
       else if(ms>1000 && me>ms && me-ms<4000){ s=ms; e=me; src='manual';
         if(prevManEnd!=null && s<prevManEnd-5) notes.push('La milla inicial es menor que la final del viaje anterior');
         prevManEnd=e; }
@@ -16965,9 +16991,16 @@ async function renderMillas(){
   // Resumen por camión (MPG solo con viajes terminados que tienen galones bien capturados)
   const S={}; R.forEach(r=>{ const s=S[r.truckId]=S[r.truckId]||{name:r.truck,trips:0,mi:0,eld:0,gal:0,cost:0,mpgMi:0,mpgGal:0};
     s.trips++; s.mi+=r.total||0; if(r.src==='ELD'&&!r.active) s.eld+=r.total||0; s.gal+=r.gal||0; s.cost+=r.cost||0; if(r.mpg!=null&&r.mpg>=5&&r.mpg<=16){ s.mpgMi+=r.total; s.mpgGal+=r.gal; } });
+  { const dv=document.getElementById('tm-daily'); if(dv){ const tkSel=document.getElementById('tm-truck')?.value||'all', mSel=document.getElementById('tm-month')?.value||'all';
+      const ids=Object.keys(window._eldDaily||{}).filter(i=>tkSel==='all'||i===tkSel);
+      let dh=''; ids.forEach(i=>{ const ED=tmEld(i); if(!ED) return; const ks=ED.keys.filter(k=>mSel==='all'||k.slice(0,7)===mSel).reverse(); if(!ks.length) return;
+        dh+=`<div style="font-weight:800;font-size:13px;color:var(--accent);margin:8px 0 4px;">${esc(tmTruckName(i))}</div><table style="width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;"><thead><tr>${['Fecha','Desde','Hasta','Odómetro inicial','Odómetro final','Millas'].map(x=>`<th style="${th}">${x}</th>`).join('')}</tr></thead><tbody>`+
+          ks.map(k=>{ const x=ED.days[k], a=ED.cv(k,x.a), b=ED.cv(k,x.b); return `<tr><td style="${td}">${k}</td><td style="${td}">${esc(x.from||'')}</td><td style="${td}">${esc(x.to||'')}</td><td style="${td}text-align:right;">${f(a)}</td><td style="${td}text-align:right;">${f(b)}</td><td style="${td}text-align:right;font-weight:800;">${f(b-a)}</td></tr>`; }).join('')+'</tbody></table>'; });
+      dv.innerHTML=dh||'<div style="padding:12px;color:var(--text3);font-size:13px;">No hay odómetro diario para este filtro.</div>'; } }
   const cb=document.getElementById('tm-calib');
-  if(cb){ const ids=[...new Set(R.map(r=>r.truckId))].filter(i=>window._odoDaily&&window._odoDaily[i]);
+  if(cb){ const ids=[...new Set(R.map(r=>r.truckId))].filter(i=>(window._odoDaily&&window._odoDaily[i])||(window._eldDaily&&window._eldDaily[i]&&window._eldDaily[i].resetAt));
     cb.innerHTML=ids.map(i=>{ const t=(loadTrucks()||[]).find(x=>String(x.id)===i); const ok=t&&t.eldOffset!=null&&t.eldOffsetAt;
+      if(ok && t.eldOffsetRef && t.eldOffsetRef.estimado) return `<div style="color:#B45309;font-weight:700;">🟡 ${esc(tmTruckName(i))}: diferencia del tablero estimada (ELD +${Number(t.eldOffset).toLocaleString('en-US')} mi). Para que sea exacta toca 🎯 Calibrar odómetro con la foto del tablero.</div>`;
       return ok?`<div style="color:var(--green);">✅ ${esc(tmTruckName(i))}: odómetro del tablero (ELD ${t.eldOffset>=0?'+':''}${Number(t.eldOffset).toLocaleString('en-US')} mi, calibrado ${String(t.eldOffsetAt).slice(0,10)})</div>`
         :`<div style="color:var(--red);font-weight:700;">⚠️ ${esc(tmTruckName(i))}: sin calibrar — las millas inicial/final son las del ELD, no las del tablero. Toca 🎯 Calibrar odómetro.</div>`; }).join(''); }
   const sm=document.getElementById('tm-summary');

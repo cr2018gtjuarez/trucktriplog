@@ -274,18 +274,28 @@
     if (!q) q = T('Analiza esta captura.', 'Check this screenshot.');
     await loadCfg();
     if (!cfg || !cfg.url) { var ok = await setupCfg(); if (!ok) return; }
-    busy = true; show(); addMsg('me', q, opt); var thinking = typing(true);
+    busy = true; show(); if (!opt.again) addMsg('me', q, opt); var thinking = typing(true);
     try {
       var ctx = await buildContext();
       var body = JSON.stringify({ k: cfg.k, lang: IS_DRIVER ? 'en' : 'es', role: IS_DRIVER ? 'driver' : 'admin', user: (user() || {}).name, q: q, ctx: ctx, history: history.slice(-8), images: imgs.map(function(x){ return { media_type: x.type, data: x.data }; }) });
-      var r = await fetch(cfg.url, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: body, redirect: 'follow' });
-      var txt = await r.text(); var j; try { j = JSON.parse(txt); } catch(e){ throw new Error(T('El asistente no contestó bien. Revisa la URL del Apps Script.', 'The assistant did not answer correctly.')); }
+      // si se corta la conexión ("Load failed" en iPhone / "Failed to fetch"), lo vuelve a intentar una vez solo
+      var txt, lastErr;
+      for (var tries = 0; tries < 2 && txt === undefined; tries++) {
+        try { var r = await fetch(cfg.url, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: body, redirect: 'follow' }); txt = await r.text(); }
+        catch(netErr){ lastErr = netErr; if (tries === 0) await new Promise(function(ok){ setTimeout(ok, 2000); }); }
+      }
+      if (txt === undefined) { var ne = new Error(T('No pude conectar con el asistente (se cortó la conexión o el Apps Script no contestó). Revisa la señal y toca Reintentar.', 'Could not reach the assistant (connection dropped). Check your signal and tap Retry.')); ne.net = true; ne.raw = lastErr; throw ne; } var j; try { j = JSON.parse(txt); } catch(e){ throw new Error(T('El asistente no contestó bien. Revisa la URL del Apps Script.', 'The assistant did not answer correctly.')); }
       if (j.error) { if (/clave|key/i.test(j.error) && !IS_DRIVER) { localStorage.removeItem('yvoz_cfg'); cfg = null; } throw new Error(j.error); }
       var a = String(j.answer || '').replace(/\*\*(.+?)\*\*/g, '$1').replace(/^#{1,4}\s+/gm, '').trim() || T('No tengo respuesta.', 'No answer.');
       typing(false); addMsg('ai', a);
       if (!IS_DRIVER && imgs.length && Array.isArray(j.docs) && j.docs.length) { try { docCards(j.docs, imgs); } catch(e){ console.warn('voz docs', e); } } history.push({ role: 'user', content: (imgs.length ? '[' + imgs.length + T(' captura(s)] ', ' screenshot(s)] ') : '') + q }, { role: 'assistant', content: a }); history = history.slice(-12);
       speak(imgs.length ? a.split(/\n/)[0] : a);
-    } catch(e){ typing(false); addMsg('ai', '⚠️ ' + (e && e.message ? e.message : e), { err: true }); }
+    } catch(e){
+      typing(false); console.warn('voz ask', e && (e.raw || e));
+      var eb = addMsg('ai', '⚠️ ' + (e && e.message ? e.message : e), { err: true });
+      // botón para mandar otra vez la misma pregunta con las mismas fotos (sin escribirla de nuevo)
+      if (e && e.net && eb) { var rb = document.createElement('button'); rb.type = 'button'; rb.className = 'rp'; rb.textContent = '🔄 ' + T('Reintentar', 'Retry'); rb.onclick = function(){ rb.disabled = true; ask(q, { images: imgs, again: true }); }; eb.insertBefore(document.createElement('br'), eb.lastChild); eb.insertBefore(rb, eb.lastChild); }
+    }
     busy = false;
   }
 

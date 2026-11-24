@@ -6484,14 +6484,17 @@ async function etaCalc(target){
     const drvName=etaDrvName(drivers,active,lastDone);
     const here=await etaHere(tr,drivers,live,lastDone,now);
     const steps=[]; let at=null, t=now, est=false;
-    if(active){
+    // Leonardo: el ETA va DIRECTO de la ubicación actual al pick up (aunque vaya cargado, no pasa primero por el delivery).
+    // Solo si no hay ubicación conocida se usa el viaje activo / programados como respaldo.
+    const DIRECT=!!here;
+    if(active&&!DIRECT){
       let del=null; try{ del=await deliveryEta(active); }catch(e){}
       const dz=ZC[active.z2]||await fetchZip(active.z2);
       if(del&&dz){ at={lat:dz.lat,lon:dz.lon,name:(active.city2||dz.city)+', '+(active.state2||dz.abbr)}; t=del.eta+ETA_UNLOAD_H*3600000;
         steps.push({kind:'active',trip:active,eta:del.eta,arrived:del.arrived,miles:del.miles,place:at.name,zip:active.z2}); }
     }
     if(!at && here){ at={lat:here.lat,lon:here.lon,name:[here.city,here.st].filter(Boolean).join(', ')}; }
-    for(const sc of sched){
+    for(const sc of (DIRECT?[]:sched)){
       if(!at) break;
       const a1=ZC[sc.z1]||await fetchZip(sc.z1), a2=ZC[sc.z2]||await fetchZip(sc.z2); if(!a1||!a2) continue;
       const r1=await fetchRoadRoute(at.lat,at.lon,a1.lat,a1.lon), m1=r1?r1.miles:haversineKm(at.lat,at.lon,a1.lat,a1.lon)*0.621371*1.2; if(!r1) est=true;
@@ -20482,7 +20485,7 @@ function audSetGvwr(id,v){ const T=loadTrucks(); const t=T.find(x=>String(x.id)=
 
 </script>
 <script src="visor.js?v=2" defer></script>
-<script src="voz.js?v=11" defer></script>
+<script src="voz.js?v=12" defer></script>
 <script src="pod-check.js?v=1" defer></script>
 <script src="solicitud.js?v=6" defer></script>
 </body>

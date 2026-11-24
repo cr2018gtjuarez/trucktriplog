@@ -200,6 +200,28 @@
     return out;
   }
 
+  // ---------- qué está pasando ahora (solo administrador) ----------
+  // appEvents = avisos de la campanita (viaje iniciado, cerca, llegó, BOL/POD/diésel subidos, etc.)
+  // taskLog   = bitácora de las tareas automáticas de Claude (Resumen, WhatsApp, TQL, CHR) → data/bitacora
+  // companyKnowledge = reglas y datos de la compañía → data/asistente
+  async function activity(){
+    var out = {}, d = fb();
+    var n = null;
+    try { if (typeof _notifCache !== 'undefined' && _notifCache && _notifCache.length) n = _notifCache; } catch(e){}
+    if (!n && d) { try { var s = await d.collection('notifications').orderBy('ts', 'desc').limit(30).get(); n = s.docs.map(function(x){ return x.data(); }); } catch(e){} }
+    if (n) out.appEvents = n.slice(0, 30).map(function(x){
+      var lab = null; try { if (typeof notifLabel === 'function') lab = notifLabel(x); } catch(e){}
+      var r = slim(x) || {}; delete r.read; delete r.id;
+      if (x.ts) { var t = new Date(x.ts); if (!isNaN(t)) r.when = t.toLocaleString('en-US', { timeZone: 'America/Chicago', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }); }
+      if (lab && lab.title) r.what = String(lab.title).replace(/<[^>]+>/g, '');
+      return clean(r);
+    });
+    if (d) {
+      try { var b = await d.collection('data').doc('bitacora').get(); if (b.exists) { var v = b.data() || {}; out.taskLog = (v.lines || []).slice(-80); out.taskLogUpdated = v.updated; } } catch(e){}
+      try { var k = await d.collection('data').doc('asistente').get(); if (k.exists) { var kv = k.data() || {}; out.companyKnowledge = kv.conocimiento; } } catch(e){}
+    }
+    return out;
+  }
   async function buildContext(){
     var u = user(), trips = allTrips();
     var mine = IS_DRIVER ? trips.filter(function(t){ return (t.driverUser && t.driverUser === u.username) || (t.driverName && u.name && String(t.driverName).toLowerCase() === String(u.name).toLowerCase()); }) : trips;
@@ -226,6 +248,8 @@
       ctx.scheduledLoads = slim(call('loadScheduled'));
       ctx.company = slim(call('loadCompany'));
       try { var cm = await loadCards(); if (Object.keys(cm).length) ctx.fuelCards = cm; } catch(e){}
+      try { var act = await activity(); if (act.appEvents) ctx.appEvents = act.appEvents; if (act.taskLog) { ctx.taskLog = act.taskLog; ctx.taskLogUpdated = act.taskLogUpdated; } if (act.companyKnowledge) ctx.companyKnowledge = act.companyKnowledge; } catch(e){}
+      ctx.rules += ' QUÉ ESTÁ PASANDO: appEvents = últimos avisos de la app (viajes iniciados, cerca o llegando, BOL/POD/diésel subidos), con hora de Chicago en "when". taskLog = bitácora de las tareas automáticas de Claude (Resumen de correo cada 2 h, WhatsApp cada hora: recibos/BOL/viajes creados, búsqueda de cargas TQL y C.H. Robinson): una línea por cosa hecha o avisada, con fecha y hora. companyKnowledge = reglas y datos de la compañía (drivers, camiones, brokers, cómo se trabaja). Si preguntan qué está pasando, qué se hizo hoy o qué falta, usa appEvents, taskLog y los viajes; di la hora de cada cosa.';
     } else {
       try { ctx.myAdjustments = slim((call('loadAdj') || []).filter(function(a){ return a && (a.driverUser === u.username || a.driver === u.username || (a.driverName && u.name && String(a.driverName).toLowerCase() === String(u.name).toLowerCase())); })); } catch(e){}
       try { ctx.myTruck = slim((call('loadTrucks') || []).filter(function(t){ return String(t.id) === String(u.truckId); })); } catch(e){}

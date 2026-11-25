@@ -20510,50 +20510,43 @@ function dhMi(t){ try{ return tripTotalMiles(t)||0; }catch(e){ return parseFloat
 try{ if(typeof PRO_ICONS!=='undefined'&&PRO_ICONS.home&&!PRO_ICONS.dhome) PRO_ICONS.dhome=PRO_ICONS.home; }catch(e){}
 function renderDispatchHome(){
   const box=document.getElementById('dhome-body'); if(!box) return;
-  const all=(loadTrips()||[]).filter(t=>t.tripStatus!=='cancelled');
-  const today=dhISO(new Date()), wk=dhWeekStart(today), mo=today.slice(0,7);
-  const pwD=new Date(wk+'T12:00:00'); pwD.setDate(pwD.getDate()-7); const pwk=dhISO(pwD);
-  const sum=list=>{ let lv=0,mi=0,n=0; list.forEach(t=>{ lv+=dhLV(t); mi+=dhMi(t); n++; }); return {lv,mi,n,rate:mi>0?lv/mi:null}; };
-  const inWk=(t,w)=>dhWeekStart(dhDate(t))===w;
-  const W=sum(all.filter(t=>inWk(t,wk))), PW=sum(all.filter(t=>inWk(t,pwk))), M=sum(all.filter(t=>dhDate(t).slice(0,7)===mo));
-  const Y=sum(all.filter(t=>dhDate(t).slice(0,4)===today.slice(0,4)));
-  const $0=n=>'$'+Math.round(n||0).toLocaleString('en-US');
-  const rt=r=>r==null?'—':'$'+r.toFixed(2)+'/mi';
-  const kpi=(lbl,val,sub)=>`<div style="background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);border-radius:14px;padding:12px;"><div style="font-size:11px;font-weight:700;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.4px;">${lbl}</div><div style="font-size:22px;font-weight:800;color:#fff;margin-top:2px;">${val}</div><div style="font-size:12px;color:rgba(255,255,255,.65);margin-top:1px;">${sub}</div></div>`;
-  const delta=PW.lv>0?Math.round((W.lv-PW.lv)/PW.lv*100):null;
-  const card=(title,inner)=>`<div style="background:var(--bg2,#fff);border:1px solid var(--border);border-radius:16px;padding:14px 16px;margin-bottom:14px;"><div style="font-size:15px;font-weight:800;margin-bottom:10px;">${title}</div>${inner}</div>`;
-  const row=(a,b,c,d)=>`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--border);"><div style="min-width:0;"><div style="font-size:14px;font-weight:700;">${a}</div>${b?`<div style="font-size:12px;color:var(--text3);">${b}</div>`:''}</div><div style="text-align:right;white-space:nowrap;"><div style="font-size:15px;font-weight:800;">${c}</div>${d?`<div style="font-size:12px;color:var(--text3);">${d}</div>`:''}</div></div>`;
-  // En tránsito
-  const act=all.filter(t=>t.tripStatus==='active');
-  const actHTML=act.length?act.map(t=>row('🚚 '+(t.driverName||'—').split(' ')[0]+' · '+(t.city1||'')+', '+(t.state1||'')+' → '+(t.city2||'')+', '+(t.state2||''),(t.brokerName||t.broker||'')+(t.rc?' · RC '+t.rc:''),dhLV(t)?$0(dhLV(t)):TR('sin pago aún','no pay yet'),dhMi(t)?fmtNum(dhMi(t))+' mi':'')).join(''):`<div style="font-size:13px;color:var(--text3);">${TR('No hay viajes en tránsito.','No trips in transit.')}</div>`;
-  // Últimas 8 semanas
-  const weeks=[]; for(let i=0;i<8;i++){ const d=new Date(wk+'T12:00:00'); d.setDate(d.getDate()-7*i); weeks.push(dhISO(d)); }
-  const maxW=Math.max(1,...weeks.map(w=>sum(all.filter(t=>inWk(t,w))).lv));
-  const wkHTML=weeks.map(w=>{ const S=sum(all.filter(t=>inWk(t,w))); const e=new Date(w+'T12:00:00'); e.setDate(e.getDate()+6);
-    return `<div style="padding:7px 0;border-top:1px solid var(--border);"><div style="display:flex;justify-content:space-between;font-size:13px;"><span style="font-weight:700;">${fmtDateShort(w)} – ${fmtDateShort(dhISO(e))}${w===wk?' · '+TR('esta semana','this week'):''}</span><span style="font-weight:800;">${$0(S.lv)}</span></div>
-      <div style="height:7px;border-radius:4px;background:var(--bg3);margin:5px 0 3px;overflow:hidden;"><div style="height:100%;width:${Math.round(S.lv/maxW*100)}%;background:#1E3A8A;border-radius:4px;"></div></div>
-      <div style="font-size:11px;color:var(--text3);">${S.n} ${TR('viajes','trips')} · ${fmtNum(Math.round(S.mi))} mi · ${rt(S.rate)}</div></div>`; }).join('');
-  // Por driver y por broker (este mes)
-  const group=(key)=>{ const g={}; all.filter(t=>dhDate(t).slice(0,7)===mo).forEach(t=>{ const k=key(t)||'—'; (g[k]=g[k]||[]).push(t); }); return Object.entries(g).map(([k,l])=>[k,sum(l)]).sort((a,b)=>b[1].lv-a[1].lv); };
-  const byDrv=group(t=>t.driverName), byBrk=group(t=>t.brokerName||t.broker);
-  const grpHTML=l=>l.length?l.map(([k,S])=>row(k,S.n+' '+TR('viajes','trips')+' · '+fmtNum(Math.round(S.mi))+' mi',$0(S.lv),rt(S.rate))).join(''):`<div style="font-size:13px;color:var(--text3);">${TR('Sin viajes este mes.','No trips this month.')}</div>`;
-  const h=new Date().getHours(), greet=h<12?TR('Buenos días','Good morning'):h<19?TR('Buenas tardes','Good afternoon'):TR('Buenas noches','Good evening');
-  box.innerHTML=`
-  <div style="background:linear-gradient(135deg,#1e3a8a 0%,#1E3A8A 100%);border-radius:20px;padding:20px;margin-bottom:14px;">
-    <div style="font-size:19px;font-weight:800;color:#fff;">${greet}, ${(currentUser&&currentUser.name||'').split(' ')[0]}</div>
-    <div style="font-size:12px;color:rgba(255,255,255,.6);margin-bottom:14px;">${TR('Load value = lo que pagan los brokers. Semana de sábado a viernes.','Load value = what brokers pay. Week runs Saturday to Friday.')}</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-      ${kpi(TR('Esta semana','This week'),$0(W.lv),W.n+' '+TR('viajes','trips')+(delta!=null?' · '+(delta>=0?'▲ ':'▼ ')+Math.abs(delta)+'%':''))}
-      ${kpi(TR('Rate esta semana','Rate this week'),rt(W.rate),fmtNum(Math.round(W.mi))+' mi')}
-      ${kpi(TR('Este mes','This month'),$0(M.lv),M.n+' '+TR('viajes','trips')+' · '+rt(M.rate))}
-      ${kpi(TR('Este año','This year'),$0(Y.lv),Y.n+' '+TR('viajes','trips'))}
-    </div>
-  </div>
-  ${card('🚚 '+TR('En tránsito','In transit')+' ('+act.length+')',actHTML)}
-  ${card('📅 '+TR('Load value por semana','Load value by week'),wkHTML)}
-  ${card('👤 '+TR('Por driver · este mes','By driver · this month'),grpHTML(byDrv))}
-  ${card('🏢 '+TR('Por broker · este mes','By broker · this month'),grpHTML(byBrk))}`;
+  const rep=document.getElementById('admin-full-report'); if(!rep) return;
+  if(rep.parentElement!==box){ box.appendChild(rep); }
+  rep.style.display='block';
+  // que no corran tareas de administrador desde la sesión del dispatch
+  window._pendingEmailsChecked=true; window._truckAssignDone=true;
+  try{ window.backfillZipMiles=function(){}; window.backfillDeadMilesOld=function(){}; }catch(e){}
+  renderAdminReport();
 }
+// Dispatch: mismo diseño del dashboard de admin, pero solo load value (sin ganancia, pagos a drivers, diésel ni gastos)
+function dhPatchReport(){
+  const g=id=>document.getElementById(id); if(!g('rp-net')) return;
+  g('rp-eyebrow').textContent=TR('Load value','Load value');
+  g('rp-net').textContent=g('rp-income').textContent;
+  g('rp-net-delta').style.display='none';
+  g('rp-net-sub').textContent=g('rp-trips-sub').textContent+' · '+g('rp-rpm').textContent+'/mi '+TR('(millas totales)','(total miles)');
+  const inc=g('rp-income').closest('div'); if(inc) inc.style.display='none';
+  ['rp-pl','home-alerts'].forEach(id=>{ const c=g(id)&&g(id).closest('.card'); if(c) c.style.display='none'; });
+  const an=g('rp-analysis'); const btn=an&&an.closest('.card').querySelector('.rp-card-h button'); if(btn) btn.style.display='none';
+  const trips=loadTrips(), r=rpGetRange(), cur=rpCompute(trips,r.from,r.to), done=cur.done||[];
+  // Por driver: viajes, millas y load value
+  const byD={}; done.forEach(t=>{ const n=t.driverName||'—'; const d=byD[n]=byD[n]||{n,trips:0,miles:0,lv:0}; d.trips++; d.miles+=(tripDistance(t).mi||0)+(tripDeadMiles(t)||0); d.lv+=t.loadVal||0; });
+  const drv=Object.values(byD).sort((a,b)=>b.lv-a.lv);
+  const row=(n,m,v,w,cls)=>`<div class="rp-row ${cls||''}"><div class="a"><div class="n">${n}</div><div class="m">${m}</div></div><div class="b"><div class="v">${v}</div>${w?`<div class="w">${w}</div>`:''}</div></div>`;
+  if(drv.length){ const tot=drv.reduce((a,d)=>({trips:a.trips+d.trips,miles:a.miles+d.miles,lv:a.lv+d.lv}),{trips:0,miles:0,lv:0});
+    const rr=d=>d.miles>0?'$'+(d.lv/d.miles).toFixed(2)+'/mi':'—';
+    g('rp-drivers').innerHTML=drv.map(d=>row(rpEsc(d.n),d.trips+' viaje'+(d.trips!==1?'s':'')+' · '+rpNum(d.miles)+' mi',rpMoney(d.lv),rr(d))).join('')+(drv.length>1?row('Total',tot.trips+' viajes · '+rpNum(tot.miles)+' mi',rpMoney(tot.lv),rr(tot),'total'):''); }
+  // Viajes del periodo: sin diésel ni ganancia, sin abrir el editor
+  const list=done.slice().sort((a,b)=>rpTripDate(b).localeCompare(rpTripDate(a)));
+  if(list.length) g('rp-trip-table').innerHTML=list.map(t=>{ const d=rpTripDate(t); const mi=(tripDistance(t).mi||0)+(tripDeadMiles(t)||0);
+    return row(rpEsc(t.city1||'—')+' → '+rpEsc(t.city2||'—'),(d&&d!==t.date?'Inicio '+fmtDate(t.date)+' · Entrega '+fmtDate(d):(t.date?fmtDate(t.date):''))+' · '+rpEsc(t.driverName||'—')+(t.rc?' · RC '+rpEsc(t.rc):'')+'<br>'+rpNum(mi)+' mi'+(mi>0&&t.loadVal?' · $'+(t.loadVal/mi).toFixed(2)+'/mi':'')+(t.brokerName||t.broker?' · '+rpEsc(t.brokerName||t.broker):''),rpMoney(t.loadVal),`<span class="rp-pill ${t.payStatus==='paid'?'paid':'pend'}">${t.payStatus==='paid'?'Cobrado':'Sin cobrar'}</span>`); }).join('');
+  // En tránsito (arriba del análisis)
+  let tc=g('dh-transit'); if(!tc){ tc=document.createElement('div'); tc.id='dh-transit'; tc.className='card rp-card'; const hero=document.querySelector('#admin-full-report .rp-hero'); if(hero&&hero.parentElement) hero.parentElement.insertBefore(tc,hero.nextSibling); }
+  const act=trips.filter(t=>t.tripStatus==='active');
+  tc.innerHTML=`<div class="rp-card-h"><span>En tránsito</span><span class="rp-muted">${act.length} viaje${act.length!==1?'s':''}</span></div>`+(act.length?act.map(t=>{ const lv=parseFloat(t.loadVal)||parseFloat(t.rcRate)||0; return row(rpEsc(t.city1||'—')+' → '+rpEsc(t.city2||'—'),rpEsc(t.driverName||'—')+(t.rc?' · RC '+rpEsc(t.rc):'')+(t.brokerName||t.broker?' · '+rpEsc(t.brokerName||t.broker):''),lv?rpMoney(lv):TR('Sin pago aún','No pay yet'),''); }).join(''):'<div class="home-empty">'+TR('No hay viajes en tránsito.','No trips in transit.')+'</div>');
+}
+(function(){ const f=window.renderAdminReport; if(typeof f!=='function') return;
+  window.renderAdminReport=function(){ const r=f.apply(this,arguments); if(isDispatch()) try{ dhPatchReport(); }catch(e){ console.warn('dh',e); } return r; }; })();
 </script>
 <style>
   /* Dispatch: historial solo para ver */

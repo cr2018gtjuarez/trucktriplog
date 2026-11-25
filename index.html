@@ -6508,7 +6508,7 @@ async function etaCalc(target){
     const pu=target.kind==='state'?await etaNearestInState(target,at):{lat:target.lat,lon:target.lon,city:target.city,abbr:target.abbr,zip:target.zip,addr:target.addr||''};
     const rt=await etaRoute(at.lat,at.lon,pu.lat,pu.lon);
     const miles=rt?Math.round(rt.miles):Math.round(haversineKm(at.lat,at.lon,pu.lat,pu.lon)*0.621371*1.2); if(!rt) est=true;
-    rows.push({tr,drvName,here,steps,from:at,freeAt:t,busy:steps.length>0,miles,est,pu,route:rt?rt.line:null});
+    rows.push({tr,drvName,here,steps,from:at,freeAt:t,busy:steps.length>0,miles,est,pu,route:rt?rt.line:null,loadedTo:(DIRECT&&active)?((active.city2||active.z2||'')+(active.state2?', '+active.state2:'')):''});
   }
   if(my!==_etaBusy) return;
   _etaLast={target,rows}; etaPaint();
@@ -6565,7 +6565,7 @@ function etaPaint(){
         <div style="font-size:14px;color:var(--text2);margin-top:2px;">${TR('Ahora en','Now in')}: <b style="color:var(--text);">${esc(whereNow||TR('sin ubicación','no location'))}</b>${H&&H.src==='last'?' <span style="font-size:12px;color:#E37400;">('+TR('última entrega','last delivery')+')</span>':''}</div>
         ${etaEasyHTML(r.eta-now, detaWhen(r.eta)+' <span style="font-size:12px;opacity:.85;">('+TR('hora de','time in')+' '+esc(r.pu.abbr||'')+')</span>', dead, r.busy?'orange':'green')}
         ${target.kind==='state'?`<div style="font-size:13px;color:var(--text2);">Pick up: <b>${esc(puName)}${r.pu.zip?' '+esc(r.pu.zip):''}</b></div>`:''}
-        ${firstTxt?`<div style="font-size:13px;color:#B06000;font-weight:700;margin-top:2px;">${esc(firstTxt)}</div>`:`<div style="font-size:13px;color:#137333;font-weight:700;margin-top:2px;">${TR('Está vacío, listo para salir','Empty, ready to go')}</div>`}
+        ${firstTxt?`<div style="font-size:13px;color:#B06000;font-weight:700;margin-top:2px;">${esc(firstTxt)}</div>`:`<div style="font-size:13px;color:#137333;font-weight:700;margin-top:2px;">${r.loadedTo?TR('Va cargado a ','Loaded to ')+esc(r.loadedTo)+TR(' · ETA directo desde donde está',' · ETA straight from where it is'):TR('Está vacío, listo para salir','Empty, ready to go')}</div>`}
         ${rest?`<div style="font-size:12px;color:#E37400;margin-top:2px;">${TR('Ya incluye el descanso de 10 horas','Includes the 10-hour rest')}</div>`:''}
       </div>
       ${rateHtml}

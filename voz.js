@@ -542,18 +542,39 @@
     if (IOS) sayAudio(text, function(){ saySynth(text); });
     else saySynth(text, function(){ sayAudio(text); });
   }
+  // Si el micrófono de la página no funciona (pasa en iPhone con la app instalada), se usa el dictado del teclado del iPhone
+  function dictate(why){
+    hudHidden = true; hud(''); show(); var i = $('yvoz-in'); try { i.focus(); i.click(); } catch(e){}
+    setHint((why ? why + ' ' : '') + T('Toca el 🎤 del teclado del iPhone (abajo, junto a la barra espaciadora), dicta tu pregunta y toca Enviar.', 'Tap the 🎤 on the keyboard, dictate your question and tap Send.'));
+  }
+  function noSR(){ try { return localStorage.getItem('yvoz_nosr') === '1'; } catch(e){ return false; } }
+  function setNoSR(){ try { localStorage.setItem('yvoz_nosr', '1'); } catch(e){} }
+  var srFails = 0;
   function listen(){
     stopVoice();
     var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) { show(); $('yvoz-in').focus(); setHint(T('Este navegador no deja usar el micrófono aquí; escribe tu pregunta.', 'Voice is not available in this browser; type your question.')); return; }
     if (listening && rec) { try { rec.stop(); } catch(e){} return; }
+    if (!SR || noSR()) { dictate(); return; }
     rec = new SR(); rec.lang = IS_DRIVER ? 'en-US' : 'es-US'; rec.interimResults = true; rec.continuous = false; rec.maxAlternatives = 1;
-    var finalText = '', t0 = Date.now();
-    rec.onstart = function(){ listening = true; t0 = Date.now(); show(); fab(true); setHint(''); status(T('escuchando…', 'listening…')); };
-    rec.onresult = function(ev){ var s = ''; finalText = ''; for (var i = 0; i < ev.results.length; i++) { s += ev.results[i][0].transcript; if (ev.results[i].isFinal) finalText += ev.results[i][0].transcript; } $('yvoz-in').value = s; sendBtn(); hud('listen', s); };
-    rec.onerror = function(ev){ setHint(ev.error === 'not-allowed' ? T('Permite el micrófono para esta página.', 'Allow the microphone for this page.') : T('No te escuché bien, intenta otra vez.', "I didn't catch that, try again.")); };
-    rec.onend = function(){ listening = false; fab(false); status(); var q = (finalText || $('yvoz-in').value || '').trim(); if (q) { $('yvoz-in').value = ''; sendBtn(); setHint(''); ask(q, { voice: Math.max(1, Math.round((Date.now() - t0) / 1000)) }); } };
-    try { rec.start(); } catch(e){ listening = false; fab(false); }
+    var finalText = '', t0 = Date.now(), started = false, heard = false, errd = '';
+    rec.onstart = function(){ started = true; listening = true; t0 = Date.now(); show(); fab(true); setHint(''); status(T('escuchando…', 'listening…')); };
+    rec.onaudiostart = function(){ heard = true; };
+    rec.onresult = function(ev){ heard = true; var s = ''; finalText = ''; for (var i = 0; i < ev.results.length; i++) { s += ev.results[i][0].transcript; if (ev.results[i].isFinal) finalText += ev.results[i][0].transcript; } $('yvoz-in').value = s; sendBtn(); hud('listen', s); };
+    rec.onerror = function(ev){ errd = ev.error || 'error'; };
+    rec.onend = function(){
+      listening = false; fab(false); status();
+      var q = (finalText || $('yvoz-in').value || '').trim();
+      if (q) { srFails = 0; $('yvoz-in').value = ''; sendBtn(); setHint(''); ask(q, { voice: Math.max(1, Math.round((Date.now() - t0) / 1000)) }); return; }
+      if (errd === 'aborted') return;
+      // no se oyó nada: en iPhone, a la segunda vez (o si el sistema lo bloquea) se pasa al dictado del teclado
+      srFails++;
+      var blocked = /not-allowed|service-not-allowed|audio-capture|network/.test(errd);
+      if (IOS && (blocked || srFails >= 2)) { setNoSR(); dictate(T('El micrófono de la app no agarra el audio en este iPhone.', 'The app microphone does not work on this iPhone.')); return; }
+      setHint(errd === 'not-allowed' ? T('Permite el micrófono: Ajustes → Safari → Micrófono → Permitir.', 'Allow the microphone in Settings → Safari → Microphone.') : T('No te escuché, toca el micrófono otra vez.', "I didn't hear you, tap the mic again."));
+    };
+    try { rec.start(); } catch(e){ listening = false; fab(false); if (IOS) { setNoSR(); dictate(); } return; }
+    // si en 4 segundos ni siquiera arrancó, el micrófono de la página no sirve aquí
+    setTimeout(function(){ if (!started && IOS) { try { rec.abort(); } catch(e){} setNoSR(); dictate(T('El micrófono de la app no agarra el audio en este iPhone.', 'The app microphone does not work on this iPhone.')); } }, 4000);
   }
 
   // ---------- interfaz (estilo chat tipo WhatsApp) ----------

@@ -5039,7 +5039,7 @@ function startRealtimeSync(){
   if(!fbReady) return;
 
   // ── Contadores de estatus en la barra superior (admin) ──
-  if(currentUser && currentUser.role==='admin'){
+  if(currentUser && (currentUser.role==='admin'||currentUser.role==='dispatch')){
     if(_statusCountListener) _statusCountListener();
     _statusCountListener = db.collection('locations').onSnapshot(snap=>{
       let driving=0, stopped=0, offline=0;
@@ -5485,7 +5485,7 @@ function startApp(user){
   document.getElementById('hdr-role').textContent=user.role==='admin'?'Administrador':user.role==='dispatch'?'Dispatch':user.role==='contador'?'Contador':'Driver';
   const av=document.getElementById('hdr-avatar');
   av.textContent=(user.name||'U').charAt(0).toUpperCase();
-  av.className='user-avatar '+(user.role==='admin'?'admin':'driver');
+  av.className='user-avatar '+((user.role==='admin'||user.role==='dispatch')?'admin':'driver');
 
   const tabBar=document.getElementById('tab-bar');tabBar.innerHTML='';
 
@@ -19548,9 +19548,9 @@ function buildSidebar(role){
   const sidebarEl = document.getElementById('sidebar');
   const headerEl = document.getElementById('app-header');
   if(sidebarEl) sidebarEl.classList.add('sidebar-dark');
-  if(headerEl) headerEl.classList.toggle('header-with-status', role==='admin');
+  if(headerEl) headerEl.classList.toggle('header-with-status', role==='admin'||role==='dispatch');
   const statusBar = document.getElementById('admin-status-bar');
-  if(statusBar) statusBar.style.display = role==='admin' ? 'flex' : 'none';
+  if(statusBar) statusBar.style.display = (role==='admin'||role==='dispatch') ? 'flex' : 'none';
   try{ buildBottomNav(role); }catch(e){}
 }
 

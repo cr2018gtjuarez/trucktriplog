@@ -12,6 +12,35 @@
 
 const MODELO = 'claude-sonnet-5-5';          // preguntas normales (rápido)
 const MODELO_CAPTURAS = 'claude-opus-5-5';   // cuando mandas capturas (el más potente para leer y analizar)
+// Notas de voz: Gemini (Google) pasa el audio a texto. Propiedad del script: GEMINI_KEY (gratis en aistudio.google.com → Get API key).
+// Opcional: GEMINI_MODEL para cambiar el modelo.
+const MODELO_VOZ = 'gemini-2.5-flash';
+
+function transcribir_(audio, P, en) {
+  const key = P.getProperty('GEMINI_KEY');
+  if (!key) throw new Error('Falta GEMINI_KEY en las propiedades del Apps Script (para las notas de voz).');
+  const model = P.getProperty('GEMINI_MODEL') || MODELO_VOZ;
+  const pedir = function (mime) {
+    const r = UrlFetchApp.fetch('https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent?key=' + encodeURIComponent(key), {
+      method: 'post', contentType: 'application/json', muteHttpExceptions: true,
+      payload: JSON.stringify({
+        contents: [{ parts: [
+          { text: en ? 'Transcribe exactly what is said in this audio. Return only the words spoken, nothing else.'
+                     : 'Transcribe exactamente lo que se dice en este audio (español, con palabras de trucking en inglés como broker, pick up, delivery, RC, BOL). Devuelve solo las palabras dichas, nada más.' },
+          { inline_data: { mime_type: mime, data: audio.data } }
+        ] }],
+        generationConfig: { temperature: 0 }
+      })
+    });
+    return JSON.parse(r.getContentText() || '{}');
+  };
+  const tipo = String(audio.media_type || 'audio/mp4').split(';')[0];
+  let j = pedir(tipo);
+  if (j.error && /mime|type|unsupported|invalid/i.test(j.error.message || '')) j = pedir(tipo === 'audio/webm' ? 'audio/ogg' : 'audio/aac');
+  if (j.error) throw new Error('Gemini: ' + (j.error.message || j.error.status));
+  const c = (j.candidates || [])[0], parts = (c && c.content && c.content.parts) || [];
+  return parts.map(function (x) { return x.text || ''; }).join('').trim();
+}
 
 function doGet() {
   return ContentService.createTextOutput('Asistente YENAVI listo');
@@ -28,6 +57,12 @@ function doPost(e) {
     if (!b.k || b.k !== P.getProperty('VOZ_KEY')) return out_({ error: 'Clave incorrecta' });
     if (b.mode === 'pod') return out_(revisarPOD_(b, P));   // revisión automática del POD (pod-check.js)
     const en = b.lang === 'en';
+    let oido = '';
+    if (b.audio && b.audio.data) {   // nota de voz → texto
+      oido = transcribir_(b.audio, P, en);
+      if (!oido) return out_({ error: en ? 'I could not understand the voice note.' : 'No se entendió la nota de voz, intenta otra vez.' });
+      b.q = oido;
+    }
     const imgs = (b.images || []).filter(function (x) { return x && x.data && /^image\/(jpeg|png|gif|webp)$/.test(x.media_type || ''); }).slice(0, 6);
 
     // lo que cambia a cada minuto (hora y ubicaciones) va aparte, para que el resto se pueda reutilizar (caché = más barato y rápido)
@@ -118,7 +153,7 @@ function doPost(e) {
       texto = texto.slice(0, at).trim();
       try { const a = raw.indexOf('{'), z = raw.lastIndexOf('}'); docs = docs || JSON.parse(raw.slice(a, z + 1)).docs || null; } catch (x) { }
     }
-    return out_({ answer: texto, docs: docs });
+    return out_({ answer: texto, docs: docs, heard: oido || undefined });
   } catch (err) {
     return out_({ error: String(err) });
   }

@@ -270,14 +270,15 @@
   async function ask(q, opt){
     if (busy) return; q = (q || '').trim(); opt = opt || {};
     var imgs = opt.images || [];
-    if (!q && !imgs.length) return;
-    if (!q) q = T('Analiza esta captura.', 'Check this screenshot.');
+    var aud = opt.audio || null;
+    if (!q && !imgs.length && !aud) return;
+    if (!q && !aud) q = T('Analiza esta captura.', 'Check this screenshot.');
     await loadCfg();
     if (!cfg || !cfg.url) { var ok = await setupCfg(); if (!ok) return; }
-    busy = true; show(); hudHidden = false; if (!opt.again) addMsg('me', q, opt); var thinking = typing(true); hud('think', imgs.length ? T('Leyendo la captura…', 'Reading the screenshot…') : q);
+    busy = true; show(); hudHidden = false; var meEl = opt.again ? null : addMsg('me', aud ? '…' : q, opt); var thinking = typing(true); hud('think', aud ? T('Escuchando tu nota de voz…', 'Listening to your voice note…') : imgs.length ? T('Leyendo la captura…', 'Reading the screenshot…') : q);
     try {
       var ctx = await buildContext();
-      var body = JSON.stringify({ k: cfg.k, lang: IS_DRIVER ? 'en' : 'es', role: IS_DRIVER ? 'driver' : 'admin', user: (user() || {}).name, q: q, ctx: ctx, history: history.slice(-8), images: imgs.map(function(x){ return { media_type: x.type, data: x.data }; }) });
+      var body = JSON.stringify({ k: cfg.k, lang: IS_DRIVER ? 'en' : 'es', role: IS_DRIVER ? 'driver' : 'admin', user: (user() || {}).name, q: q, ctx: ctx, history: history.slice(-8), images: imgs.map(function(x){ return { media_type: x.type, data: x.data }; }), audio: aud || undefined });
       // si se corta la conexión ("Load failed" en iPhone / "Failed to fetch"), lo vuelve a intentar una vez solo
       var txt, lastErr;
       for (var tries = 0; tries < 2 && txt === undefined; tries++) {
@@ -285,7 +286,8 @@
         catch(netErr){ lastErr = netErr; if (tries === 0) await new Promise(function(ok){ setTimeout(ok, 2000); }); }
       }
       if (txt === undefined) { var ne = new Error(T('No pude conectar con el asistente (se cortó la conexión o el Apps Script no contestó). Revisa la señal y toca Reintentar.', 'Could not reach the assistant (connection dropped). Check your signal and tap Retry.')); ne.net = true; ne.raw = lastErr; throw ne; } var j; try { j = JSON.parse(txt); } catch(e){ throw new Error(T('El asistente no contestó bien. Revisa la URL del Apps Script.', 'The assistant did not answer correctly.')); }
-      if (j.error) { if (/clave|key/i.test(j.error) && !IS_DRIVER) { localStorage.removeItem('yvoz_cfg'); cfg = null; } throw new Error(j.error); }
+      if (j.heard) { q = j.heard; try { var tx0 = meEl && meEl.querySelector('.tx'); if (tx0) tx0.textContent = '“' + j.heard + '”'; } catch(e){} }
+      if (j.error) { if (/Clave incorrecta/i.test(j.error) && !IS_DRIVER) { localStorage.removeItem('yvoz_cfg'); cfg = null; } throw new Error(j.error); }
       var a = String(j.answer || '').replace(/\*\*(.+?)\*\*/g, '$1').replace(/^#{1,4}\s+/gm, '').trim() || T('No tengo respuesta.', 'No answer.');
       typing(false); addMsg('ai', a);
       if (!IS_DRIVER && imgs.length && Array.isArray(j.docs) && j.docs.length) { try { docCards(j.docs, imgs); } catch(e){ console.warn('voz docs', e); } } history.push({ role: 'user', content: (imgs.length ? '[' + imgs.length + T(' captura(s)] ', ' screenshot(s)] ') : '') + q }, { role: 'assistant', content: a }); history = history.slice(-12);
@@ -294,7 +296,7 @@
       typing(false); console.warn('voz ask', e && (e.raw || e));
       var eb = addMsg('ai', '⚠️ ' + (e && e.message ? e.message : e), { err: true });
       // botón para mandar otra vez la misma pregunta con las mismas fotos (sin escribirla de nuevo)
-      if (e && e.net && eb) { var rb = document.createElement('button'); rb.type = 'button'; rb.className = 'rp'; rb.textContent = '🔄 ' + T('Reintentar', 'Retry'); rb.onclick = function(){ rb.disabled = true; ask(q, { images: imgs, again: true }); }; eb.insertBefore(document.createElement('br'), eb.lastChild); eb.insertBefore(rb, eb.lastChild); }
+      if (e && e.net && eb) { var rb = document.createElement('button'); rb.type = 'button'; rb.className = 'rp'; rb.textContent = '🔄 ' + T('Reintentar', 'Retry'); rb.onclick = function(){ rb.disabled = true; ask(q, { images: imgs, audio: aud, voice: opt.voice, again: true }); }; eb.insertBefore(document.createElement('br'), eb.lastChild); eb.insertBefore(rb, eb.lastChild); }
     }
     busy = false;
   }
@@ -550,10 +552,42 @@
   function noSR(){ try { return localStorage.getItem('yvoz_nosr') === '1'; } catch(e){ return false; } }
   function setNoSR(){ try { localStorage.setItem('yvoz_nosr', '1'); } catch(e){} }
   var srFails = 0;
+  // ---------- nota de voz (como WhatsApp): graba el audio y el Apps Script lo pasa a texto ----------
+  // Se usa en iPhone (ahí el reconocimiento de voz de la página no agarra el audio) o donde no haya reconocimiento.
+  var mr = null, mrStream = null, mrChunks = [], mrT0 = 0, mrTimer = null;
+  function canRecord(){ return !!(window.MediaRecorder && navigator.mediaDevices && navigator.mediaDevices.getUserMedia); }
+  function recording(){ return !!(mr && mr.state === 'recording'); }
+  function stopRecord(){ try { if (recording()) mr.stop(); } catch(e){} }
+  function blobB64(b){ return new Promise(function(ok, ko){ var r = new FileReader(); r.onload = function(){ ok(String(r.result).split(',')[1] || ''); }; r.onerror = ko; r.readAsDataURL(b); }); }
+  async function recordVoice(){
+    if (recording()) { stopRecord(); return; }
+    try { mrStream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
+    catch(e){ setHint(T('Permite el micrófono: Ajustes → Safari → Micrófono → Permitir (o en Ajustes de la app).', 'Allow the microphone in Settings.') + ' [' + (e && e.name || e) + ']'); return; }
+    var type = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm', 'audio/ogg'].filter(function(t){ try { return MediaRecorder.isTypeSupported(t); } catch(e){ return false; } })[0] || '';
+    try { mr = type ? new MediaRecorder(mrStream, { mimeType: type }) : new MediaRecorder(mrStream); }
+    catch(e){ try { mrStream.getTracks().forEach(function(t){ t.stop(); }); } catch(x){} setHint(T('No se pudo grabar en este teléfono.', 'Could not record on this phone.') + ' [' + (e && e.name || e) + ']'); return; }
+    mrChunks = [];
+    mr.ondataavailable = function(e){ if (e.data && e.data.size) mrChunks.push(e.data); };
+    mr.onstop = async function(){
+      clearTimeout(mrTimer); listening = false; fab(false); status();
+      try { mrStream.getTracks().forEach(function(t){ t.stop(); }); } catch(e){}
+      var secs = Math.max(1, Math.round((Date.now() - mrT0) / 1000));
+      var blob = new Blob(mrChunks, { type: (mr.mimeType || type || 'audio/mp4') });
+      if (blob.size < 1500 || secs < 1) { setHint(T('No se grabó nada. Toca el micrófono, habla y tócalo otra vez para enviar.', 'Nothing recorded.')); return; }
+      var b64 = ''; try { b64 = await blobB64(blob); } catch(e){}
+      if (!b64) { setHint(T('No se pudo leer la grabación.', 'Could not read the recording.')); return; }
+      ask('', { voice: secs, audio: { media_type: String(blob.type || 'audio/mp4').split(';')[0], data: b64 } });
+    };
+    mr.start(); mrT0 = Date.now(); listening = true; show(); fab(true); setHint(''); hudHidden = false;
+    status(T('escuchando…', 'listening…')); hud('listen', T('🔴 Grabando… habla y toca el micrófono para enviar', '🔴 Recording… tap the mic to send'));
+    mrTimer = setTimeout(stopRecord, 60000);   // máximo 1 minuto
+  }
   function listen(){
     stopVoice();
     var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (recording()) { stopRecord(); return; }
     if (listening && rec) { try { rec.stop(); } catch(e){} return; }
+    if (canRecord() && (IOS || !SR || noSR())) { recordVoice(); return; }
     if (!SR || noSR()) { dictate(); return; }
     rec = new SR(); rec.lang = IS_DRIVER ? 'en-US' : 'es-US'; rec.interimResults = true; rec.continuous = false; rec.maxAlternatives = 1;
     var finalText = '', t0 = Date.now(), started = false, heard = false, errd = '';
@@ -683,7 +717,7 @@
       '#yvoz-hud .tp .d{font-size:10.5px;font-weight:700;margin-top:4px;color:#8FB8FF;word-break:break-word}' +
       '#yvoz-hud .mic{display:none;width:64px;height:64px;border-radius:50%;border:2px solid #FF8A3D;background:rgba(255,138,61,.15);color:#FFC9A3;align-items:center;justify-content:center;box-shadow:0 0 22px rgba(255,138,61,.45);cursor:pointer}' +
       '#yvoz-hud .mic svg{width:28px;height:28px;fill:none;stroke:currentColor;stroke-width:2}' +
-      '#yvoz-hud[data-m=idle] .mic{display:flex}#yvoz-hud[data-m=idle] .ar{animation-duration:5s}#yvoz-hud[data-m=idle] .tr{display:none}';
+      '#yvoz-hud[data-m=listen] .mic{display:flex;background:#E53935;border-color:#FF8A80;color:#fff;animation:yvozp 1.1s infinite}#yvoz-hud[data-m=idle] .mic{display:flex}#yvoz-hud[data-m=idle] .ar{animation-duration:5s}#yvoz-hud[data-m=idle] .tr{display:none}';
     document.head.appendChild(h2);
 
   }
@@ -715,7 +749,7 @@
     $('yvoz-mute').onclick = function(){ var m = this.dataset.on === '1' ? '0' : '1'; this.dataset.on = m; this.innerHTML = m === '1' ? IC.off : IC.vol; this.setAttribute('aria-label', m === '1' ? T('Voz apagada', 'Voice off') : T('Voz encendida', 'Voice on')); if (m === '1') stopVoice(); };
     if ($('yvoz-cfg')) $('yvoz-cfg').onclick = function(){ setupCfg(); };
     if ($('yvoz-out')) $('yvoz-out').onclick = function(){ stopVoice(); try { if (typeof doLogout === 'function') doLogout(); } catch(e){} };
-    $('yvoz-hud').onclick = function(){ hudHidden = true; hud(''); };
+    $('yvoz-hud').onclick = function(){ if (recording()) { stopRecord(); return; } hudHidden = true; hud(''); };
     $('yvoz-hud-mic').onclick = function(e){ e.stopPropagation(); unlockTTS(); listen(); };
     $('yvoz-in').oninput = sendBtn;
     $('yvoz-go').onclick = function(){ unlockTTS(); var q = $('yvoz-in').value.trim(); if ((q || pending.length) && !listening) send(); else listen(); };
@@ -784,7 +818,7 @@
       '<text class="t2" x="100" y="122" text-anchor="middle">' + T('ASISTENTE', 'ASSISTANT') + '</text>' +
       '</svg><div class="tp" id="yvoz-tk2"></div></div><div class="st" id="yvoz-hud-st"></div><div class="tr" id="yvoz-hud-tr"></div>' +
       '<button type="button" class="mic" id="yvoz-hud-mic" aria-label="' + T('Hablar', 'Talk') + '">' + IC.mic + '</button>' +
-      '<div class="cl">' + T('Toca afuera del círculo para ver el chat', 'Tap outside to see the chat') + ' · v18' + (IOS ? ' iOS' : '') + '</div></div>';
+      '<div class="cl">' + T('Toca afuera del círculo para ver el chat', 'Tap outside to see the chat') + ' · v19' + (IOS ? ' iOS' : '') + '</div></div>';
   }
   // Truck 1 y Truck 2 a los lados del círculo (solo administrador): dónde va, si maneja y a dónde lleva la carga
   var tkAt = 0;

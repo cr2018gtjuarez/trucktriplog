@@ -20526,7 +20526,7 @@ function dhPatchReport(){
   g('rp-net-delta').style.display='none';
   g('rp-net-sub').textContent=g('rp-trips-sub').textContent+' · '+g('rp-rpm').textContent+'/mi '+TR('(millas totales)','(total miles)');
   const inc=g('rp-income').closest('div'); if(inc) inc.style.display='none';
-  ['rp-pl','home-alerts'].forEach(id=>{ const c=g(id)&&g(id).closest('.card'); if(c) c.style.display='none'; });
+  ['rp-mpg','rp-pl','home-alerts'].forEach(id=>{ const c=g(id)&&g(id).closest('.card'); if(c) c.style.display='none'; });
   const an=g('rp-analysis'); const btn=an&&an.closest('.card').querySelector('.rp-card-h button'); if(btn) btn.style.display='none';
   const trips=loadTrips(), r=rpGetRange(), cur=rpCompute(trips,r.from,r.to), done=cur.done||[];
   // Por driver: viajes, millas y load value

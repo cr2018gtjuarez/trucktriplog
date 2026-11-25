@@ -4749,8 +4749,8 @@ if(ETA_APP){ try{
 const ETA_APP_PAGES=['eta'];
 const ETA_APP_MENU=[{id:'eta',icon:'⏱️',label:'ETA',es:'ETA',en:'ETA',main:1}];
 // Usuario Dispatch: ETA + Historial (todo el historial, solo para ver; no puede editar ni borrar)
-const DISPATCH_PAGES=['dhome','eta','log'];
-const DISPATCH_MENU=[{id:'dhome',icon:'📊',label:'Dashboard',es:'Dashboard',en:'Dashboard',main:1},{id:'eta',icon:'⏱️',label:'ETA',es:'ETA',en:'ETA'},{id:'log',icon:'📋',label:'Historial',es:'Historial',en:'History'}];
+const DISPATCH_PAGES=['dhome','eta','entransito','log'];
+const DISPATCH_MENU=[{id:'dhome',icon:'📊',label:'Dashboard',es:'Dashboard',en:'Dashboard',main:1},{id:'eta',icon:'⏱️',label:'ETA',es:'ETA',en:'ETA'},{id:'entransito',icon:'🚚',label:'En Tránsito',es:'En Tránsito',en:'In transit'},{id:'log',icon:'📋',label:'Historial',es:'Historial',en:'History'}];
 function isDispatch(){ return typeof currentUser!=='undefined'&&currentUser&&currentUser.role==='dispatch'; }
 function etaPagesFor(){ return isDispatch()?DISPATCH_PAGES:ETA_APP_PAGES; }
 function etaOnlyMode(){ return ETA_APP||(typeof currentUser!=='undefined'&&currentUser&&currentUser.role==='dispatch'); }
@@ -20604,6 +20604,10 @@ function dhChart(box, trips){
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,labels:{boxWidth:10,font:{size:11}}},tooltip:{callbacks:{label:c=>c.dataset.yAxisID==='y1'?' $'+(c.raw||0).toFixed(2)+'/mi':' $'+(c.raw||0).toLocaleString('en-US')}}},
       scales:{x:{grid:{display:false},ticks:{font:{size:10}}},y:{beginAtZero:true,ticks:{font:{size:10},callback:v=>'$'+(v>=1000?(v/1000)+'k':v)}},y1:{position:'right',beginAtZero:true,grid:{display:false},ticks:{font:{size:10},callback:v=>'$'+v}}}}});
 }
+// Dispatch: al abrir un viaje en tránsito, los campos de dinero, diésel, millas y fechas quedan bloqueados (solo ver)
+(function(){ const f=window.openTripDetail; if(typeof f!=='function') return;
+  window.openTripDetail=function(){ const r=f.apply(this,arguments); const lock=()=>{ if(!isDispatch()) return; document.querySelectorAll('#entransito-detail input:not([type=file]), #entransito-detail select, #entransito-detail textarea').forEach(e=>{ if(e.id==='at-hos-left') return; e.disabled=true; e.classList.add('ro-lock'); }); };
+    try{ lock(); setTimeout(lock,400); setTimeout(lock,1500); if(r&&r.then) r.then(lock); }catch(e){} return r; }; })();
 (function(){ const f=window.renderAdminReport; if(typeof f!=='function') return;
   window.renderAdminReport=function(){ const r=f.apply(this,arguments); if(isDispatch()) try{ dhPatchReport(); }catch(e){ console.warn('dh',e); } return r; }; })();
 </script>
@@ -20611,9 +20615,15 @@ function dhChart(box, trips){
   /* Dispatch: historial solo para ver */
   body.ro-dispatch #trip-list .trip button, body.ro-dispatch #trip-list .trip-actions{display:none!important}
   body.ro-dispatch #trip-list .trip select{pointer-events:none;opacity:.85}
+  /* Dispatch en En Tránsito: ve todo y sube documentos (RC, BOL, POD, fotos); no cambia dinero, no finaliza ni cancela */
+  body.ro-dispatch #entransito-detail #btn-add-fuel, body.ro-dispatch #entransito-detail #fuel-blocks button,
+  body.ro-dispatch #entransito-detail button[onclick*="adminCancelTrip"], body.ro-dispatch #entransito-detail button[onclick*="adminSaveProgress"], body.ro-dispatch #entransito-detail button[onclick*="adminFinishTrip"],
+  body.ro-dispatch #entransito-detail button[onclick*="approveDoc"], body.ro-dispatch #entransito-detail button[onclick*="rejectDoc"], body.ro-dispatch #entransito-detail [onclick*="editBrokerEmail"],
+  body.ro-dispatch #entransito-detail button[onclick*="removeInvoice"]{display:none!important}
+  body.ro-dispatch #entransito-detail .ro-lock{opacity:.75}
 </style>
 <script>
-(function(){ ['openEditModal','delTrip','updatePayStatusInline','updateDispatchStatusInline','updateDriverPayStatusInline','updateDriverPayStatus','deleteDieselFromTrip','openAddDieselModal','shareTripDocs'].forEach(function(fn){
+(function(){ ['adminCancelTrip','adminSaveProgress','adminFinishTrip','addFuelBlock','delFuelBlock','removeInvoice','approveDoc','rejectDoc','editBrokerEmail','openEditModal','delTrip','updatePayStatusInline','updateDispatchStatusInline','updateDriverPayStatusInline','updateDriverPayStatus','deleteDieselFromTrip','openAddDieselModal','shareTripDocs'].forEach(function(fn){
   var f=window[fn]; if(typeof f!=='function') return;
   window[fn]=function(){ if(isDispatch()){ alert(window.TL_LANG==='en'?'View only.':'Solo para ver: el usuario Dispatch no puede cambiar viajes.'); if(typeof renderLog==='function') try{ renderLog(); }catch(e){} return; } return f.apply(this,arguments); };
 }); })();

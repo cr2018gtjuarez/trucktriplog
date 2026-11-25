@@ -274,7 +274,7 @@
     if (!q) q = T('Analiza esta captura.', 'Check this screenshot.');
     await loadCfg();
     if (!cfg || !cfg.url) { var ok = await setupCfg(); if (!ok) return; }
-    busy = true; show(); if (!opt.again) addMsg('me', q, opt); var thinking = typing(true);
+    busy = true; show(); hudHidden = false; if (!opt.again) addMsg('me', q, opt); var thinking = typing(true); hud('think', imgs.length ? T('Leyendo la captura…', 'Reading the screenshot…') : q);
     try {
       var ctx = await buildContext();
       var body = JSON.stringify({ k: cfg.k, lang: IS_DRIVER ? 'en' : 'es', role: IS_DRIVER ? 'driver' : 'admin', user: (user() || {}).name, q: q, ctx: ctx, history: history.slice(-8), images: imgs.map(function(x){ return { media_type: x.type, data: x.data }; }) });
@@ -504,7 +504,7 @@
     rec = new SR(); rec.lang = IS_DRIVER ? 'en-US' : 'es-US'; rec.interimResults = true; rec.continuous = false; rec.maxAlternatives = 1;
     var finalText = '', t0 = Date.now();
     rec.onstart = function(){ listening = true; t0 = Date.now(); show(); fab(true); setHint(''); status(T('escuchando…', 'listening…')); };
-    rec.onresult = function(ev){ var s = ''; finalText = ''; for (var i = 0; i < ev.results.length; i++) { s += ev.results[i][0].transcript; if (ev.results[i].isFinal) finalText += ev.results[i][0].transcript; } $('yvoz-in').value = s; sendBtn(); };
+    rec.onresult = function(ev){ var s = ''; finalText = ''; for (var i = 0; i < ev.results.length; i++) { s += ev.results[i][0].transcript; if (ev.results[i].isFinal) finalText += ev.results[i][0].transcript; } $('yvoz-in').value = s; sendBtn(); hud('listen', s); };
     rec.onerror = function(ev){ setHint(ev.error === 'not-allowed' ? T('Permite el micrófono para esta página.', 'Allow the microphone for this page.') : T('No te escuché bien, intenta otra vez.', "I didn't catch that, try again.")); };
     rec.onend = function(){ listening = false; fab(false); status(); var q = (finalText || $('yvoz-in').value || '').trim(); if (q) { $('yvoz-in').value = ''; sendBtn(); setHint(''); ask(q, { voice: Math.max(1, Math.round((Date.now() - t0) / 1000)) }); } };
     try { rec.start(); } catch(e){ listening = false; fab(false); }
@@ -585,6 +585,27 @@
       '#yvoz-out{font-size:13px;font-weight:600;border:1px solid rgba(255,255,255,.35)!important;border-radius:14px!important;padding:5px 10px!important}' +
       '@media (prefers-reduced-motion:reduce){#yvoz-fab.on,#yvoz-go.on,#yvoz-log .typ span{animation:none}}';
     document.head.appendChild(s);
+    var h2 = document.createElement('style');
+    h2.textContent =
+      '#yvoz-hud{position:absolute;left:0;right:0;top:0;bottom:0;z-index:5;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:radial-gradient(ellipse at center,rgba(40,22,10,.97) 0%,rgba(8,9,14,.98) 70%);color:#fff;cursor:pointer;-webkit-tap-highlight-color:transparent}' +
+      '#yvoz-hud.on{display:flex;animation:yhIn .25s ease-out}' +
+      '@keyframes yhIn{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:none}}' +
+      '#yvoz-hud svg{width:min(78vw,300px);height:min(78vw,300px);overflow:visible;fill:none;stroke-linecap:round}' +
+      '#yvoz-hud .tk{transform-origin:100px 100px;animation:yhSpin 40s linear infinite reverse}' +
+      '#yvoz-hud .ar{transform-origin:100px 100px;animation:yhSpin 2.4s linear infinite;filter:drop-shadow(0 0 6px #FF8A3D)}' +
+      '#yvoz-hud .ar2{transform-origin:100px 100px;animation:yhSpin 7s linear infinite reverse;opacity:.55}' +
+      '#yvoz-hud .gl{animation:yhGlow 1.6s ease-in-out infinite}' +
+      '#yvoz-hud[data-m=listen] .ar{animation-duration:1.1s}#yvoz-hud[data-m=listen] .gl{animation-duration:.8s}' +
+      '#yvoz-hud[data-m=speak] .ar{animation-duration:1.6s}' +
+      '@keyframes yhSpin{to{transform:rotate(360deg)}}' +
+      '@keyframes yhGlow{0%,100%{opacity:.35}50%{opacity:.9}}' +
+      '#yvoz-hud .t1{font:900 30px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;letter-spacing:1px;fill:#FFF7EE;stroke:none;text-shadow:0 0 18px rgba(255,138,61,.6)}' +
+      '#yvoz-hud .t2{font:700 8.5px/1 ui-monospace,Menlo,Consolas,monospace;letter-spacing:3.5px;fill:#FF9A55;stroke:none}' +
+      '#yvoz-hud .st{font:800 15px/1.2 ui-monospace,Menlo,Consolas,monospace;letter-spacing:4px;text-transform:uppercase;color:#FF9A55;text-shadow:0 0 12px rgba(255,138,61,.55)}' +
+      '#yvoz-hud .tr{max-width:86%;min-height:22px;text-align:center;font-size:17px;line-height:1.35;color:#F3E6DA}' +
+      '#yvoz-hud .cl{font-size:12px;color:#8C7B6E;letter-spacing:.5px}';
+    document.head.appendChild(h2);
+
   }
   function hhmm(){ return new Date().toLocaleTimeString(IS_DRIVER ? 'en-US' : 'es-US', { hour: 'numeric', minute: '2-digit' }); }
   function chips(){
@@ -604,7 +625,7 @@
       '<button type="button" id="yvoz-mute" aria-label="' + T('Voz encendida', 'Voice on') + '">' + IC.vol + '</button>' +
       (IS_DRIVER ? '' : '<button type="button" id="yvoz-cfg" aria-label="' + T('Configurar', 'Settings') + '">' + IC.gear + '</button>') +
       (APP ? '<button type="button" id="yvoz-out">' + T('Salir', 'Log out') + '</button>' : '') + '</div>' +
-      '<div id="yvoz-log"><div class="day">' + T('HOY', 'TODAY') + '</div></div>' +
+      hudHTML() + '<div id="yvoz-log"><div class="day">' + T('HOY', 'TODAY') + '</div></div>' +
       '<div id="yvoz-chips"></div><div id="yvoz-hint"></div>' +
       '<div id="yvoz-pend"></div><input type="file" id="yvoz-file" accept="image/*" multiple hidden>' +
       '<form id="yvoz-f"><button type="button" id="yvoz-att" aria-label="' + T('Adjuntar captura', 'Attach screenshot') + '">' + IC.clip + '</button><input id="yvoz-in" autocomplete="off" enterkeyhint="send" placeholder="' + T('Escribe o toca el micrófono', 'Type or tap the mic') + '">' +
@@ -614,6 +635,7 @@
     $('yvoz-mute').onclick = function(){ var m = this.dataset.on === '1' ? '0' : '1'; this.dataset.on = m; this.innerHTML = m === '1' ? IC.off : IC.vol; this.setAttribute('aria-label', m === '1' ? T('Voz apagada', 'Voice off') : T('Voz encendida', 'Voice on')); if (m === '1') try { speechSynthesis.cancel(); } catch(e){} };
     if ($('yvoz-cfg')) $('yvoz-cfg').onclick = function(){ setupCfg(); };
     if ($('yvoz-out')) $('yvoz-out').onclick = function(){ try { speechSynthesis.cancel(); } catch(e){} try { if (typeof doLogout === 'function') doLogout(); } catch(e){} };
+    $('yvoz-hud').onclick = function(){ hudHidden = true; hud(''); };
     $('yvoz-in').oninput = sendBtn;
     $('yvoz-go').onclick = function(){ var q = $('yvoz-in').value.trim(); if ((q || pending.length) && !listening) send(); else listen(); };
     $('yvoz-f').onsubmit = function(e){ e.preventDefault(); send(); };
@@ -661,8 +683,36 @@
   }
   function sendBtn(){ var g = $('yvoz-go'), i = $('yvoz-in'); if (!g || !i) return; var txt = (!!i.value.trim() || pending.length > 0) && !listening; g.innerHTML = txt ? IC.send : IC.mic; g.setAttribute('aria-label', txt ? T('Enviar', 'Send') : T('Hablar', 'Talk')); }
   function fab(on){ var b = $('yvoz-fab'); if (b) b.classList.toggle('on', !!on); var g = $('yvoz-go'); if (g) { g.classList.toggle('on', !!on); g.innerHTML = IC.mic; } var i = $('yvoz-in'); if (i) i.placeholder = on ? T('Escuchando… habla ahora', 'Listening… speak now') : T('Escribe o toca el micrófono', 'Type or tap the mic'); }
-  function status(t){ var e = $('yvoz-st'); if (!e) return; e.textContent = t || T('en línea', 'online'); e.classList.toggle('act', !!t); }
+  function status(t){ var e = $('yvoz-st'); if (!e) return; e.textContent = t || T('en línea', 'online'); e.classList.toggle('act', !!t);
+    var m = !t ? '' : /escuch|listen/i.test(t) ? 'listen' : /habl|speak/i.test(t) ? 'speak' : 'think';
+    if (m === 'listen') { hudHidden = false; hud('listen', ''); } else if (m) hud(m); else hud(''); }
   function setHint(t){ var h = $('yvoz-hint'); if (h) h.textContent = t || ''; }
+  // ---------- pantalla tipo JARVIS (escuchando / pensando / hablando) ----------
+  function hudHTML(){
+    var tk = ''; for (var i = 0; i < 72; i++) { var a = i * 5 * Math.PI / 180, big = i % 6 === 0, r1 = big ? 86 : 89, r2 = 94;
+      tk += '<line x1="' + (100 + r1 * Math.sin(a)).toFixed(1) + '" y1="' + (100 - r1 * Math.cos(a)).toFixed(1) + '" x2="' + (100 + r2 * Math.sin(a)).toFixed(1) + '" y2="' + (100 - r2 * Math.cos(a)).toFixed(1) + '" stroke="rgba(255,255,255,' + (big ? '.55' : '.22') + ')" stroke-width="' + (big ? 1.4 : .8) + '"/>'; }
+    return '<div id="yvoz-hud" data-m="think"><svg viewBox="0 0 200 200" aria-hidden="true">' +
+      '<circle cx="100" cy="100" r="99" stroke="rgba(255,255,255,.08)" stroke-width=".8"/>' +
+      '<g class="tk">' + tk + '</g>' +
+      '<circle class="gl" cx="100" cy="100" r="62" stroke="#FF8A3D" stroke-width="10" opacity=".25" style="filter:blur(6px)"/>' +
+      '<circle cx="100" cy="100" r="78" stroke="rgba(255,255,255,.35)" stroke-width="1"/>' +
+      '<circle class="ar2" cx="100" cy="100" r="82" stroke="rgba(255,255,255,.6)" stroke-width="1.2" stroke-dasharray="60 455"/>' +
+      '<g class="ar"><circle cx="100" cy="100" r="72" stroke="#FF8A3D" stroke-width="3.2" stroke-dasharray="300 153"/><circle cx="100" cy="28" r="3.6" fill="#FFC9A3" stroke="none"/></g>' +
+      '<circle cx="100" cy="100" r="64" stroke="rgba(255,255,255,.12)" stroke-width="1"/>' +
+      '<text class="t1" x="100" y="104" text-anchor="middle">YENAVI</text>' +
+      '<text class="t2" x="100" y="122" text-anchor="middle">' + T('ASISTENTE', 'ASSISTANT') + '</text>' +
+      '</svg><div class="st" id="yvoz-hud-st"></div><div class="tr" id="yvoz-hud-tr"></div><div class="cl">' + T('Toca para ver el chat', 'Tap to see the chat') + '</div></div>';
+  }
+  var hudHidden = false;   // si lo cierras tocándolo, no vuelve hasta la siguiente pregunta
+  function hud(mode, txt){
+    var h = $('yvoz-hud'); if (!h) return;
+    if (!mode) { h.classList.remove('on'); return; }
+    if (hudHidden) return;
+    h.dataset.m = mode;
+    $('yvoz-hud-st').textContent = mode === 'listen' ? T('Escuchando', 'Listening') : mode === 'speak' ? T('Hablando', 'Speaking') : T('Pensando', 'Thinking');
+    if (txt !== undefined) $('yvoz-hud-tr').textContent = txt || '';
+    h.classList.add('on');
+  }
   function typing(on){
     var l = $('yvoz-log'), t = $('yvoz-typ'); if (t) t.remove();
     status(on ? T('escribiendo…', 'typing…') : '');

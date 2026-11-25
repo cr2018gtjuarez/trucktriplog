@@ -3229,7 +3229,7 @@ label.dead-lock-lbl{color:#B91C1C!important;font-weight:800;}
       </div>
       <div class="g2" style="margin-bottom:10px;">
         <div class="field"><label>Teléfono</label><input type="text" id="nu-phone" placeholder="(000)000-0000" maxlength="13" oninput="fmtPhone(this)"/></div>
-        <div class="field"><label>Rol</label><select id="nu-role"><option value="driver">Driver</option><option value="dispatch">Dispatch (solo ETA)</option><option value="contador">Contador (solo libros, sin editar)</option><option value="admin">Admin</option></select></div>
+        <div class="field"><label>Rol</label><select id="nu-role"><option value="driver">Driver</option><option value="dispatch">Dispatch (ETA + Historial)</option><option value="contador">Contador (solo libros, sin editar)</option><option value="admin">Admin</option></select></div>
       </div>
       <div class="g3">
         <div class="field"><label>Usuario (login)</label><input type="text" id="nu-user" placeholder="Ej. juan01"/></div>
@@ -5475,6 +5475,8 @@ function doLogout(){
 function startApp(user){
   // En la app ETA, los drivers usan el ETA de la app del driver (con su GPS)
   if(ETA_APP && (user.role||'driver')==='driver'){ try{ setSession(user); }catch(e){} location.replace('driver.html?app=eta'); return; }
+  // Dispatch: siempre con el mismo diseño de la app de administrador (aunque entre desde el ícono ETA)
+  if(ETA_APP && user.role==='dispatch'){ try{ setSession(user); sessionStorage.setItem(SESSION_KEY,JSON.stringify(user)); }catch(e){} location.replace('index.html'); return; }
   currentUser=user;
   try{ document.body.classList.toggle('ro-dispatch', user.role==='dispatch'); }catch(e){}
   document.getElementById('login-screen').style.display='none';

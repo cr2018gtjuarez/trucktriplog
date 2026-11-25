@@ -20706,7 +20706,7 @@ function etaQ2Pick(k){ const s=_q2Sugs[k]; if(!s) return; const i=document.getEl
   body.ro-dispatch #entransito-detail .ro-lock, body.ro-dispatch #entransito-detail input:disabled, body.ro-dispatch #entransito-detail select:disabled, body.ro-dispatch #entransito-detail textarea:disabled{opacity:1!important;color:var(--text)!important;-webkit-text-fill-color:var(--text)!important;cursor:default}
 </style>
 <script>
-(function(){ ['adminCancelTrip','adminSaveProgress','adminFinishTrip','addFuelBlock','delFuelBlock','removeInvoice','approveDoc','rejectDoc','editBrokerEmail','openEditModal','delTrip','updatePayStatusInline','updateDispatchStatusInline','updateDriverPayStatusInline','updateDriverPayStatus','deleteDieselFromTrip','openAddDieselModal','shareTripDocs'].forEach(function(fn){
+(function(){ ['adminCancelTrip','adminSaveProgress','adminFinishTrip','approveDoc','rejectDoc','editBrokerEmail','openEditModal','delTrip','updatePayStatusInline','updateDispatchStatusInline','updateDriverPayStatusInline','updateDriverPayStatus','deleteDieselFromTrip','openAddDieselModal','shareTripDocs'].forEach(function(fn){
   var f=window[fn]; if(typeof f!=='function') return;
   window[fn]=function(){ if(isDispatch()){ alert(window.TL_LANG==='en'?'View only.':'Solo para ver: el usuario Dispatch no puede cambiar viajes.'); if(typeof renderLog==='function') try{ renderLog(); }catch(e){} return; } return f.apply(this,arguments); };
 }); })();

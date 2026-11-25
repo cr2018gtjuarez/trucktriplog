@@ -484,10 +484,18 @@
   }
 
   // ---------- voz ----------
+  // iPhone: la voz solo suena si primero se "desbloquea" con un toque del usuario (botón, enviar, chip)
+  var ttsReady = false;
+  function unlockTTS(){
+    if (ttsReady || !window.speechSynthesis) return;
+    try { var u0 = new SpeechSynthesisUtterance(' '); u0.volume = 0; speechSynthesis.speak(u0); speechSynthesis.getVoices(); ttsReady = true; } catch(e){}
+  }
   function speak(text){
     try {
       if (!window.speechSynthesis || $('yvoz-mute').dataset.on === '1') return;
-      speechSynthesis.cancel();
+      // en iPhone, cancel() y speak() seguidos a veces se queda callado: se espera un momento
+      if (speechSynthesis.speaking || speechSynthesis.pending) { speechSynthesis.cancel(); setTimeout(function(){ speak(text); }, 300); return; }
+      try { speechSynthesis.resume(); } catch(e){}
       var u = new SpeechSynthesisUtterance(text.replace(/[*#_`]/g, ''));
       u.lang = IS_DRIVER ? 'en-US' : 'es-US'; u.rate = 1.03;
       var vs = speechSynthesis.getVoices().filter(function(v){ return v.lang && v.lang.toLowerCase().indexOf(IS_DRIVER ? 'en' : 'es') === 0; });
@@ -618,7 +626,7 @@
   function ui(){
     if (!cssDone) { css(); cssDone = true; }
     var b = document.createElement('button'); b.id = 'yvoz-fab'; b.type = 'button'; b.title = T('Asistente YENAVI', 'YENAVI Assistant'); b.setAttribute('aria-label', b.title); b.innerHTML = IC.mic;
-    b.onclick = function(){ show(); }; document.body.appendChild(b);
+    b.onclick = function(){ unlockTTS(); show(); }; document.body.appendChild(b);
     var p = document.createElement('div'); p.id = 'yvoz-panel';
     p.innerHTML = '<div class="h"><button type="button" id="yvoz-x" aria-label="' + T('Cerrar', 'Close') + '">' + IC.back + '</button>' +
       '<div class="av">YF</div><div class="who"><b>' + T('Asistente YENAVI', 'YENAVI Assistant') + '</b><div id="yvoz-st">' + T('en línea', 'online') + '</div></div>' +
@@ -637,9 +645,9 @@
     if ($('yvoz-out')) $('yvoz-out').onclick = function(){ try { speechSynthesis.cancel(); } catch(e){} try { if (typeof doLogout === 'function') doLogout(); } catch(e){} };
     $('yvoz-hud').onclick = function(){ hudHidden = true; hud(''); };
     $('yvoz-in').oninput = sendBtn;
-    $('yvoz-go').onclick = function(){ var q = $('yvoz-in').value.trim(); if ((q || pending.length) && !listening) send(); else listen(); };
-    $('yvoz-f').onsubmit = function(e){ e.preventDefault(); send(); };
-    $('yvoz-att').onclick = function(){ $('yvoz-file').click(); };
+    $('yvoz-go').onclick = function(){ unlockTTS(); var q = $('yvoz-in').value.trim(); if ((q || pending.length) && !listening) send(); else listen(); };
+    $('yvoz-f').onsubmit = function(e){ e.preventDefault(); unlockTTS(); send(); };
+    $('yvoz-att').onclick = function(){ unlockTTS(); $('yvoz-file').click(); };
     $('yvoz-file').onchange = function(){ addFiles(this.files); this.value = ''; };
     p.addEventListener('paste', function(e){ var fs = []; Array.prototype.forEach.call((e.clipboardData || {}).items || [], function(it){ if (it.kind === 'file' && /^image\//.test(it.type)) fs.push(it.getAsFile()); }); if (fs.length) { e.preventDefault(); addFiles(fs); } });
     p.addEventListener('dragover', function(e){ e.preventDefault(); p.classList.add('drop'); });
@@ -678,7 +686,7 @@
   var chipsDone = false;
   function show(){
     var p = $('yvoz-panel'); if (!p) return; p.style.display = 'flex';
-    if (!chipsDone) { chipsDone = true; var c = $('yvoz-chips'); chips().forEach(function(q){ var x = document.createElement('button'); x.type = 'button'; x.textContent = q; x.onclick = function(){ ask(q); }; c.appendChild(x); }); }
+    if (!chipsDone) { chipsDone = true; var c = $('yvoz-chips'); chips().forEach(function(q){ var x = document.createElement('button'); x.type = 'button'; x.textContent = q; x.onclick = function(){ unlockTTS(); ask(q); }; c.appendChild(x); }); }
     var l = $('yvoz-log'); l.scrollTop = l.scrollHeight;
   }
   function sendBtn(){ var g = $('yvoz-go'), i = $('yvoz-in'); if (!g || !i) return; var txt = (!!i.value.trim() || pending.length > 0) && !listening; g.innerHTML = txt ? IC.send : IC.mic; g.setAttribute('aria-label', txt ? T('Enviar', 'Send') : T('Hablar', 'Talk')); }

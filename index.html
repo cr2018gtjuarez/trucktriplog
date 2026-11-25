@@ -4749,8 +4749,8 @@ if(ETA_APP){ try{
 const ETA_APP_PAGES=['eta'];
 const ETA_APP_MENU=[{id:'eta',icon:'⏱️',label:'ETA',es:'ETA',en:'ETA',main:1}];
 // Usuario Dispatch: ETA + Historial (todo el historial, solo para ver; no puede editar ni borrar)
-const DISPATCH_PAGES=['dhome','eta','entransito','log'];
-const DISPATCH_MENU=[{id:'dhome',icon:'📊',label:'Dashboard',es:'Dashboard',en:'Dashboard',main:1},{id:'eta',icon:'⏱️',label:'ETA',es:'ETA',en:'ETA'},{id:'entransito',icon:'🚚',label:'En Tránsito',es:'En Tránsito',en:'In transit'},{id:'log',icon:'📋',label:'Historial',es:'Historial',en:'History'}];
+const DISPATCH_PAGES=['dhome','eta','entransito','log','mercado'];
+const DISPATCH_MENU=[{id:'dhome',icon:'📊',label:'Dashboard',es:'Dashboard',en:'Dashboard',main:1},{id:'eta',icon:'⏱️',label:'ETA',es:'ETA',en:'ETA'},{id:'entransito',icon:'🚚',label:'En Tránsito',es:'En Tránsito',en:'In transit'},{id:'log',icon:'📋',label:'Historial',es:'Historial',en:'History'},{id:'mercado',icon:'📊',label:'Análisis de mercado',es:'Mercado',en:'Market'}];
 function isDispatch(){ return typeof currentUser!=='undefined'&&currentUser&&currentUser.role==='dispatch'; }
 function etaPagesFor(){ return isDispatch()?DISPATCH_PAGES:ETA_APP_PAGES; }
 function etaOnlyMode(){ return ETA_APP||(typeof currentUser!=='undefined'&&currentUser&&currentUser.role==='dispatch'); }
@@ -20608,6 +20608,16 @@ function dhChart(box, trips){
 (function(){ const f=window.openTripDetail; if(typeof f!=='function') return;
   window.openTripDetail=function(){ const r=f.apply(this,arguments); const lock=()=>{ if(!isDispatch()) return; document.querySelectorAll('#entransito-detail input:not([type=file]), #entransito-detail select, #entransito-detail textarea').forEach(e=>{ if(e.id==='at-hos-left') return; e.disabled=true; e.classList.add('ro-lock'); }); };
     try{ lock(); setTimeout(lock,400); setTimeout(lock,1500); if(r&&r.then) r.then(lock); }catch(e){} return r; }; })();
+// Dispatch: Análisis de mercado sin "ganancia" (solo pagos, rate y cargas)
+(function(){ const f=window.renderMercado; if(typeof f!=='function') return;
+  window.renderMercado=function(){ try{ if(isDispatch()&&typeof MK!=='undefined'&&MK.sort==='avgNet') MK.sort='rate'; }catch(e){}
+    const r=f.apply(this,arguments);
+    if(isDispatch()) try{ const pg=document.getElementById('page-mercado');
+      pg.querySelectorAll('option[value="avgNet"]').forEach(o=>o.remove());
+      pg.querySelectorAll('.mk-kpi .s, .s, small, .m, span, div').forEach(e=>{ if(e.children.length===0&&/ganancia|profit/i.test(e.textContent||'')) e.style.display='none'; });
+      [...pg.querySelectorAll('*')].forEach(e=>{ if(e.childNodes.length&&[...e.childNodes].some(n=>n.nodeType===3&&/ganancia prom\.?\s*\$?[\d,.-]*/i.test(n.textContent))) e.childNodes.forEach(n=>{ if(n.nodeType===3) n.textContent=n.textContent.replace(/·?\s*ganancia prom\.?\s*-?\$?[\d,.]*/ig,''); }); });
+    }catch(e){ console.warn('mk dispatch',e); }
+    return r; }; })();
 (function(){ const f=window.renderAdminReport; if(typeof f!=='function') return;
   window.renderAdminReport=function(){ const r=f.apply(this,arguments); if(isDispatch()) try{ dhPatchReport(); }catch(e){ console.warn('dh',e); } return r; }; })();
 </script>
@@ -20703,12 +20713,15 @@ function etaQ2Pick(k){ const s=_q2Sugs[k]; if(!s) return; const i=document.getEl
   body.ro-dispatch #entransito-detail button[onclick*="adminCancelTrip"], body.ro-dispatch #entransito-detail button[onclick*="adminSaveProgress"], body.ro-dispatch #entransito-detail button[onclick*="adminFinishTrip"],
   body.ro-dispatch #entransito-detail button[onclick*="approveDoc"], body.ro-dispatch #entransito-detail button[onclick*="rejectDoc"], body.ro-dispatch #entransito-detail [onclick*="editBrokerEmail"],
   body.ro-dispatch #entransito-detail button[onclick*="removeInvoice"]{display:none!important}
+  /* Dispatch en Análisis de mercado: sin ganancia ni botones para arreglar datos */
+  body.ro-dispatch #page-mercado .mk-bt th:nth-child(5), body.ro-dispatch #page-mercado .mk-bt td:nth-child(5),
+  body.ro-dispatch #page-mercado button[onclick*="bfOpen"], body.ro-dispatch #page-mercado button[onclick*="recalcAllDeadMiles"], body.ro-dispatch #page-mercado button[onclick*="undoRecalcDeadMiles"]{display:none!important}
   /* Dispatch: sin ganancia del viaje (solo load value) */
   body.ro-dispatch #entransito-detail .profit-breakdown, body.ro-dispatch #entransito-detail #net-box{display:none!important}
   body.ro-dispatch #entransito-detail .ro-lock, body.ro-dispatch #entransito-detail input:disabled, body.ro-dispatch #entransito-detail select:disabled, body.ro-dispatch #entransito-detail textarea:disabled{opacity:1!important;color:var(--text)!important;-webkit-text-fill-color:var(--text)!important;cursor:default}
 </style>
 <script>
-(function(){ ['adminCancelTrip','adminSaveProgress','adminFinishTrip','approveDoc','rejectDoc','editBrokerEmail','openEditModal','delTrip','updatePayStatusInline','updateDispatchStatusInline','updateDriverPayStatusInline','updateDriverPayStatus','deleteDieselFromTrip','openAddDieselModal','shareTripDocs'].forEach(function(fn){
+(function(){ ['bfOpen','recalcAllDeadMiles','undoRecalcDeadMiles','adminCancelTrip','adminSaveProgress','adminFinishTrip','approveDoc','rejectDoc','editBrokerEmail','openEditModal','delTrip','updatePayStatusInline','updateDispatchStatusInline','updateDriverPayStatusInline','updateDriverPayStatus','deleteDieselFromTrip','openAddDieselModal','shareTripDocs'].forEach(function(fn){
   var f=window[fn]; if(typeof f!=='function') return;
   window[fn]=function(){ if(isDispatch()){ alert(window.TL_LANG==='en'?'View only.':'Solo para ver: el usuario Dispatch no puede cambiar viajes.'); if(typeof renderLog==='function') try{ renderLog(); }catch(e){} return; } return f.apply(this,arguments); };
 }); })();

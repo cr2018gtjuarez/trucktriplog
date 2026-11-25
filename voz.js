@@ -570,7 +570,7 @@
       srFails++;
       var blocked = /not-allowed|service-not-allowed|audio-capture|network/.test(errd);
       if (IOS && (blocked || srFails >= 2)) { setNoSR(); dictate(T('El micrófono de la app no agarra el audio en este iPhone.', 'The app microphone does not work on this iPhone.')); return; }
-      setHint(errd === 'not-allowed' ? T('Permite el micrófono: Ajustes → Safari → Micrófono → Permitir.', 'Allow the microphone in Settings → Safari → Microphone.') : T('No te escuché, toca el micrófono otra vez.', "I didn't hear you, tap the mic again."));
+      setHint((errd ? '[' + errd + '] ' : '') + (errd === 'not-allowed' ? T('Permite el micrófono: Ajustes → Safari → Micrófono → Permitir.', 'Allow the microphone in Settings → Safari → Microphone.') : T('No te escuché, toca el micrófono otra vez.', "I didn't hear you, tap the mic again.")));
     };
     try { rec.start(); } catch(e){ listening = false; fab(false); if (IOS) { setNoSR(); dictate(); } return; }
     // si en 4 segundos ni siquiera arrancó, el micrófono de la página no sirve aquí
@@ -784,7 +784,7 @@
       '<text class="t2" x="100" y="122" text-anchor="middle">' + T('ASISTENTE', 'ASSISTANT') + '</text>' +
       '</svg><div class="tp" id="yvoz-tk2"></div></div><div class="st" id="yvoz-hud-st"></div><div class="tr" id="yvoz-hud-tr"></div>' +
       '<button type="button" class="mic" id="yvoz-hud-mic" aria-label="' + T('Hablar', 'Talk') + '">' + IC.mic + '</button>' +
-      '<div class="cl">' + T('Toca afuera del círculo para ver el chat', 'Tap outside to see the chat') + '</div></div>';
+      '<div class="cl">' + T('Toca afuera del círculo para ver el chat', 'Tap outside to see the chat') + ' · v18' + (IOS ? ' iOS' : '') + '</div></div>';
   }
   // Truck 1 y Truck 2 a los lados del círculo (solo administrador): dónde va, si maneja y a dónde lleva la carga
   var tkAt = 0;

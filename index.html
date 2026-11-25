@@ -20668,7 +20668,31 @@ function etaTopSearch(){
   if(card.parentElement!==page||page.firstElementChild!==card) page.insertBefore(card,page.firstChild);
   if(row.parentElement!==card){ const lab=row.previousElementSibling; if(lab&&!lab.id&&/ZIP/i.test(lab.textContent||'')) lab.remove(); card.appendChild(row); }
 }
-(function(){ const f=window.etaShotMount; if(typeof f!=='function') return; window.etaShotMount=function(){ const r=f.apply(this,arguments); try{ etaTopSearch(); }catch(e){} return r; }; })();
+// Mientras escribes la ciudad (o ZIP) salen sugerencias; tocas una y calcula
+let _q2T=null, _q2Sugs=[];
+function etaQ2Sug(){
+  const i=document.getElementById('eta-q2'); if(!i) return; const q=i.value.trim(); clearTimeout(_q2T);
+  let box=document.getElementById('eta-q2-sug');
+  if(!box){ box=document.createElement('div'); box.id='eta-q2-sug'; box.setAttribute('data-no-tr','1'); box.style.cssText='margin:-4px 0 10px;border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--card,#fff);box-shadow:0 6px 18px rgba(0,0,0,.08);'; const row=document.getElementById('eta-q2row'); row.parentElement.insertBefore(box,row.nextSibling); }
+  if(q.length<2){ box.innerHTML=''; box.style.display='none'; return; }
+  _q2T=setTimeout(async()=>{
+    let r=[];
+    try{ if(/^\d{5}$/.test(q)){ const p=await fetchZip(q); if(p) r=[{type:'zip',zip:q,label:q+' · '+p.city+', '+p.abbr}]; } else if(!/^\d+$/.test(q)) r=(await etaPlaceSearch(q)).slice(0,6); }catch(e){}
+    if((document.getElementById('eta-q2')?.value||'').trim()!==q) return;
+    _q2Sugs=r;
+    box.innerHTML=r.length?r.map((x,k)=>`<div onmousedown="event.preventDefault()" onclick="etaQ2Pick(${k})" style="padding:11px 14px;cursor:pointer;border-top:${k?'1px solid var(--border)':'none'};font-size:14px;font-weight:700;">📍 ${etaEsc(x.label||x.city)}${x.sub?`<div style="font-size:11.5px;color:var(--text3);font-weight:500;">${etaEsc(x.sub)}</div>`:''}</div>`).join('')
+      :`<div style="padding:10px 14px;font-size:13px;color:var(--text3);">${TR('No encontré esa ciudad. Escribe ciudad y estado (ej. Laredo, TX) o el ZIP.','City not found. Type city and state (e.g. Laredo, TX) or the ZIP.')}</div>`;
+    box.style.display='block';
+  },300);
+}
+function etaQ2Pick(k){ const s=_q2Sugs[k]; if(!s) return; const i=document.getElementById('eta-q2'); if(i){ i.value=s.label||s.city; i.blur(); }
+  const box=document.getElementById('eta-q2-sug'); if(box){ box.innerHTML=''; box.style.display='none'; }
+  const q=document.getElementById('eta-q'); if(q) q.value=s.label||s.zip||s.city; if(typeof etaGo==='function') etaGo(s); }
+(function(){ const g=window.etaQ2Go; if(typeof g!=='function') return; window.etaQ2Go=function(){ const box=document.getElementById('eta-q2-sug'); if(box){ box.innerHTML=''; box.style.display='none'; }
+  // si escribiste una ciudad y ya hay sugerencias, usa la primera (más seguro que buscar otra vez)
+  const v=(document.getElementById('eta-q2')?.value||'').trim(); if(_q2Sugs.length&&!/^\d{5}/.test(v)&&document.getElementById('eta-q')&&typeof etaGo==='function'){ const s=_q2Sugs[0]; document.getElementById('eta-q').value=v; _q2Sugs=[]; return etaGo(s); }
+  return g.apply(this,arguments); }; })();
+(function(){ const f=window.etaShotMount; if(typeof f!=='function') return; window.etaShotMount=function(){ const r=f.apply(this,arguments); try{ etaTopSearch(); const i=document.getElementById('eta-q2'); if(i&&!i.dataset.sug){ i.dataset.sug='1'; i.addEventListener('input',etaQ2Sug); i.setAttribute('placeholder',TR('Escribe ZIP o ciudad (ej. Laredo, TX)','Type ZIP or city (e.g. Laredo, TX)')); } }catch(e){} return r; }; })();
 </script>
 <style>
   /* Dispatch: historial solo para ver */

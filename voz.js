@@ -611,7 +611,20 @@
       '#yvoz-hud .t2{font:700 8.5px/1 ui-monospace,Menlo,Consolas,monospace;letter-spacing:3.5px;fill:#FF9A55;stroke:none}' +
       '#yvoz-hud .st{font:800 15px/1.2 ui-monospace,Menlo,Consolas,monospace;letter-spacing:4px;text-transform:uppercase;color:#FF9A55;text-shadow:0 0 12px rgba(255,138,61,.55)}' +
       '#yvoz-hud .tr{max-width:86%;min-height:22px;text-align:center;font-size:17px;line-height:1.35;color:#F3E6DA}' +
-      '#yvoz-hud .cl{font-size:12px;color:#8C7B6E;letter-spacing:.5px}';
+      '#yvoz-hud .cl{font-size:12px;color:#8C7B6E;letter-spacing:.5px}' +
+      '#yvoz-hud .row{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:0 6px;box-sizing:border-box}' +
+      '#yvoz-hud .row svg{flex:none}' +
+      '#yvoz-hud.tk2 .row svg{width:min(50vw,250px);height:min(50vw,250px)}' +
+      '#yvoz-hud .tp{flex:1;min-width:0;max-width:150px;align-self:center;padding:8px 7px;border-radius:12px;border:1px solid rgba(255,138,61,.35);background:rgba(255,138,61,.06);box-shadow:inset 0 0 14px rgba(255,138,61,.08);font-family:ui-monospace,Menlo,Consolas,monospace}' +
+      '#yvoz-hud .tp:empty{display:none}' +
+      '#yvoz-hud .tp .k{font-size:11px;font-weight:900;letter-spacing:2px;color:#FF9A55}' +
+      '#yvoz-hud .tp .n{font:800 14px/1.2 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#FFF7EE;margin-top:3px}' +
+      '#yvoz-hud .tp .p{font:600 12px/1.25 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#F3E6DA;margin-top:4px;word-break:break-word}' +
+      '#yvoz-hud .tp .s{font-size:10.5px;font-weight:700;margin-top:4px;color:#9FE6B4}#yvoz-hud .tp .s.stop{color:#FFB36B}#yvoz-hud .tp .s.old{color:#8C7B6E}' +
+      '#yvoz-hud .tp .d{font-size:10.5px;font-weight:700;margin-top:4px;color:#8FB8FF;word-break:break-word}' +
+      '#yvoz-hud .mic{display:none;width:64px;height:64px;border-radius:50%;border:2px solid #FF8A3D;background:rgba(255,138,61,.15);color:#FFC9A3;align-items:center;justify-content:center;box-shadow:0 0 22px rgba(255,138,61,.45);cursor:pointer}' +
+      '#yvoz-hud .mic svg{width:28px;height:28px;fill:none;stroke:currentColor;stroke-width:2}' +
+      '#yvoz-hud[data-m=idle] .mic{display:flex}#yvoz-hud[data-m=idle] .ar{animation-duration:5s}#yvoz-hud[data-m=idle] .tr{display:none}';
     document.head.appendChild(h2);
 
   }
@@ -626,7 +639,7 @@
   function ui(){
     if (!cssDone) { css(); cssDone = true; }
     var b = document.createElement('button'); b.id = 'yvoz-fab'; b.type = 'button'; b.title = T('Asistente YENAVI', 'YENAVI Assistant'); b.setAttribute('aria-label', b.title); b.innerHTML = IC.mic;
-    b.onclick = function(){ unlockTTS(); show(); }; document.body.appendChild(b);
+    b.onclick = function(){ unlockTTS(); show(); hudOpen(); }; document.body.appendChild(b);
     var p = document.createElement('div'); p.id = 'yvoz-panel';
     p.innerHTML = '<div class="h"><button type="button" id="yvoz-x" aria-label="' + T('Cerrar', 'Close') + '">' + IC.back + '</button>' +
       '<div class="av">YF</div><div class="who"><b>' + T('Asistente YENAVI', 'YENAVI Assistant') + '</b><div id="yvoz-st">' + T('en línea', 'online') + '</div></div>' +
@@ -644,6 +657,7 @@
     if ($('yvoz-cfg')) $('yvoz-cfg').onclick = function(){ setupCfg(); };
     if ($('yvoz-out')) $('yvoz-out').onclick = function(){ try { speechSynthesis.cancel(); } catch(e){} try { if (typeof doLogout === 'function') doLogout(); } catch(e){} };
     $('yvoz-hud').onclick = function(){ hudHidden = true; hud(''); };
+    $('yvoz-hud-mic').onclick = function(e){ e.stopPropagation(); unlockTTS(); listen(); };
     $('yvoz-in').oninput = sendBtn;
     $('yvoz-go').onclick = function(){ unlockTTS(); var q = $('yvoz-in').value.trim(); if ((q || pending.length) && !listening) send(); else listen(); };
     $('yvoz-f').onsubmit = function(e){ e.preventDefault(); unlockTTS(); send(); };
@@ -699,7 +713,7 @@
   function hudHTML(){
     var tk = ''; for (var i = 0; i < 72; i++) { var a = i * 5 * Math.PI / 180, big = i % 6 === 0, r1 = big ? 86 : 89, r2 = 94;
       tk += '<line x1="' + (100 + r1 * Math.sin(a)).toFixed(1) + '" y1="' + (100 - r1 * Math.cos(a)).toFixed(1) + '" x2="' + (100 + r2 * Math.sin(a)).toFixed(1) + '" y2="' + (100 - r2 * Math.cos(a)).toFixed(1) + '" stroke="rgba(255,255,255,' + (big ? '.55' : '.22') + ')" stroke-width="' + (big ? 1.4 : .8) + '"/>'; }
-    return '<div id="yvoz-hud" data-m="think"><svg viewBox="0 0 200 200" aria-hidden="true">' +
+    return '<div id="yvoz-hud" data-m="think"' + (IS_DRIVER ? '' : ' class="tk2"') + '><div class="row"><div class="tp" id="yvoz-tk1"></div><svg viewBox="0 0 200 200" aria-hidden="true">' +
       '<circle cx="100" cy="100" r="99" stroke="rgba(255,255,255,.08)" stroke-width=".8"/>' +
       '<g class="tk">' + tk + '</g>' +
       '<circle class="gl" cx="100" cy="100" r="62" stroke="#FF8A3D" stroke-width="10" opacity=".25" style="filter:blur(6px)"/>' +
@@ -709,15 +723,44 @@
       '<circle cx="100" cy="100" r="64" stroke="rgba(255,255,255,.12)" stroke-width="1"/>' +
       '<text class="t1" x="100" y="104" text-anchor="middle">YENAVI</text>' +
       '<text class="t2" x="100" y="122" text-anchor="middle">' + T('ASISTENTE', 'ASSISTANT') + '</text>' +
-      '</svg><div class="st" id="yvoz-hud-st"></div><div class="tr" id="yvoz-hud-tr"></div><div class="cl">' + T('Toca para ver el chat', 'Tap to see the chat') + '</div></div>';
+      '</svg><div class="tp" id="yvoz-tk2"></div></div><div class="st" id="yvoz-hud-st"></div><div class="tr" id="yvoz-hud-tr"></div>' +
+      '<button type="button" class="mic" id="yvoz-hud-mic" aria-label="' + T('Hablar', 'Talk') + '">' + IC.mic + '</button>' +
+      '<div class="cl">' + T('Toca afuera del círculo para ver el chat', 'Tap outside to see the chat') + '</div></div>';
   }
+  // Truck 1 y Truck 2 a los lados del círculo (solo administrador): dónde va, si maneja y a dónde lleva la carga
+  var tkAt = 0;
+  async function hudTrucks(){
+    if (IS_DRIVER || !$('yvoz-tk1') || Date.now() - tkAt < 45000) return; tkAt = Date.now();
+    var trucks = call('loadTrucks') || [], users = call('getUsers') || [], trips = allTrips(), live = {}, d = fb(), now = Date.now();
+    if (d) { try { var all = await d.collection('locations').get(); all.forEach(function(x){ live[x.id] = x.data(); }); } catch(e){} }
+    var drvOf = function(t){ return users.find(function(u){ return u.role !== 'admin' && String(u.truckId) === String(t.id); }); };
+    var actOf = function(t){ return trips.filter(function(x){ return x.tripStatus === 'active' && String(x.truckId) === String(t.id); })[0]; };
+    var list = trucks.filter(function(t){ return drvOf(t) || actOf(t); }).slice(0, 2);
+    for (var i = 0; i < 2; i++) {
+      var el = $('yvoz-tk' + (i + 1)); if (!el) continue; var t = list[i]; if (!t) { el.innerHTML = ''; continue; }
+      var dv = drvOf(t), act = actOf(t);
+      var recs = [live['truck_' + t.id], dv && live[dv.username]].filter(function(v){ return v && v.lat != null && v.lon != null; })
+        .map(function(v){ return { v: v, tm: typeof v.time === 'number' ? v.time : Date.parse(v.time) }; }).filter(function(x){ return x.tm; }).sort(function(a, b){ return b.tm - a.tm; });
+      var r = recs[0], place = r ? await cityOf(r.v.lat, r.v.lon) : null, ago = r ? Math.round((now - r.tm) / 60000) : null;
+      var mv = !r ? '' : ago > 60 ? '<div class="s old">● ' + T('hace ', '') + (ago < 1440 ? Math.round(ago / 60) + ' h' : Math.round(ago / 1440) + (IS_DRIVER ? ' d' : ' días')) + T('', ' ago') + '</div>'
+        : r.v.movingStatus === 'driving' ? '<div class="s">● ' + T('manejando', 'driving') + (r.v.speedMph != null ? ' ' + Math.round(r.v.speedMph) + ' mph' : '') + '</div>'
+        : r.v.movingStatus === 'stopped' ? '<div class="s stop">● ' + T('detenido', 'stopped') + '</div>' : '';
+      var num0 = ((t.name || '').match(/\d+/) || [i + 1])[0];
+      var who = dv ? String(dv.firstName || dv.name || dv.username).split(' ')[0] : (act && act.driverName ? String(act.driverName).split(' ')[0] : '');
+      el.innerHTML = '<div class="k">TRUCK ' + esc(num0) + '</div>' + (who ? '<div class="n">' + esc(who.charAt(0).toUpperCase() + who.slice(1).toLowerCase()) + '</div>' : '') +
+        '<div class="p">' + esc(place || T('Sin ubicación', 'No location')) + '</div>' + mv +
+        '<div class="d">' + (act ? '→ ' + esc((act.city2 || act.z2 || '') + (act.state2 ? ', ' + act.state2 : '')) : T('Libre', 'Empty')) + '</div>';
+    }
+  }
+  function hudOpen(){ hudHidden = false; hud('idle'); }
   var hudHidden = false;   // si lo cierras tocándolo, no vuelve hasta la siguiente pregunta
   function hud(mode, txt){
     var h = $('yvoz-hud'); if (!h) return;
     if (!mode) { h.classList.remove('on'); return; }
     if (hudHidden) return;
     h.dataset.m = mode;
-    $('yvoz-hud-st').textContent = mode === 'listen' ? T('Escuchando', 'Listening') : mode === 'speak' ? T('Hablando', 'Speaking') : T('Pensando', 'Thinking');
+    $('yvoz-hud-st').textContent = mode === 'listen' ? T('Escuchando', 'Listening') : mode === 'speak' ? T('Hablando', 'Speaking') : mode === 'idle' ? T('¿En qué te ayudo?', 'How can I help?') : T('Pensando', 'Thinking');
+    hudTrucks();
     if (txt !== undefined) $('yvoz-hud-tr').textContent = txt || '';
     h.classList.add('on');
   }
@@ -748,7 +791,7 @@
       if (key !== builtFor) {
         ['yvoz-fab', 'yvoz-panel'].forEach(function(id){ var e = $(id); if (e) e.remove(); });
         chipsDone = false; history = []; pending = []; builtFor = key;
-        if (a) { IS_DRIVER = u.role === 'driver' || !u.role; ui(); show(); }
+        if (a) { IS_DRIVER = u.role === 'driver' || !u.role; ui(); show(); hudOpen(); }
       }
       return;
     }

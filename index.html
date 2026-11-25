@@ -20638,7 +20638,9 @@ function etaSplitDraw(){
       if(!cell){ cell=document.createElement('div'); cell.id='eta-sp-'+id; cell.style.cssText='border:1px solid var(--border);border-radius:18px;overflow:hidden;background:var(--card,#fff);';
         cell.innerHTML='<div class="sp-h" style="padding:10px 14px;"></div><div class="sp-m" style="height:46vh;min-height:260px;"></div>'; box.appendChild(cell); }
       cell.querySelector('.sp-h').innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;"><div style="font-size:16px;font-weight:900;">${etaEsc(r.tr.name||'')}${name?' · '+etaEsc(name):''}</div><span style="font-size:11px;font-weight:800;padding:3px 9px;border-radius:10px;white-space:nowrap;${(a||r.loadedTo)?'background:#E8F0FE;color:#1967D2;':'background:#E6F4EA;color:#137333;'}">${etaEsc(dest)}</span></div>
-        <div style="font-size:13px;color:var(--text2);margin-top:3px;">📍 ${etaEsc(where||'—')} <span style="font-weight:700;color:${H.moving==='driving'?'#188038':H.moving==='stopped'?'#E37400':'var(--text3)'};">${etaEsc(mv)}</span></div>`;
+        <div style="font-size:13px;color:var(--text2);margin-top:3px;">📍 ${etaEsc(where||'—')} <span style="font-weight:700;color:${H.moving==='driving'?'#188038':H.moving==='stopped'?'#E37400':'var(--text3)'};">${etaEsc(mv)}</span></div>
+        ${(r.eta&&r.pu&&!r.none)?(()=>{ const ms=Math.max(0,r.eta-Date.now()), m=Math.round(ms/60000), hh=Math.floor(m/60), mm=m%60; const when=new Date(r.eta).toLocaleString(window.TL_LANG==='en'?'en-US':'es-US',{weekday:'short',hour:'numeric',minute:'2-digit'});
+          return `<div style="margin-top:8px;padding:8px 10px;border-radius:12px;background:linear-gradient(135deg,#064E3B,#16A34A);color:#fff;display:flex;justify-content:space-between;align-items:center;gap:8px;"><div><div style="font-size:10.5px;font-weight:800;letter-spacing:.8px;opacity:.9;">⏱️ ${TR('AL PICK UP','TO PICK UP')} ${etaEsc([r.pu.city,r.pu.abbr].filter(Boolean).join(', '))}</div><div style="font-size:20px;font-weight:900;">${hh?hh+' h ':''}${mm} min</div></div><div style="text-align:right;font-size:12.5px;font-weight:700;">${TR('Llega','Arrives')} ${etaEsc(when)}<br>${Math.round(r.miles||0).toLocaleString('en-US')} mi</div></div>`; })():''}`;
       let M=_etaSplit[id];
       const mel=cell.querySelector('.sp-m');
       if(!M||M._container!==mel){ M=L.map(mel,{zoomControl:false,attributionControl:false}); L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',{maxZoom:19}).addTo(M); M._lay=L.layerGroup().addTo(M); _etaSplit[id]=M; }
@@ -20653,6 +20655,20 @@ function etaSplitDraw(){
   }catch(e){ console.warn('eta split',e); }
 }
 (function(){ const f=window.etaDraw; if(typeof f!=='function') return; window.etaDraw=function(){ const r=f.apply(this,arguments); etaSplitDraw(); return r; }; })();
+</script>
+
+<script>
+// ETA: la búsqueda "ZIP CODE O CIUDAD" va arriba, separada en su propia tarjeta
+function etaTopSearch(){
+  const page=document.getElementById('eta-page-body'), row=document.getElementById('eta-q2row'); if(!page||!row) return;
+  let card=document.getElementById('eta-topsearch');
+  if(!card){ card=document.createElement('div'); card.id='eta-topsearch'; card.setAttribute('data-no-tr','1');
+    card.style.cssText='background:var(--card,#fff);border:1px solid var(--border);border-radius:16px;padding:12px 14px 2px;margin:0 0 12px;';
+    card.innerHTML='<div style="font-size:12px;font-weight:900;letter-spacing:1px;text-transform:uppercase;color:var(--text3);margin-bottom:8px;">'+TR('ZIP code o ciudad del pick up','Pick up ZIP code or city')+'</div>'; }
+  if(card.parentElement!==page||page.firstElementChild!==card) page.insertBefore(card,page.firstChild);
+  if(row.parentElement!==card){ const lab=row.previousElementSibling; if(lab&&!lab.id&&/ZIP/i.test(lab.textContent||'')) lab.remove(); card.appendChild(row); }
+}
+(function(){ const f=window.etaShotMount; if(typeof f!=='function') return; window.etaShotMount=function(){ const r=f.apply(this,arguments); try{ etaTopSearch(); }catch(e){} return r; }; })();
 </script>
 <style>
   /* Dispatch: historial solo para ver */

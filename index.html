@@ -8544,7 +8544,7 @@ function renderEnTransito(){
       <div class="et-date"><span class="et-lbl">Pick up</span>${tripPickupDate(t)?fmtDateShort(tripPickupDate(t)):'—'}${t.startTime?`<div class="lg-r2">${new Date(t.startTime).toLocaleTimeString('es-US',{hour:'numeric',minute:'2-digit'})}</div>`:''}</div>
       <div class="et-date"><span class="et-lbl">Delivery</span>${t.deliveryDate?`<span style="${late?'color:var(--red);font-weight:700;':''}">${fmtDateShort(t.deliveryDate)}</span>${late?'<div class="lg-r2" style="color:var(--red)">Atrasado</div>':''}`:'<span class="lg-muted" style="color:var(--text3)">Sin fecha</span>'}</div>
       <div class="et-num"><span class="et-lbl">Millas</span>${logMilesCell(t)}</div>
-      <div class="et-num"><span class="et-lbl">Pago</span>${parseFloat(t.loadVal)>0?money(t.loadVal):'—'}</div>
+      <div class="et-num"><span class="et-lbl">Pago</span>${parseFloat(t.loadVal)>0?money(t.loadVal):(parseFloat(t.rcRate)>0?money(t.rcRate)+'<div class="lg-r2">del RC</div>':'—')}</div>
       <div class="et-num lg-rate"><span class="et-lbl">Rate total</span>${r!==null?'$'+r.toFixed(2)+'<span>/mi</span>':'—'}</div>
       <div class="et-st"><span class="lg-pill paid"><span class="et-dot"></span>En curso</span></div>
       <div data-deta="${String(t.id)}" data-no-tr style="grid-column:1/-1;font-size:13px;padding:2px 0 0;">⏳ ${TR('Calculando ETA al delivery…','Calculating ETA to delivery…')}</div>
@@ -20773,7 +20773,7 @@ function etaQ2Pick(k){ const s=_q2Sugs[k]; if(!s) return; const i=document.getEl
 
 <script>
 // ===== Versión de la app bien visible (encabezado, menú y pantalla de entrada) =====
-const APP_VERSION='yenavi-2026-11-25i';   // se cambia junto con VERSION de sw.js en cada subida
+const APP_VERSION='yenavi-2026-11-25j';   // se cambia junto con VERSION de sw.js en cada subida
 function appVerShort(){ const m=APP_VERSION.match(/(\d{4})-(\d{2})-(\d{2})([a-z]*)/); if(!m) return APP_VERSION; const mes=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][+m[2]-1]; return 'v'+(+m[3])+' '+mes+(m[4]?' '+m[4].toUpperCase():''); }
 function appVerShow(){
   try{

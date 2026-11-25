@@ -20646,7 +20646,8 @@ function etaSplitDraw(){
       const a=r.active||(r.steps&&r.steps[0]&&r.steps[0].trip)||null;
       const dest=r.loadedTo?TR('Cargado → ','Loaded → ')+r.loadedTo:a?TR('Cargado → ','Loaded → ')+(a.city2||a.z2||'')+(a.state2?', '+a.state2:''):TR('Libre','Empty');
       if(!cell){ cell=document.createElement('div'); cell.id='eta-sp-'+id; cell.style.cssText='border:1px solid var(--border);border-radius:18px;overflow:hidden;background:var(--card,#fff);';
-        cell.innerHTML='<div class="sp-h" style="padding:10px 14px;"></div><div class="sp-m" style="height:46vh;min-height:260px;"></div>'; box.appendChild(cell); }
+        cell.innerHTML='<div class="sp-h" style="padding:10px 14px;"></div><div style="position:relative;"><div class="sp-m" style="height:46vh;min-height:260px;"></div><div class="sp-st" style="position:absolute;top:10px;left:10px;z-index:500;pointer-events:none;"></div></div>'; box.appendChild(cell); }
+      cell.querySelector('.sp-st').innerHTML=etaStatusBadge(H);
       cell.querySelector('.sp-h').innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;"><div style="font-size:16px;font-weight:900;">${etaEsc(r.tr.name||'')}${name?' · '+etaEsc(name):''}</div><span style="font-size:11px;font-weight:800;padding:3px 9px;border-radius:10px;white-space:nowrap;${(a||r.loadedTo)?'background:#E8F0FE;color:#1967D2;':'background:#E6F4EA;color:#137333;'}">${etaEsc(dest)}</span></div>
         <div style="font-size:13px;color:var(--text2);margin-top:3px;">📍 ${etaEsc(where||'—')} <span style="font-weight:700;color:${H.moving==='driving'?'#188038':H.moving==='stopped'?'#E37400':'var(--text3)'};">${etaEsc(mv)}</span></div>
         ${(r.eta&&r.pu&&!r.none)?(()=>{ const ms=Math.max(0,r.eta-Date.now()), m=Math.round(ms/60000), hh=Math.floor(m/60), mm=m%60; const when=new Date(r.eta).toLocaleString(window.TL_LANG==='en'?'en-US':'es-US',{weekday:'short',hour:'numeric',minute:'2-digit'});
@@ -20658,13 +20659,33 @@ function etaSplitDraw(){
       if(r.route&&r.route.length>1){ L.polyline(r.route,{color:'#1A73E8',weight:5,opacity:.9}).addTo(M._lay); r.route.forEach(x=>pts.push(x)); }
       if(r.pu&&!r.none){ L.marker([r.pu.lat,r.pu.lon],{icon:etaPinIcon()}).bindTooltip('Pick up: '+[r.pu.city,r.pu.abbr].filter(Boolean).join(', ')).addTo(M._lay); pts.push([r.pu.lat,r.pu.lon]); }
       else if(a&&a.z2&&typeof ZC!=='undefined'&&ZC[a.z2]){ const z=ZC[a.z2]; L.polyline([[H.lat,H.lon],[z.lat,z.lon]],{color:'#1E3A8A',weight:3,dashArray:'6 8',opacity:.7}).addTo(M._lay); L.circleMarker([z.lat,z.lon],{radius:7,color:'#fff',weight:2,fillColor:'#1E3A8A',fillOpacity:1}).bindTooltip('Delivery: '+(a.city2||'')+', '+(a.state2||'')).addTo(M._lay); pts.push([z.lat,z.lon]); }
-      L.marker([H.lat,H.lon],{icon:etaTruckIcon((r.tr.name||'')+(name?' · '+name:''),H.src==='last'?'#80868B':'#1E3A8A'),zIndexOffset:500}).addTo(M._lay);
+      L.marker([H.lat,H.lon],{icon:etaTruckIcon((r.tr.name||'')+(name?' · '+name:''),etaStatusColor(H)),zIndexOffset:500}).addTo(M._lay);
       setTimeout(()=>{ try{ M.invalidateSize(); if(pts.length>1) M.fitBounds(pts,{padding:[30,30],maxZoom:11}); else M.setView(pts[0],9); }catch(e){} },150);
     });
     [...box.children].forEach(c=>{ const id=c.id.replace('eta-sp-',''); if(!keep[id]){ try{ _etaSplit[id]&&_etaSplit[id].remove(); }catch(e){} delete _etaSplit[id]; c.remove(); } });
   }catch(e){ console.warn('eta split',e); }
 }
-(function(){ const f=window.etaDraw; if(typeof f!=='function') return; window.etaDraw=function(){ const r=f.apply(this,arguments); etaSplitDraw(); return r; }; })();
+function etaStatusColor(H){ if(!H||H.src==='last'||H.old) return '#80868B'; return H.moving==='driving'?'#16A34A':H.moving==='stopped'?'#EA580C':'#1E3A8A'; }
+function etaStatusBadge(H,label){
+  let t,c,ic;
+  if(!H){ t=TR('Sin señal','No signal'); c='#6B7280'; ic='⚪'; }
+  else if(H.src==='last'||H.old){ t=TR('Sin señal en vivo','No live signal'); c='#6B7280'; ic='⚪'; }
+  else if(H.moving==='driving'){ t=TR('MANEJANDO','DRIVING')+(H.speed!=null?' · '+Math.round(H.speed)+' mph':''); c='#16A34A'; ic='🟢'; }
+  else if(H.moving==='stopped'){ t=TR('DETENIDO','STOPPED'); c='#EA580C'; ic='🟠'; }
+  else { t=TR('En línea','Online'); c='#1E3A8A'; ic='🔵'; }
+  const ago=H&&H.ago!=null?(H.ago<60?H.ago+' min':Math.round(H.ago/60)+' h'):'';
+  return `<div style="display:inline-flex;flex-direction:column;background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.25);padding:7px 11px;border-left:5px solid ${c};">
+    ${label?`<span style="font-size:11px;font-weight:800;color:#374151;">${etaEsc(label)}</span>`:''}<span style="font-size:14px;font-weight:900;color:${c};">${ic} ${t}</span>${ago?`<span style="font-size:10.5px;color:#6B7280;">${TR('señal de hace ','signal ')+ago}${window.TL_LANG==='en'?' ago':''}</span>`:''}</div>`;
+}
+// Mapa grande: recuadro con el estado de cada camión (manejando / detenido)
+function etaMainStatus(){
+  try{ const el=document.getElementById('eta-map'); if(!el) return; const wrap=el.parentElement; if(getComputedStyle(wrap).position==='static') wrap.style.position='relative';
+    let b=document.getElementById('eta-main-st'); if(!b){ b=document.createElement('div'); b.id='eta-main-st'; b.setAttribute('data-no-tr','1'); b.style.cssText='position:absolute;left:10px;bottom:10px;z-index:1001;display:flex;flex-direction:column;gap:6px;pointer-events:none;'; wrap.appendChild(b); }
+    const rows=((_etaLast&&_etaLast.calc)||etaShow(_etaFleet||[])).filter(r=>r&&r.tr);
+    b.innerHTML=rows.map(r=>etaStatusBadge(r.here,(r.tr.name||'')+(r.drvName?' · '+r.drvName.split(' ')[0]:''))).join('');
+  }catch(e){}
+}
+(function(){ const f=window.etaDraw; if(typeof f!=='function') return; window.etaDraw=function(){ const r=f.apply(this,arguments); etaSplitDraw(); etaMainStatus(); return r; }; })();
 </script>
 
 <script>

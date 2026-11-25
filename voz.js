@@ -485,27 +485,65 @@
 
   // ---------- voz ----------
   // iPhone: la voz solo suena si primero se "desbloquea" con un toque del usuario (botón, enviar, chip)
-  var ttsReady = false;
+  // ---------- voz de las respuestas ----------
+  // iPhone: la voz del navegador (speechSynthesis) muchas veces no suena (botón de silencio, después del micrófono, app instalada).
+  // Por eso en iPhone se reproduce un audio MP3 (como una nota de voz), que sí suena; si falla, se usa la voz del navegador.
+  var IOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  var SILENT = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
+  var au = null, auTok = 0, ttsReady = false;
+  function auEl(){ if (!au) { au = new Audio(); au.preload = 'auto'; au.setAttribute('playsinline', ''); au.setAttribute('webkit-playsinline', ''); } return au; }
   function unlockTTS(){
+    try { var a = auEl(); if (!a.dataset.ok) { a.src = SILENT; var pr = a.play(); if (pr && pr.then) pr.then(function(){ a.dataset.ok = '1'; }).catch(function(){}); } } catch(e){}
     if (ttsReady || !window.speechSynthesis) return;
     try { var u0 = new SpeechSynthesisUtterance(' '); u0.volume = 0; speechSynthesis.speak(u0); speechSynthesis.getVoices(); ttsReady = true; } catch(e){}
   }
-  function speak(text){
+  function stopVoice(){ auTok++; try { if (au) au.pause(); } catch(e){} try { if (window.speechSynthesis) speechSynthesis.cancel(); } catch(e){} }
+  function muted(){ var m = $('yvoz-mute'); return m && m.dataset.on === '1'; }
+  function cleanSay(t){ return String(t || '').replace(/[*#_`>~]/g, '').replace(/https?:\/\/\S+/g, '').replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/gu, '').replace(/\s+/g, ' ').trim(); }
+  function chunks(t){
+    var out = [], cur = ''; (t.match(/[^.!?;:,]+[.!?;:,]*\s*/g) || [t]).forEach(function(sn){ sn = sn.trim(); if (!sn) return;
+      while (sn.length > 180) { var cut = sn.lastIndexOf(' ', 180); if (cut < 60) cut = 180; if (cur) { out.push(cur); cur = ''; } out.push(sn.slice(0, cut)); sn = sn.slice(cut).trim(); }
+      if ((cur + ' ' + sn).trim().length > 180) { if (cur) out.push(cur); cur = sn; } else cur = (cur + ' ' + sn).trim();
+    }); if (cur) out.push(cur); return out.filter(Boolean);
+  }
+  function sayAudio(text, onFail){
+    var parts = chunks(cleanSay(text)); if (!parts.length) return;
+    var a = auEl(), i = 0, my = ++auTok, lang = IS_DRIVER ? 'en' : 'es';
+    var ref = document.createElement('meta'); ref.name = 'referrer'; ref.content = 'no-referrer';
+    var unref = function(){ try { ref.remove(); } catch(e){} };
+    function next(){
+      if (my !== auTok) return;
+      if (i >= parts.length) { status(); return; }
+      document.head.appendChild(ref); setTimeout(unref, 2500);
+      a.src = 'https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=' + lang + '&q=' + encodeURIComponent(parts[i++]);
+      var pr = a.play(); if (pr && pr.catch) pr.catch(function(){ unref(); if (my !== auTok) return; status(); if (i <= 1 && onFail) onFail(); });
+    }
+    a.onloadstart = unref; a.onended = next;
+    a.onerror = function(){ unref(); if (my !== auTok || a.src === SILENT || /^data:/.test(a.src)) return; status(); if (i <= 1 && onFail) onFail(); };
+    status(T('hablando…', 'speaking…')); next();
+  }
+  function saySynth(text, onFail){
     try {
-      if (!window.speechSynthesis || $('yvoz-mute').dataset.on === '1') return;
-      // en iPhone, cancel() y speak() seguidos a veces se queda callado: se espera un momento
-      if (speechSynthesis.speaking || speechSynthesis.pending) { speechSynthesis.cancel(); setTimeout(function(){ speak(text); }, 300); return; }
+      if (!window.speechSynthesis) { if (onFail) onFail(); return; }
+      if (speechSynthesis.speaking || speechSynthesis.pending) { speechSynthesis.cancel(); setTimeout(function(){ saySynth(text, onFail); }, 300); return; }
       try { speechSynthesis.resume(); } catch(e){}
-      var u = new SpeechSynthesisUtterance(text.replace(/[*#_`]/g, ''));
+      var u = new SpeechSynthesisUtterance(cleanSay(text)), started = false;
       u.lang = IS_DRIVER ? 'en-US' : 'es-US'; u.rate = 1.03;
       var vs = speechSynthesis.getVoices().filter(function(v){ return v.lang && v.lang.toLowerCase().indexOf(IS_DRIVER ? 'en' : 'es') === 0; });
       if (vs.length) u.voice = vs.find(function(v){ return /US|MX|419/i.test(v.lang); }) || vs[0];
-      u.onstart = function(){ status(T('hablando…', 'speaking…')); }; u.onend = u.onerror = function(){ status(); };
+      u.onstart = function(){ started = true; status(T('hablando…', 'speaking…')); }; u.onend = u.onerror = function(){ status(); };
       speechSynthesis.speak(u);
-    } catch(e){}
+      if (onFail) setTimeout(function(){ if (!started && !speechSynthesis.speaking) { try { speechSynthesis.cancel(); } catch(e){} onFail(); } }, 2000);
+    } catch(e){ if (onFail) onFail(); }
+  }
+  function speak(text){
+    if (muted() || !text) return;
+    stopVoice();
+    if (IOS) sayAudio(text, function(){ saySynth(text); });
+    else saySynth(text, function(){ sayAudio(text); });
   }
   function listen(){
-    try { if (window.speechSynthesis) speechSynthesis.cancel(); } catch(e){}
+    stopVoice();
     var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) { show(); $('yvoz-in').focus(); setHint(T('Este navegador no deja usar el micrófono aquí; escribe tu pregunta.', 'Voice is not available in this browser; type your question.')); return; }
     if (listening && rec) { try { rec.stop(); } catch(e){} return; }
@@ -652,10 +690,10 @@
       '<form id="yvoz-f"><button type="button" id="yvoz-att" aria-label="' + T('Adjuntar captura', 'Attach screenshot') + '">' + IC.clip + '</button><input id="yvoz-in" autocomplete="off" enterkeyhint="send" placeholder="' + T('Escribe o toca el micrófono', 'Type or tap the mic') + '">' +
       '<button type="button" id="yvoz-go" aria-label="' + T('Hablar', 'Talk') + '">' + IC.mic + '</button></form>';
     document.body.appendChild(p);
-    $('yvoz-x').onclick = function(){ p.style.display = 'none'; try { if (listening && rec) rec.stop(); speechSynthesis.cancel(); } catch(e){} };
-    $('yvoz-mute').onclick = function(){ var m = this.dataset.on === '1' ? '0' : '1'; this.dataset.on = m; this.innerHTML = m === '1' ? IC.off : IC.vol; this.setAttribute('aria-label', m === '1' ? T('Voz apagada', 'Voice off') : T('Voz encendida', 'Voice on')); if (m === '1') try { speechSynthesis.cancel(); } catch(e){} };
+    $('yvoz-x').onclick = function(){ p.style.display = 'none'; try { if (listening && rec) rec.stop(); } catch(e){} stopVoice(); };
+    $('yvoz-mute').onclick = function(){ var m = this.dataset.on === '1' ? '0' : '1'; this.dataset.on = m; this.innerHTML = m === '1' ? IC.off : IC.vol; this.setAttribute('aria-label', m === '1' ? T('Voz apagada', 'Voice off') : T('Voz encendida', 'Voice on')); if (m === '1') stopVoice(); };
     if ($('yvoz-cfg')) $('yvoz-cfg').onclick = function(){ setupCfg(); };
-    if ($('yvoz-out')) $('yvoz-out').onclick = function(){ try { speechSynthesis.cancel(); } catch(e){} try { if (typeof doLogout === 'function') doLogout(); } catch(e){} };
+    if ($('yvoz-out')) $('yvoz-out').onclick = function(){ stopVoice(); try { if (typeof doLogout === 'function') doLogout(); } catch(e){} };
     $('yvoz-hud').onclick = function(){ hudHidden = true; hud(''); };
     $('yvoz-hud-mic').onclick = function(e){ e.stopPropagation(); unlockTTS(); listen(); };
     $('yvoz-in').oninput = sendBtn;

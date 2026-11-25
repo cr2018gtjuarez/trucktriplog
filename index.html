@@ -20507,6 +20507,7 @@ function dhISO(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,
 function dhWeekStart(ds){ if(!ds) return ''; const p=ds.split('-').map(Number); const d=new Date(p[0],p[1]-1,p[2]); d.setDate(d.getDate()-((d.getDay()+1)%7)); return dhISO(d); }   // semana sábado a viernes
 function dhDate(t){ try{ return repTripDate(t)||t.date||''; }catch(e){ return t.deliveryDate||t.date||''; } }
 function dhMi(t){ try{ return tripTotalMiles(t)||0; }catch(e){ return parseFloat(t.miles)||0; } }
+try{ if(typeof PRO_ICONS!=='undefined'&&PRO_ICONS.home&&!PRO_ICONS.dhome) PRO_ICONS.dhome=PRO_ICONS.home; }catch(e){}
 function renderDispatchHome(){
   const box=document.getElementById('dhome-body'); if(!box) return;
   const all=(loadTrips()||[]).filter(t=>t.tripStatus!=='cancelled');

@@ -7704,6 +7704,28 @@ function rcDate(s){
 }
 function rcCols(t){ return t.split(/\s{3,}/).map(x=>x.trim()).filter(Boolean); }
 
+// Contacto del broker en el RC (agente / rep): nombre, teléfono y correo. No toma los datos de YENAVI.
+function rcContact(L, all){
+  const out={contactName:null, contactPhone:null, contactEmail:null};
+  const mine=/yenavi|6498343/i;
+  const emails=(all.match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g)||[]).filter(x=>!mine.test(x)&&!/noreply|no-reply|donotreply/i.test(x));
+  const PH=/(?:\+?1[\s.-]?)?\(?(\d{3})\)?[\s.-]?(\d{3})[\s.-]?(\d{4})(?:\s*(?:x|ext\.?)\s*(\d{1,6}))?/i;
+  const KEY=/\b(Contact|Agent|Account\s*(?:Rep|Manager)|Carrier\s*(?:Rep|Sales|Manager|Representative)|Broker\s*(?:Rep|Contact)|Booked\s*By|Dispatcher|Rep(?:resentative)?|Coordinator|Logistics\s*(?:Rep|Coordinator))\b\s*(?:Name)?\s*[:\-]?\s*/i;
+  for(let i=0;i<L.length;i++){
+    const t=L[i]; if(mine.test(t)) continue; const k=t.match(KEY); if(!k) continue;
+    if(/Driver|Shipper|Receiver|Consignee|Emergency|After\s*Hours/i.test(t.slice(0,k.index+30))) continue;
+    const after=t.slice(k.index+k[0].length).trim().split(/\s{2,}|\t|\||\bPhone\b|\bEmail\b|\bTel\b|\bFax\b/i)[0].trim();
+    const nm=after.match(/^([A-Z][A-Za-z'.-]+(?: [A-Z][A-Za-z'.-]+){0,3})/);
+    if(nm&&!/^(Phone|Email|Fax|Name|Information|Info|Number|Us|The|Carrier|Broker)$/i.test(nm[1])&&!out.contactName) out.contactName=nm[1].trim();
+    const near=[t,L[i+1]||'',L[i+2]||''].join('  ');
+    const ph=near.match(PH); if(ph&&!out.contactPhone) out.contactPhone='('+ph[1]+') '+ph[2]+'-'+ph[3]+(ph[4]?' x'+ph[4]:'');
+    const em=near.match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/); if(em&&!mine.test(em[0])&&!out.contactEmail) out.contactEmail=em[0];
+    if(out.contactName&&out.contactPhone) break;
+  }
+  if(!out.contactEmail&&emails.length) out.contactEmail=emails[0];
+  if(!out.contactPhone){ for(const t of L){ if(mine.test(t)||/Driver|Shipper|Receiver|Consignee|Fax/i.test(t)) continue; if(/Phone|Tel|Office|Cell|Direct/i.test(t)){ const ph=t.match(PH); if(ph){ out.contactPhone='('+ph[1]+') '+ph[2]+'-'+ph[3]+(ph[4]?' x'+ph[4]:''); break; } } } }
+  return out;
+}
 function rcParse(lines){
   const L = lines.map(l=>l.t);
   const all = L.join('\n');
@@ -7776,6 +7798,7 @@ function rcParse(lines){
   // fecha: si una parada no trajo fecha, buscar en las 2 líneas siguientes del encabezado ya está cubierto; usar la de la parada anterior del mismo tipo
   R.stops.forEach((s,i)=>{ if(!s.date){ const p=R.stops.slice(0,i).reverse().find(x=>x.type===s.type&&x.date); if(p) s.date=p.date; } });
   if(R.lineHaul==null && R.rate!=null && !R.extras.length) R.lineHaul=R.rate;
+  try{ Object.assign(R, rcContact(L, all)); }catch(e){}
   return R;
 }
 
@@ -8008,7 +8031,7 @@ async function rcUploadLater(input, kind, where){
   if(kind!=='rc' || !rcIsPdf(file)) return;
   let R=null; try{ R=await readRcFile(file); }catch(e){ return; }
   const t=loadTrips().find(x=>String(x.id)===String(tripId)); if(!t||!R) return;
-  { const T=loadTrips(); const k=T.findIndex(x=>String(x.id)===String(tripId)); if(k>=0){ const up={rcStops:R.stops, rcNotes:R.notes||[]}; if(R.docsEmail && !t.brokerEmail) up.brokerEmail=R.docsEmail; T[k]={...T[k],...up}; await storeTrips(T); } }
+  { const T=loadTrips(); const k=T.findIndex(x=>String(x.id)===String(tripId)); if(k>=0){ const up={rcStops:R.stops, rcNotes:R.notes||[]}; if(R.docsEmail && !t.brokerEmail) up.brokerEmail=R.docsEmail; if(!R.docsEmail && R.contactEmail && !t.brokerEmail) up.brokerEmail=R.contactEmail; if(R.contactName && !t.brokerContact) up.brokerContact=R.contactName; if(R.contactPhone && !t.brokerPhone) up.brokerPhone=R.contactPhone; if(R.contactEmail && !t.brokerContactEmail) up.brokerContactEmail=R.contactEmail; T[k]={...T[k],...up}; await storeTrips(T); } }
   const rows=rcDiffRows(t,R);
   const note=where==='edit'?TR('Los cambios se ponen en esta ventana. Presiona <b>Guardar</b> para que se recalculen el pago del driver, el fee, la ganancia y el rate.','Changes are placed in this window. Press <b>Save</b> so driver pay, fee, profit and rate are recalculated.')
     :TR('El pago se pone solo cuando finalices el viaje.','The pay is filled in when you finish the trip.');
@@ -8327,7 +8350,7 @@ async function adminStartTrip(){
       zStart: zStart||null, cityStart: zStart&&ZC[zStart]?ZC[zStart].city:null, stateStart: zStart&&ZC[zStart]?ZC[zStart].abbr:null,
       gpsMiles, deadMiles: deadFinal, deadMilesSrc: deadSrcFinal,
       loadType: isPartial?'partial':'full',
-      rcRate: rcP&&rcP.rate!=null?rcP.rate:null, brokerEmail: (rcP&&rcP.docsEmail)||null, rcExtras: rcP?rcP.extras:null, rcStops: rcP?rcP.stops:null, rcNotes: rcP?(rcP.notes||[]):null,
+      rcRate: rcP&&rcP.rate!=null?rcP.rate:null, brokerEmail: (rcP&&(rcP.docsEmail||rcP.contactEmail))||null, brokerContact: (rcP&&rcP.contactName)||null, brokerPhone: (rcP&&rcP.contactPhone)||null, brokerContactEmail: (rcP&&rcP.contactEmail)||null, rcExtras: rcP?rcP.extras:null, rcStops: rcP?rcP.stops:null, rcNotes: rcP?(rcP.notes||[]):null,
       roadMiles: (rcP && rcP.stops.length>2 && routeMiles)?routeMiles:undefined,
       parentTripId: parentTrip?parentTrip.id:null,
       desvioMiles: parentTrip?desvioMiles:null,
@@ -17113,7 +17136,9 @@ function podEmailHTML(t){
   const sent=t.podSentAt?new Date(t.podSentAt):null;
   const sentTxt=sent&&!isNaN(sent)?(sent.getMonth()+1)+'/'+sent.getDate()+' '+sent.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}):'';
   const mail=t.brokerEmail?'<b style="word-break:break-all;">'+e(t.brokerEmail)+'</b>':'<span style="color:var(--red);font-weight:700;">'+(en?'No email — the RC did not have one':'Sin correo — el RC no lo trae')+'</span>';
-  return '<div class="pod-email-box" style="background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:10px 12px;margin:8px 0;font-size:13px;line-height:1.5;">'+
+  const tel=t.brokerPhone?String(t.brokerPhone).replace(/[^\d+x]/g,'').replace(/x.*/,''):'';
+  const contact=(t.brokerContact||t.brokerPhone||t.brokerContactEmail)?'<div style="margin-bottom:6px;padding-bottom:6px;border-bottom:1px dashed var(--border2);">👤 <b>'+(en?'Broker contact':'Contacto del broker')+(t.brokerName||t.broker?' · '+e(t.brokerName||t.broker):'')+'</b><br>'+(t.brokerContact?e(t.brokerContact):'')+(t.brokerPhone?(t.brokerContact?' · ':'')+'<a href="tel:'+e(tel)+'" style="font-weight:800;">📞 '+e(t.brokerPhone)+'</a>':'')+(t.brokerContactEmail?'<br><a href="mailto:'+e(t.brokerContactEmail)+'" style="word-break:break-all;">✉️ '+e(t.brokerContactEmail)+'</a>':'')+'</div>':'';
+  return '<div class="pod-email-box" style="background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:10px 12px;margin:8px 0;font-size:13px;line-height:1.5;">'+contact+
     '<div>📧 '+(en?'Send POD to: ':'Mandar POD a: ')+mail+
     ' <button type="button" class="btn-sm" onclick="editBrokerEmail(\''+e(t.id)+'\')" style="padding:2px 8px;font-size:11px;margin-left:4px;">✏️ '+(en?'Change':'Cambiar')+'</button></div>'+
     (sent?'<div style="color:var(--green);font-weight:700;">✅ '+(en?'POD sent ':'POD enviado el ')+sentTxt+(t.podSentTo?(en?' to ':' a ')+e(t.podSentTo):'')+'</div>'
@@ -20748,7 +20773,7 @@ function etaQ2Pick(k){ const s=_q2Sugs[k]; if(!s) return; const i=document.getEl
 
 <script>
 // ===== Versión de la app bien visible (encabezado, menú y pantalla de entrada) =====
-const APP_VERSION='yenavi-2026-11-25h';   // se cambia junto con VERSION de sw.js en cada subida
+const APP_VERSION='yenavi-2026-11-25i';   // se cambia junto con VERSION de sw.js en cada subida
 function appVerShort(){ const m=APP_VERSION.match(/(\d{4})-(\d{2})-(\d{2})([a-z]*)/); if(!m) return APP_VERSION; const mes=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][+m[2]-1]; return 'v'+(+m[3])+' '+mes+(m[4]?' '+m[4].toUpperCase():''); }
 function appVerShow(){
   try{

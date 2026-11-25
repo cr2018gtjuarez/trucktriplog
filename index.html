@@ -20540,10 +20540,69 @@ function dhPatchReport(){
   const list=done.slice().sort((a,b)=>rpTripDate(b).localeCompare(rpTripDate(a)));
   if(list.length) g('rp-trip-table').innerHTML=list.map(t=>{ const d=rpTripDate(t); const mi=(tripDistance(t).mi||0)+(tripDeadMiles(t)||0);
     return row(rpEsc(t.city1||'—')+' → '+rpEsc(t.city2||'—'),(d&&d!==t.date?'Inicio '+fmtDate(t.date)+' · Entrega '+fmtDate(d):(t.date?fmtDate(t.date):''))+' · '+rpEsc(t.driverName||'—')+(t.rc?' · RC '+rpEsc(t.rc):'')+'<br>'+rpNum(mi)+' mi'+(mi>0&&t.loadVal?' · $'+(t.loadVal/mi).toFixed(2)+'/mi':'')+(t.brokerName||t.broker?' · '+rpEsc(t.brokerName||t.broker):''),rpMoney(t.loadVal),`<span class="rp-pill ${t.payStatus==='paid'?'paid':'pend'}">${t.payStatus==='paid'?'Cobrado':'Sin cobrar'}</span>`); }).join('');
-  // En tránsito (arriba del análisis)
-  let tc=g('dh-transit'); if(!tc){ tc=document.createElement('div'); tc.id='dh-transit'; tc.className='card rp-card'; const hero=document.querySelector('#admin-full-report .rp-hero'); if(hero&&hero.parentElement) hero.parentElement.insertBefore(tc,hero.nextSibling); }
-  const act=trips.filter(t=>t.tripStatus==='active');
-  tc.innerHTML=`<div class="rp-card-h"><span>En tránsito</span><span class="rp-muted">${act.length} viaje${act.length!==1?'s':''}</span></div>`+(act.length?act.map(t=>{ const lv=parseFloat(t.loadVal)||parseFloat(t.rcRate)||0; return row(rpEsc(t.city1||'—')+' → '+rpEsc(t.city2||'—'),rpEsc(t.driverName||'—')+(t.rc?' · RC '+rpEsc(t.rc):'')+(t.brokerName||t.broker?' · '+rpEsc(t.brokerName||t.broker):''),lv?rpMoney(lv):TR('Sin pago aún','No pay yet'),''); }).join(''):'<div class="home-empty">'+TR('No hay viajes en tránsito.','No trips in transit.')+'</div>');
+  // ===== Flota ahora + gráfica de semanas (arriba del análisis) =====
+  const hero=document.querySelector('#admin-full-report .rp-hero');
+  const mk=(id)=>{ let c=g(id); if(!c){ c=document.createElement('div'); c.id=id; c.className='card rp-card'; } return c; };
+  const fleet=mk('dh-fleet'), chartC=mk('dh-chart');
+  const old=g('dh-transit'); if(old) old.remove();
+  if(hero&&hero.parentElement){ hero.parentElement.insertBefore(chartC,hero.nextSibling); hero.parentElement.insertBefore(fleet,hero.nextSibling); }
+  dhFleet(fleet); dhChart(chartC, trips);
+}
+// --- Flota ahora: cada camión con driver, señal en vivo, a dónde va y cuándo llega ---
+let _dhFleetAt=0, _dhFleetHTML='';
+async function dhFleet(box){
+  const head=`<div class="rp-card-h"><span>🚚 ${TR('Flota ahora','Fleet now')}</span><button class="btn-sm" onclick="_dhFleetAt=0;dhFleet(document.getElementById('dh-fleet'))">↻</button></div>`;
+  if(_dhFleetHTML&&Date.now()-_dhFleetAt<60000){ box.innerHTML=head+_dhFleetHTML; return; }
+  if(!_dhFleetHTML) box.innerHTML=head+'<div class="home-empty">⏳ '+TR('Buscando los camiones…','Locating trucks…')+'</div>';
+  const trucks=loadTrucks()||[], users=getUsers()||[], trips=loadTrips()||[], live={}, now=Date.now();
+  try{ if(typeof fbReady!=='undefined'&&fbReady&&db){ const sn=await db.collection('locations').get(); sn.forEach(d=>live[d.id]=d.data()); } }catch(e){}
+  const cards=[];
+  for(const tr of trucks){
+    const drv=users.find(u=>u.role!=='admin'&&u.role!=='dispatch'&&u.role!=='contador'&&String(u.truckId)===String(tr.id));
+    const act=trips.filter(t=>t.tripStatus==='active'&&tripTruckId(t)===String(tr.id))[0]||null;
+    if(!drv&&!act) continue;
+    const recs=[live['truck_'+tr.id],drv&&live[drv.username]].filter(v=>v&&v.lat!=null&&v.lon!=null).map(v=>Object.assign({},v,{tm:typeof v.time==='number'?v.time:Date.parse(v.time)})).filter(v=>v.tm).sort((a,b)=>b.tm-a.tm);
+    const L=recs[0]; let where='—', ago=null;
+    if(L){ ago=Math.round((now-L.tm)/60000); try{ const gq=await dlRevGeo(+L.lat,+L.lon); if(gq) where=[gq.city,gq.st].filter(Boolean).join(', ')+(gq.zip?' '+gq.zip:''); }catch(e){} }
+    const st=!L?['#9CA3AF',TR('Sin señal','No signal')]:ago>60?['#9CA3AF',TR('Señal de hace ','Signal ')+(ago<1440?Math.round(ago/60)+' h':Math.round(ago/1440)+' d')]:L.movingStatus==='driving'?['#16A34A',TR('Manejando','Driving')+(L.speedMph!=null?' · '+Math.round(L.speedMph)+' mph':'')]:L.movingStatus==='stopped'?['#EA580C',TR('Detenido','Stopped')]:['#6B7280',TR('En línea','Online')];
+    let eta=null; if(act){ try{ eta=await deliveryEta(act); }catch(e){} }
+    const name=(drv?(drv.firstName||drv.name||drv.username):(act&&act.driverName)||'').split(' ')[0];
+    const lv=act?(parseFloat(act.loadVal)||parseFloat(act.rcRate)||0):0;
+    const pct=(act&&eta&&eta.tot>0&&eta.miles!=null)?Math.max(3,Math.min(100,Math.round((1-eta.miles/eta.tot)*100))):null;
+    const etaTxt=eta&&eta.eta?(eta.arrived?TR('Llegó','Arrived'):new Date(eta.eta).toLocaleString('es-US',{weekday:'short',hour:'numeric',minute:'2-digit'})):'';
+    cards.push(`<div style="border:1px solid var(--border);border-radius:14px;padding:12px 14px;margin-top:10px;background:var(--bg3);">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+        <div style="display:flex;align-items:center;gap:10px;min-width:0;"><div style="width:38px;height:38px;border-radius:12px;background:#1E3A8A;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:13px;flex:none;">T${rpEsc(((tr.name||'').match(/\d+/)||['?'])[0])}</div>
+          <div style="min-width:0;"><div style="font-size:15px;font-weight:800;">${rpEsc(tr.name||'')}${name?' · '+rpEsc(name.charAt(0).toUpperCase()+name.slice(1).toLowerCase()):''}</div><div style="font-size:12px;color:var(--text3);">📍 ${rpEsc(where)}</div></div></div>
+        <span style="font-size:11px;font-weight:800;color:${st[0]};white-space:nowrap;">● ${st[1]}</span>
+      </div>
+      ${act?`<div style="margin-top:10px;display:flex;justify-content:space-between;gap:8px;font-size:13px;"><div style="min-width:0;"><b>${rpEsc(act.city1||'')}, ${rpEsc(act.state1||'')} → ${rpEsc(act.city2||'')}, ${rpEsc(act.state2||'')}</b><div style="font-size:11.5px;color:var(--text3);">${rpEsc(act.brokerName||act.broker||'')}${act.rc?' · RC '+rpEsc(act.rc):''}</div></div><div style="text-align:right;white-space:nowrap;"><b>${lv?rpMoney(lv):TR('Sin pago aún','No pay yet')}</b>${etaTxt?`<div style="font-size:11.5px;color:var(--text3);">ETA ${rpEsc(etaTxt)}</div>`:''}</div></div>
+        ${pct!=null?`<div style="height:6px;border-radius:4px;background:var(--border);margin-top:8px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#1E3A8A,#3B82F6);"></div></div><div style="font-size:11px;color:var(--text3);margin-top:3px;">${pct}% · ${rpNum(eta.miles)} mi ${TR('para llegar','to go')}</div>`:''}`
+      :`<div style="margin-top:8px;font-size:12.5px;font-weight:700;color:#16A34A;">✓ ${TR('Libre · listo para la siguiente carga','Empty · ready for the next load')}</div>`}
+    </div>`);
+  }
+  _dhFleetHTML=cards.join('')||'<div class="home-empty">'+TR('No hay camiones con driver.','No trucks with a driver.')+'</div>'; _dhFleetAt=Date.now();
+  const b=document.getElementById('dh-fleet'); if(b) b.innerHTML=head+_dhFleetHTML;
+}
+// --- Gráfica: load value de las últimas 8 semanas (sáb–vie) con rate por milla ---
+let _dhChart=null;
+function dhChart(box, trips){
+  const wkStart=ds=>{ const p=ds.split('-').map(Number); const d=new Date(p[0],p[1]-1,p[2]); d.setDate(d.getDate()-((d.getDay()+1)%7)); return dhISO(d); };
+  const today=dhISO(new Date()), w0=wkStart(today), weeks=[];
+  for(let i=7;i>=0;i--){ const d=new Date(w0+'T12:00:00'); d.setDate(d.getDate()-7*i); weeks.push(dhISO(d)); }
+  const agg={}; weeks.forEach(w=>agg[w]={lv:0,mi:0,n:0});
+  trips.filter(t=>t.tripStatus==='completed').forEach(t=>{ const d=rpTripDate(t); if(!d) return; const w=wkStart(d); if(!agg[w]) return; agg[w].lv+=t.loadVal||0; agg[w].mi+=(tripDistance(t).mi||0)+(tripDeadMiles(t)||0); agg[w].n++; });
+  const lv=weeks.map(w=>Math.round(agg[w].lv)), rate=weeks.map(w=>agg[w].mi>0?+(agg[w].lv/agg[w].mi).toFixed(2):null);
+  const tot=lv.reduce((a,b)=>a+b,0), avg=Math.round(tot/8);
+  box.innerHTML=`<div class="rp-card-h"><span>📈 ${TR('Load value por semana','Load value by week')}</span><span class="rp-muted">${TR('prom.','avg')} ${rpMoney(avg).replace('.00','')}/${TR('sem','wk')}</span></div><div style="position:relative;height:210px;"><canvas id="dh-chart-c"></canvas></div>`;
+  if(typeof Chart==='undefined') return;
+  try{ if(_dhChart) _dhChart.destroy(); }catch(e){}
+  _dhChart=new Chart(document.getElementById('dh-chart-c'),{
+    data:{labels:weeks.map(w=>{ const p=w.split('-'); return p[1]+'/'+p[2]; }),
+      datasets:[{type:'bar',label:'Load value',data:lv,backgroundColor:weeks.map((w,i)=>i===7?'#3B82F6':'#1E3A8A'),borderRadius:6,yAxisID:'y'},
+                {type:'line',label:'$/mi',data:rate,borderColor:'#F59E0B',backgroundColor:'#F59E0B',tension:.35,pointRadius:3,spanGaps:true,yAxisID:'y1'}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,labels:{boxWidth:10,font:{size:11}}},tooltip:{callbacks:{label:c=>c.dataset.yAxisID==='y1'?' $'+(c.raw||0).toFixed(2)+'/mi':' $'+(c.raw||0).toLocaleString('en-US')}}},
+      scales:{x:{grid:{display:false},ticks:{font:{size:10}}},y:{beginAtZero:true,ticks:{font:{size:10},callback:v=>'$'+(v>=1000?(v/1000)+'k':v)}},y1:{position:'right',beginAtZero:true,grid:{display:false},ticks:{font:{size:10},callback:v=>'$'+v}}}}});
 }
 (function(){ const f=window.renderAdminReport; if(typeof f!=='function') return;
   window.renderAdminReport=function(){ const r=f.apply(this,arguments); if(isDispatch()) try{ dhPatchReport(); }catch(e){ console.warn('dh',e); } return r; }; })();

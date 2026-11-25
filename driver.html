@@ -16625,6 +16625,24 @@ window.addEventListener('load', function(){
 })();
 </script>
 <script src="visor.js?v=2" defer></script>
+<script>
+// ===== Versión de la app bien visible (encabezado, menú y pantalla de entrada) =====
+const APP_VERSION='yenavi-2026-11-25f';   // se cambia junto con VERSION de sw.js en cada subida
+function appVerShort(){ const m=APP_VERSION.match(/(\d{4})-(\d{2})-(\d{2})([a-z]*)/); if(!m) return APP_VERSION; const mes=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][+m[2]-1]; return 'v'+(+m[3])+' '+mes+(m[4]?' '+m[4].toUpperCase():''); }
+function appVerShow(){
+  try{
+    const v=appVerShort();
+    // 1) encabezado, junto al nombre de la compañía (se ve también en el celular)
+    const h=document.querySelector('.pro-company'); if(h&&!document.getElementById('app-ver-chip')){ const c=document.createElement('span'); c.id='app-ver-chip'; c.setAttribute('data-no-tr','1'); c.title='Versión de la app'; c.style.cssText='display:inline-block;margin-left:8px;padding:2px 8px;border-radius:999px;background:#DCFCE7;color:#166534;font-size:11px;font-weight:800;vertical-align:middle;letter-spacing:.2px;white-space:nowrap;'; c.textContent=v; h.appendChild(c); }
+    // 2) abajo del menú
+    const f=document.querySelector('.sidebar-footer'); if(f&&!document.getElementById('app-ver-side')){ const d=document.createElement('div'); d.id='app-ver-side'; d.setAttribute('data-no-tr','1'); d.style.cssText='text-align:center;font-size:12.5px;font-weight:800;padding:8px;margin-bottom:8px;border-radius:10px;background:rgba(34,197,94,.15);color:#22C55E;'; d.textContent='📱 '+(window.TL_LANG==='es'?'Versión de la app: ':'App version: ')+v; f.insertBefore(d,f.firstChild); }
+    // 3) pantalla de entrada
+    const l=document.getElementById('login-screen'); if(l&&!document.getElementById('app-ver-login')){ const d=document.createElement('div'); d.id='app-ver-login'; d.setAttribute('data-no-tr','1'); d.style.cssText='text-align:center;font-size:12px;font-weight:700;color:#6B7280;margin:14px 0 4px;'; d.textContent=(window.TL_LANG==='es'?'Versión ':'Version ')+v; (l.querySelector('.login-box,.login-card')||l).appendChild(d); }
+  }catch(e){}
+}
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',appVerShow); else appVerShow();
+setTimeout(appVerShow,1500);
+</script>
 <script src="voz.js?v=19" defer></script>
 <script src="pod-check.js?v=1" defer></script>
 <script src="solicitud.js?v=6" defer></script>

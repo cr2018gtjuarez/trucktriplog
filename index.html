@@ -4749,8 +4749,8 @@ if(ETA_APP){ try{
 const ETA_APP_PAGES=['eta'];
 const ETA_APP_MENU=[{id:'eta',icon:'⏱️',label:'ETA',es:'ETA',en:'ETA',main:1}];
 // Usuario Dispatch: ETA + Historial (todo el historial, solo para ver; no puede editar ni borrar)
-const DISPATCH_PAGES=['dhome','eta','entransito','log','mercado'];
-const DISPATCH_MENU=[{id:'dhome',icon:'📊',label:'Dashboard',es:'Dashboard',en:'Dashboard',main:1},{id:'eta',icon:'⏱️',label:'ETA',es:'ETA',en:'ETA'},{id:'entransito',icon:'🚚',label:'En Tránsito',es:'En Tránsito',en:'In transit'},{id:'log',icon:'📋',label:'Historial',es:'Historial',en:'History'},{id:'mercado',icon:'📊',label:'Análisis de mercado',es:'Mercado',en:'Market'}];
+const DISPATCH_PAGES=['dhome','new','eta','entransito','log','mercado'];
+const DISPATCH_MENU=[{id:'dhome',icon:'📊',label:'Dashboard',es:'Dashboard',en:'Dashboard',main:1},{id:'new',icon:'➕',label:'Nuevo viaje',es:'Nuevo',en:'New'},{id:'eta',icon:'⏱️',label:'ETA',es:'ETA',en:'ETA'},{id:'entransito',icon:'🚚',label:'En Tránsito',es:'En Tránsito',en:'In transit'},{id:'log',icon:'📋',label:'Historial',es:'Historial',en:'History'},{id:'mercado',icon:'📊',label:'Análisis de mercado',es:'Mercado',en:'Market'}];
 function isDispatch(){ return typeof currentUser!=='undefined'&&currentUser&&currentUser.role==='dispatch'; }
 function etaPagesFor(){ return isDispatch()?DISPATCH_PAGES:ETA_APP_PAGES; }
 function etaOnlyMode(){ return ETA_APP||(typeof currentUser!=='undefined'&&currentUser&&currentUser.role==='dispatch'); }
@@ -5508,7 +5508,7 @@ function startApp(user){
   const driverView=document.getElementById('driver-new-view');
   const adminView=document.getElementById('admin-new-view');
   if(driverView) driverView.style.display=user.role==='driver'?'block':'none';
-  if(adminView)  adminView.style.display=user.role==='admin'?'block':'none';
+  if(adminView)  adminView.style.display=(user.role==='admin'||user.role==='dispatch')?'block':'none';
   document.getElementById('app-tagline').textContent=user.role==='admin'?'Control de viajes, diesel y ganancias':'Registra tus viajes aquí';
   document.querySelectorAll('.page').forEach(p=>{p.classList.remove('active');p.style.display='none';});
   const first=document.getElementById('page-home');first.style.display='block';first.classList.add('active');
@@ -19511,7 +19511,7 @@ const DRIVER_SIDEBAR_ITEMS = [
 
 // ===== BARRA DE ABAJO (celular): lo más usado a un toque, y "Menú" abre el menú completo =====
 function bottomNavItems(role){
-  if(role==='dispatch') return DISPATCH_MENU;
+  if(role==='dispatch') return DISPATCH_MENU.filter(x=>['dhome','new','entransito','log'].includes(x.id));
   if(ETA_APP) return ETA_APP_MENU;
   if(role==='contador') return CT_MENU;
   return role==='admin'
@@ -19608,7 +19608,7 @@ function sidebarNav(id){
   if(id==='new'){ try{ fillTruckSelect('f-truck-admin', null, document.getElementById('f-driver-select')?.value); }catch(e){} }
   if(id==='new'){
     populateBrokerList();
-    if(currentUser && currentUser.role==='admin'){
+    if(currentUser && (currentUser.role==='admin'||currentUser.role==='dispatch')){
       // Nuevo viaje siempre inicia con el formulario en blanco —
       // los viajes ya iniciados se gestionan en "En Tránsito"
       document.getElementById('admin-step1').style.display='block';

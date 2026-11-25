@@ -20611,6 +20611,49 @@ function dhChart(box, trips){
 (function(){ const f=window.renderAdminReport; if(typeof f!=='function') return;
   window.renderAdminReport=function(){ const r=f.apply(this,arguments); if(isDispatch()) try{ dhPatchReport(); }catch(e){ console.warn('dh',e); } return r; }; })();
 </script>
+
+<script>
+// ===== ETA: pantalla dividida — mitad para cada camión (Jairo / Walter) cuando está en "Todos" =====
+let _etaSplit={};
+function etaSplitDraw(){
+  try{
+    const mapEl=document.getElementById('eta-map'); if(!mapEl||typeof L==='undefined') return;
+    const wrap=mapEl.parentElement; // tarjeta del mapa grande
+    const rows=((_etaLast&&_etaLast.calc)||(_etaFleet||[])).filter(r=>r&&r.tr&&r.here);
+    let box=document.getElementById('eta-split');
+    const on=!_etaDrv && rows.length>=2;
+    if(!on){ if(box) box.style.display='none'; wrap.style.display=''; return; }
+    if(!box){ box=document.createElement('div'); box.id='eta-split'; box.setAttribute('data-no-tr','1'); wrap.parentElement.insertBefore(box,wrap); }
+    box.style.cssText='display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:10px;margin-bottom:10px;';
+    wrap.style.display='none';
+    const keep={};
+    rows.slice(0,4).forEach(r=>{
+      const id=String(r.tr.id); keep[id]=1;
+      let cell=document.getElementById('eta-sp-'+id);
+      const H=r.here, name=(r.drvName||'').split(' ')[0];
+      const where=[H.city,H.st].filter(Boolean).join(', ')+(H.zip?' '+H.zip:'');
+      const mv=H.src==='last'?TR('Última entrega','Last delivery'):H.moving==='driving'?'● '+TR('Manejando','Driving')+(H.speed!=null?' '+Math.round(H.speed)+' mph':''):H.moving==='stopped'?'● '+TR('Detenido','Stopped'):'';
+      const a=r.active||(r.steps&&r.steps[0]&&r.steps[0].trip)||null;
+      const dest=r.loadedTo?TR('Cargado → ','Loaded → ')+r.loadedTo:a?TR('Cargado → ','Loaded → ')+(a.city2||a.z2||'')+(a.state2?', '+a.state2:''):TR('Libre','Empty');
+      if(!cell){ cell=document.createElement('div'); cell.id='eta-sp-'+id; cell.style.cssText='border:1px solid var(--border);border-radius:18px;overflow:hidden;background:var(--card,#fff);';
+        cell.innerHTML='<div class="sp-h" style="padding:10px 14px;"></div><div class="sp-m" style="height:46vh;min-height:260px;"></div>'; box.appendChild(cell); }
+      cell.querySelector('.sp-h').innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;"><div style="font-size:16px;font-weight:900;">${etaEsc(r.tr.name||'')}${name?' · '+etaEsc(name):''}</div><span style="font-size:11px;font-weight:800;padding:3px 9px;border-radius:10px;white-space:nowrap;${(a||r.loadedTo)?'background:#E8F0FE;color:#1967D2;':'background:#E6F4EA;color:#137333;'}">${etaEsc(dest)}</span></div>
+        <div style="font-size:13px;color:var(--text2);margin-top:3px;">📍 ${etaEsc(where||'—')} <span style="font-weight:700;color:${H.moving==='driving'?'#188038':H.moving==='stopped'?'#E37400':'var(--text3)'};">${etaEsc(mv)}</span></div>`;
+      let M=_etaSplit[id];
+      const mel=cell.querySelector('.sp-m');
+      if(!M||M._container!==mel){ M=L.map(mel,{zoomControl:false,attributionControl:false}); L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',{maxZoom:19}).addTo(M); M._lay=L.layerGroup().addTo(M); _etaSplit[id]=M; }
+      M._lay.clearLayers(); const pts=[[H.lat,H.lon]];
+      if(r.route&&r.route.length>1){ L.polyline(r.route,{color:'#1A73E8',weight:5,opacity:.9}).addTo(M._lay); r.route.forEach(x=>pts.push(x)); }
+      if(r.pu&&!r.none){ L.marker([r.pu.lat,r.pu.lon],{icon:etaPinIcon()}).bindTooltip('Pick up: '+[r.pu.city,r.pu.abbr].filter(Boolean).join(', ')).addTo(M._lay); pts.push([r.pu.lat,r.pu.lon]); }
+      else if(a&&a.z2&&typeof ZC!=='undefined'&&ZC[a.z2]){ const z=ZC[a.z2]; L.polyline([[H.lat,H.lon],[z.lat,z.lon]],{color:'#1E3A8A',weight:3,dashArray:'6 8',opacity:.7}).addTo(M._lay); L.circleMarker([z.lat,z.lon],{radius:7,color:'#fff',weight:2,fillColor:'#1E3A8A',fillOpacity:1}).bindTooltip('Delivery: '+(a.city2||'')+', '+(a.state2||'')).addTo(M._lay); pts.push([z.lat,z.lon]); }
+      L.marker([H.lat,H.lon],{icon:etaTruckIcon((r.tr.name||'')+(name?' · '+name:''),H.src==='last'?'#80868B':'#1E3A8A'),zIndexOffset:500}).addTo(M._lay);
+      setTimeout(()=>{ try{ M.invalidateSize(); if(pts.length>1) M.fitBounds(pts,{padding:[30,30],maxZoom:11}); else M.setView(pts[0],9); }catch(e){} },150);
+    });
+    [...box.children].forEach(c=>{ const id=c.id.replace('eta-sp-',''); if(!keep[id]){ try{ _etaSplit[id]&&_etaSplit[id].remove(); }catch(e){} delete _etaSplit[id]; c.remove(); } });
+  }catch(e){ console.warn('eta split',e); }
+}
+(function(){ const f=window.etaDraw; if(typeof f!=='function') return; window.etaDraw=function(){ const r=f.apply(this,arguments); etaSplitDraw(); return r; }; })();
+</script>
 <style>
   /* Dispatch: historial solo para ver */
   body.ro-dispatch #trip-list .trip button, body.ro-dispatch #trip-list .trip-actions{display:none!important}

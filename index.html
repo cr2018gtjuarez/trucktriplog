@@ -20703,6 +20703,8 @@ function etaQ2Pick(k){ const s=_q2Sugs[k]; if(!s) return; const i=document.getEl
   body.ro-dispatch #entransito-detail button[onclick*="adminCancelTrip"], body.ro-dispatch #entransito-detail button[onclick*="adminSaveProgress"], body.ro-dispatch #entransito-detail button[onclick*="adminFinishTrip"],
   body.ro-dispatch #entransito-detail button[onclick*="approveDoc"], body.ro-dispatch #entransito-detail button[onclick*="rejectDoc"], body.ro-dispatch #entransito-detail [onclick*="editBrokerEmail"],
   body.ro-dispatch #entransito-detail button[onclick*="removeInvoice"]{display:none!important}
+  /* Dispatch: sin ganancia del viaje (solo load value) */
+  body.ro-dispatch #entransito-detail .profit-breakdown, body.ro-dispatch #entransito-detail #net-box{display:none!important}
   body.ro-dispatch #entransito-detail .ro-lock, body.ro-dispatch #entransito-detail input:disabled, body.ro-dispatch #entransito-detail select:disabled, body.ro-dispatch #entransito-detail textarea:disabled{opacity:1!important;color:var(--text)!important;-webkit-text-fill-color:var(--text)!important;cursor:default}
 </style>
 <script>

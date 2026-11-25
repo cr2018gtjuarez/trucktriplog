@@ -16627,7 +16627,7 @@ window.addEventListener('load', function(){
 <script src="visor.js?v=2" defer></script>
 <script>
 // ===== Versión de la app bien visible (encabezado, menú y pantalla de entrada) =====
-const APP_VERSION='yenavi-2026-11-25g';   // se cambia junto con VERSION de sw.js en cada subida
+const APP_VERSION='yenavi-2026-11-25h';   // se cambia junto con VERSION de sw.js en cada subida
 function appVerShort(){ const m=APP_VERSION.match(/(\d{4})-(\d{2})-(\d{2})([a-z]*)/); if(!m) return APP_VERSION; const mes=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][+m[2]-1]; return 'v'+(+m[3])+' '+mes+(m[4]?' '+m[4].toUpperCase():''); }
 function appVerShow(){
   try{
@@ -16643,7 +16643,7 @@ function appVerShow(){
 if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',appVerShow); else appVerShow();
 setTimeout(appVerShow,1500);
 </script>
-<script src="voz.js?v=19" defer></script>
+<script src="voz.js?v=20" defer></script>
 <script src="pod-check.js?v=1" defer></script>
 <script src="solicitud.js?v=6" defer></script>
 </body>

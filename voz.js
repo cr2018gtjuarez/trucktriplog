@@ -19,7 +19,7 @@
   function user(){ try { return (typeof currentUser !== 'undefined') ? currentUser : null; } catch(e){ return null; } }
   function allowed(){
     var u = user(); if (!u) return false;
-    try { if (document.documentElement.classList.contains('eta-skin')) return false; } catch(e){}
+    try { if (document.documentElement.classList.contains('eta-skin') || document.documentElement.classList.contains('eta-app')) return false; } catch(e){}
     if (APP) return u.role === 'admin' || u.role === 'driver' || !u.role;
     return IS_DRIVER ? (u.role === 'driver' || !u.role) : (u.role === 'admin');
   }

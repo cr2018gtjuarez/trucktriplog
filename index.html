@@ -4704,9 +4704,11 @@ if(ETA_APP){ try{ document.title='ETA';
   setL('link[rel="manifest"]','href','eta.webmanifest'); setL('meta[name="apple-mobile-web-app-title"]','content','ETA');
   document.querySelectorAll('link[rel="apple-touch-icon"]').forEach(l=>l.setAttribute('href','eta-apple-touch-icon.png'));
   document.querySelectorAll('link[rel="icon"]').forEach(l=>l.setAttribute('href','eta-icon-192.png'));
-  setL('meta[name="theme-color"]','content','#0B1022'); }catch(e){} }
+  setL('meta[name="theme-color"]','content','#1E3A8A'); }catch(e){} }
 // ===== DISEÑO PROPIO DE LA APP ETA (oscuro, con su logo y nombre; no el de la compañía) =====
-if(ETA_APP){ try{
+if(ETA_APP){ try{ document.documentElement.classList.add('eta-app'); }catch(e){} }
+// La app ETA ahora usa el mismo diseño que el ETA del dispatcher/admin (blanco con azul); el diseño oscuro quedó apagado
+if(ETA_APP && false){ try{
   document.documentElement.classList.add('eta-skin');
   const st=document.createElement('style'); st.textContent=`
     html.eta-skin{color-scheme:dark;}
@@ -7110,7 +7112,7 @@ function etaShotMount(){
   let host=q.closest('.de-map,.eta-map,[id$="-mapwrap"]')||q.parentElement; while(host&&host.parentElement&&!/page-/.test(host.parentElement.id||'')&&host.parentElement!==document.body&&!host.parentElement.classList.contains('page')) host=host.parentElement;
   if(host&&host.parentElement) host.parentElement.insertBefore(box,host); else q.parentElement.insertBefore(box,q);
   // En la app ETA: cuánto tarda en llegar va arriba (debajo del botón), antes de la lista y del mapa
-  if(ETA_APP){ const res=document.getElementById('eta-res')||document.getElementById('de-res'); const card=res&&(res.closest('.card')||res.parentElement); const loads=document.getElementById('eta-loads');
+  if(ETA_APP && false){ const res=document.getElementById('eta-res')||document.getElementById('de-res'); const card=res&&(res.closest('.card')||res.parentElement); const loads=document.getElementById('eta-loads');
     if(card&&loads&&!box.contains(card)){ card.style.marginTop='0'; card.style.marginBottom='12px'; box.insertBefore(card,loads); }
     // la caja de ZIP / ciudad va dentro de esa misma tarjeta, arriba del resultado
     const row=document.getElementById('eta-q2row'); if(row&&card){ const lab=document.createElement('div'); lab.style.cssText='font-size:12px;font-weight:900;letter-spacing:1px;text-transform:uppercase;color:var(--text3);margin:6px 0 6px;'; lab.textContent=(window.TL_LANG==='en'?'Pick up ZIP or city, state':'ZIP o ciudad del pick up'); const grip=card.firstElementChild&&card.firstElementChild.style&&card.firstElementChild.style.height==='4px'?card.firstElementChild:null; const at=grip?grip.nextSibling:card.firstChild; card.insertBefore(lab,at); card.insertBefore(row,at); } }
@@ -20746,7 +20748,7 @@ function etaQ2Pick(k){ const s=_q2Sugs[k]; if(!s) return; const i=document.getEl
 
 <script>
 // ===== Versión de la app bien visible (encabezado, menú y pantalla de entrada) =====
-const APP_VERSION='yenavi-2026-11-25g';   // se cambia junto con VERSION de sw.js en cada subida
+const APP_VERSION='yenavi-2026-11-25h';   // se cambia junto con VERSION de sw.js en cada subida
 function appVerShort(){ const m=APP_VERSION.match(/(\d{4})-(\d{2})-(\d{2})([a-z]*)/); if(!m) return APP_VERSION; const mes=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][+m[2]-1]; return 'v'+(+m[3])+' '+mes+(m[4]?' '+m[4].toUpperCase():''); }
 function appVerShow(){
   try{
@@ -20784,7 +20786,7 @@ setTimeout(appVerShow,1500);
   window[fn]=function(){ if(isDispatch()){ alert(window.TL_LANG==='en'?'View only.':'Solo para ver: el usuario Dispatch no puede cambiar viajes.'); if(typeof renderLog==='function') try{ renderLog(); }catch(e){} return; } return f.apply(this,arguments); };
 }); })();
 </script>
-<script src="voz.js?v=19" defer></script>
+<script src="voz.js?v=20" defer></script>
 <script src="pod-check.js?v=1" defer></script>
 <script src="solicitud.js?v=6" defer></script>
 </body>
